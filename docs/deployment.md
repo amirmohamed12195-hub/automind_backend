@@ -77,6 +77,22 @@ host provides managed Redis, set `CACHE_STORE`, `QUEUE_CONNECTION`, and
 `SESSION_DRIVER` to `redis` only after replacing `REDIS_HOST` and the related
 credentials with the real connection details.
 
+For the `automind.rafeequae.com` Hostinger deployment, install the dedicated
+environment template with:
+
+```bash
+read -rsp "New OpenAI API key: " AUTOMIND_NEW_OPENAI_KEY
+echo
+AUTOMIND_OPENAI_API_KEY="$AUTOMIND_NEW_OPENAI_KEY" php scripts/install-hostinger-env.php
+unset AUTOMIND_NEW_OPENAI_KEY
+php artisan config:clear
+composer run deploy:production
+```
+
+The installer creates a timestamped backup, preserves the existing `APP_KEY`,
+and deliberately does not preserve the old OpenAI key. The silent prompt keeps
+the newly generated key out of shell history.
+
 Apache or PHP-FPM serves the API, so do not use `php artisan serve` in
 production.
 
