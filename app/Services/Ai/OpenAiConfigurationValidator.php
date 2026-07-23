@@ -38,8 +38,9 @@ class OpenAiConfigurationValidator
             $errors[] = 'OPENAI_PRICING_VERSION must identify the official pricing snapshot.';
         }
         if ($requireKey) {
+            $pricingModels = config('openai.pricing.models', []);
             foreach (array_unique([(string) config('openai.diagnosis_model'), (string) config('openai.vision_model'), (string) config('openai.audio_model'), (string) config('openai.transcription_model'), (string) config('openai.price_search_model')]) as $model) {
-                $rates = config("openai.pricing.models.$model");
+                $rates = is_array($pricingModels) ? ($pricingModels[$model] ?? null) : null;
                 if (! is_array($rates)) {
                     $errors[] = "Pricing rates are missing for model [$model].";
 

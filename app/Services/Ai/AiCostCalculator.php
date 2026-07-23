@@ -6,7 +6,8 @@ class AiCostCalculator
 {
     public function estimate(string $model, array $usage, array $metadata = []): ?string
     {
-        $rates = config("openai.pricing.models.$model");
+        $pricingModels = config('openai.pricing.models', []);
+        $rates = is_array($pricingModels) ? ($pricingModels[$model] ?? null) : null;
         if (! is_array($rates)) {
             return null;
         }

@@ -36,11 +36,22 @@ Rates live in versioned `OPENAI_PRICING_MODELS_JSON`, never business logic. Exam
 
 ```json
 {
-  "gpt-5.6-terra": {"input": "0", "cachedInput": "0", "output": "0"},
-  "gpt-5.6-luna": {"input": "0", "cachedInput": "0", "output": "0", "webSearchCall": "0"}
+  "gpt-5.6-terra": {"input": "2.5", "cachedInput": "0.25", "output": "15"},
+  "gpt-audio-1.5": {"input": "32", "output": "10"},
+  "gpt-4o-mini-transcribe": {"input": "1.25", "output": "5"},
+  "gpt-5.6-luna": {"input": "1", "cachedInput": "0.1", "output": "6", "webSearchCall": "0.01"}
 }
 ```
 
-Replace zeros with the current official USD rates before production. The deployment validator requires pricing entries for every configured model. Daily per-user and global spend guards stop new calls after configured limits. Request/queue/provider latency, error categories, refusal/schema rates, source count, and approximate spend are emitted through structured logs and database metadata.
+This `openai-api-standard-2026-07-23` snapshot uses standard-tier USD rates
+per million tokens and $0.01 per web-search call. The audio-analysis request
+uses the audio-input rate and text-output rate. Re-verify the snapshot against
+the [official API pricing](https://developers.openai.com/api/docs/pricing) page
+before a later production release. The deployment validator requires pricing
+entries for every configured model. Daily
+per-user and global spend guards stop new calls after configured limits.
+Request/queue/provider latency, error categories, refusal/schema rates, source
+count, and approximate spend are emitted through structured logs and database
+metadata.
 
 No ordinary health check makes a paid request. Live provider tests must be separately tagged and explicitly enabled with `RUN_OPENAI_LIVE_TESTS=true`; unit and CI tests bind fake adapters.

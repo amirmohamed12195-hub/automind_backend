@@ -14,11 +14,13 @@ class AiCostBudgetTest extends ApiTestCase
     public function test_versioned_rates_calculate_cost_and_daily_user_budget_blocks_new_calls(): void
     {
         config([
-            'openai.pricing.models.gpt-test' => ['input' => '1.00', 'cachedInput' => '0.25', 'output' => '2.00', 'webSearchCall' => '0.01'],
+            'openai.pricing.models' => [
+                'gpt-5.6-test' => ['input' => '1.00', 'cachedInput' => '0.25', 'output' => '2.00', 'webSearchCall' => '0.01'],
+            ],
             'openai.daily_user_budget_usd' => '0.010000',
             'openai.daily_global_budget_usd' => '10.000000',
         ]);
-        $cost = app(AiCostCalculator::class)->estimate('gpt-test', ['inputTokens' => 1000, 'cachedTokens' => 500, 'outputTokens' => 2000], ['webSearchCalls' => 1]);
+        $cost = app(AiCostCalculator::class)->estimate('gpt-5.6-test', ['inputTokens' => 1000, 'cachedTokens' => 500, 'outputTokens' => 2000], ['webSearchCalls' => 1]);
         $this->assertSame('0.014625', $cost);
 
         $user = $this->actingAsUser();
