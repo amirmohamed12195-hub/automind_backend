@@ -52,26 +52,50 @@ if (! is_string($environment)) {
 }
 
 $openAiApiKey = getenv('AUTOMIND_OPENAI_API_KEY');
+$databasePassword = getenv('AUTOMIND_DB_PASSWORD');
 
-if (is_string($openAiApiKey) && trim($openAiApiKey) !== '') {
-    $openAiApiKey = trim($openAiApiKey);
+if (! is_string($openAiApiKey) || trim($openAiApiKey) === '') {
+    fwrite(STDERR, "AUTOMIND_OPENAI_API_KEY is required.\n");
+    exit(1);
+}
 
-    if (preg_match('/[\r\n]/', $openAiApiKey) === 1) {
-        fwrite(STDERR, "The supplied OpenAI API key contains an invalid newline.\n");
-        exit(1);
-    }
+if (! is_string($databasePassword) || $databasePassword === '') {
+    fwrite(STDERR, "AUTOMIND_DB_PASSWORD is required.\n");
+    exit(1);
+}
 
-    $environment = preg_replace_callback(
-        '/^OPENAI_API_KEY=.*$/m',
-        static fn (): string => 'OPENAI_API_KEY='.$openAiApiKey,
-        $environment,
-        1,
-    );
+$openAiApiKey = trim($openAiApiKey);
 
-    if (! is_string($environment)) {
-        fwrite(STDERR, "Unable to set the OpenAI API key.\n");
-        exit(1);
-    }
+if (
+    preg_match('/[\r\n]/', $openAiApiKey) === 1
+    || str_contains($openAiApiKey, 'OPENAI_BASE_URL=')
+) {
+    fwrite(STDERR, "The supplied OpenAI API key is malformed.\n");
+    exit(1);
+}
+
+if (preg_match('/[\r\n]/', $databasePassword) === 1) {
+    fwrite(STDERR, "The supplied database password contains an invalid newline.\n");
+    exit(1);
+}
+
+$environment = preg_replace_callback(
+    '/^OPENAI_API_KEY=.*$/m',
+    static fn (): string => 'OPENAI_API_KEY='.$openAiApiKey,
+    $environment,
+    1,
+);
+
+$environment = preg_replace_callback(
+    '/^DB_PASSWORD=.*$/m',
+    static fn (): string => 'DB_PASSWORD='.$databasePassword,
+    $environment,
+    1,
+);
+
+if (! is_string($environment)) {
+    fwrite(STDERR, "Unable to set the production credentials.\n");
+    exit(1);
 }
 
 if (is_file($environmentPath)) {
@@ -104,9 +128,5 @@ if (! rename($temporaryPath, $environmentPath)) {
 fwrite(
     STDOUT,
     "Hostinger .env installed and the existing APP_KEY preserved.\n".
-    (
-        is_string($openAiApiKey) && $openAiApiKey !== ''
-            ? "The supplied OpenAI API key was installed.\n"
-            : "Edit .env and replace REPLACE_WITH_A_NEW_OPENAI_API_KEY before deploying.\n"
-    ),
+    "The supplied MySQL and OpenAI credentials were installed.\n",
 );

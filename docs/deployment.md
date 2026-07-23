@@ -83,8 +83,13 @@ environment template with:
 ```bash
 read -rsp "New OpenAI API key: " AUTOMIND_NEW_OPENAI_KEY
 echo
-AUTOMIND_OPENAI_API_KEY="$AUTOMIND_NEW_OPENAI_KEY" php scripts/install-hostinger-env.php
+read -rsp "New MySQL password: " AUTOMIND_NEW_DB_PASSWORD
+echo
+AUTOMIND_OPENAI_API_KEY="$AUTOMIND_NEW_OPENAI_KEY" \
+AUTOMIND_DB_PASSWORD="$AUTOMIND_NEW_DB_PASSWORD" \
+php scripts/install-hostinger-env.php
 unset AUTOMIND_NEW_OPENAI_KEY
+unset AUTOMIND_NEW_DB_PASSWORD
 php artisan config:clear
 composer run deploy:production
 ```

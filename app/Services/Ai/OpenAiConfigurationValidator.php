@@ -9,8 +9,15 @@ class OpenAiConfigurationValidator
     public function errors(bool $requireKey = true): array
     {
         $errors = [];
-        if ($requireKey && blank(config('openai.api_key'))) {
+        $apiKey = (string) config('openai.api_key');
+        if ($requireKey && blank($apiKey)) {
             $errors[] = 'OPENAI_API_KEY is required.';
+        } elseif ($requireKey && (
+            str_contains($apiKey, 'OPENAI_BASE_URL=')
+            || str_contains(strtoupper($apiKey), 'CHANGE_ME')
+            || str_contains(strtoupper($apiKey), 'REPLACE_WITH')
+        )) {
+            $errors[] = 'OPENAI_API_KEY is malformed or still contains a placeholder.';
         }
         $baseUrl = (string) config('openai.base_url');
         if (! filter_var($baseUrl, FILTER_VALIDATE_URL) || (app()->environment('production') && ! str_starts_with($baseUrl, 'https://'))) {
