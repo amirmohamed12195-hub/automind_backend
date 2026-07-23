@@ -1,0 +1,56 @@
+{
+  "type": "json_schema",
+  "name": "automind_diagnostic_report",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["title", "summary", "overallConfidence", "severity", "drivingRecommendation", "drivingAdvice", "evidenceQuality", "professionalInspectionRequired", "emergencyWarnings", "suspectedFaults", "safeChecks", "recommendedActions", "limitations", "missingEvidence"],
+    "properties": {
+      "title": {"$ref": "#/$defs/bilingualText"},
+      "summary": {"$ref": "#/$defs/bilingualText"},
+      "overallConfidence": {"type": "number", "minimum": 0, "maximum": 1},
+      "severity": {"type": "string", "enum": ["low", "medium", "high", "critical", "unknown"]},
+      "drivingRecommendation": {"type": "string", "enum": ["safeToDrive", "driveWithCaution", "stopSoon", "stopImmediately", "towRequired", "unknown"]},
+      "drivingAdvice": {"$ref": "#/$defs/bilingualText"},
+      "evidenceQuality": {"type": "string", "enum": ["poor", "limited", "moderate", "strong"]},
+      "professionalInspectionRequired": {"type": "boolean"},
+      "emergencyWarnings": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/bilingualText"}},
+      "suspectedFaults": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/fault"}},
+      "safeChecks": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/safeAction"}},
+      "recommendedActions": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"$ref": "#/$defs/action"}},
+      "limitations": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/bilingualText"}},
+      "missingEvidence": {"type": "array", "maxItems": 8, "items": {"type": "string", "enum": ["description", "symptoms", "engineSound", "photos", "obd", "mileage", "vin", "serviceHistory"]}}
+    },
+    "$defs": {
+      "bilingualText": {"type": "object", "additionalProperties": false, "required": ["en", "ar"], "properties": {"en": {"type": "string"}, "ar": {"type": "string"}}},
+      "evidence": {
+        "type": "object", "additionalProperties": false, "required": ["sourceType", "referenceId", "observation", "reliability"],
+        "properties": {
+          "sourceType": {"type": "string", "enum": ["text", "photo", "engineSound", "spokenDescription", "obd"]},
+          "referenceId": {"type": ["string", "null"]}, "observation": {"$ref": "#/$defs/bilingualText"}, "reliability": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      },
+      "part": {
+        "type": "object", "additionalProperties": false, "required": ["canonicalName", "name", "reason", "partNumber", "required", "compatibilityConfidence", "searchKeywords"],
+        "properties": {
+          "canonicalName": {"type": "string"}, "name": {"$ref": "#/$defs/bilingualText"}, "reason": {"$ref": "#/$defs/bilingualText"},
+          "partNumber": {"type": ["string", "null"]}, "required": {"type": "boolean"}, "compatibilityConfidence": {"type": "number", "minimum": 0, "maximum": 1}, "searchKeywords": {"$ref": "#/$defs/bilingualText"}
+        }
+      },
+      "fault": {
+        "type": "object", "additionalProperties": false, "required": ["canonicalCode", "obdCode", "title", "description", "confidence", "severity", "evidence", "possibleCauses", "recommendedActions", "recommendedParts"],
+        "properties": {
+          "canonicalCode": {"type": "string"}, "obdCode": {"type": ["string", "null"]}, "title": {"$ref": "#/$defs/bilingualText"}, "description": {"$ref": "#/$defs/bilingualText"},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "severity": {"type": "string", "enum": ["low", "medium", "high", "critical", "unknown"]},
+          "evidence": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/evidence"}},
+          "possibleCauses": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/bilingualText"}},
+          "recommendedActions": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/action"}},
+          "recommendedParts": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/part"}}
+        }
+      },
+      "safeAction": {"type": "object", "additionalProperties": false, "required": ["text", "stopCondition"], "properties": {"text": {"$ref": "#/$defs/bilingualText"}, "stopCondition": {"$ref": "#/$defs/bilingualText"}}},
+      "action": {"type": "object", "additionalProperties": false, "required": ["code", "text", "priority", "professionalRequired"], "properties": {"code": {"type": "string"}, "text": {"$ref": "#/$defs/bilingualText"}, "priority": {"type": "integer", "minimum": 1, "maximum": 5}, "professionalRequired": {"type": "boolean"}}}
+    }
+  }
+}

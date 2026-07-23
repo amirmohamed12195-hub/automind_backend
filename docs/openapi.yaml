@@ -1,0 +1,529 @@
+openapi: 3.1.0
+info:
+  title: AutoMind AI Backend API
+  version: 1.0.0
+  description: Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
+  license: {name: Proprietary, url: https://automind.example/terms}
+servers:
+  - url: https://api.automind.example/api/v1
+  - url: http://localhost:8080/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - {name: System, description: Service health and version metadata.}
+  - {name: Auth, description: Mobile identity and token lifecycle.}
+  - {name: Account, description: Profile settings and registered devices.}
+  - {name: Vehicles, description: Owned vehicles and catalog lookup.}
+  - {name: Diagnostics, description: Evidence capture and queued analysis.}
+  - {name: Reports, description: Safe bilingual reports and sourced estimates.}
+  - {name: Maintenance, description: Service history and reminders.}
+  - {name: Mechanics, description: Public verified mechanic discovery.}
+  - {name: Appointments, description: Conflict-safe bookings and reviews.}
+  - {name: Notifications, description: User notification inbox.}
+  - {name: Webhooks, description: Signature-verified provider callbacks.}
+  - {name: Admin, description: Role-protected production data operations.}
+paths:
+  /health:
+    get: {tags: [System], operationId: getHealth, summary: "getHealth", security: [], parameters: [{$ref: '#/components/parameters/HealthType'}], responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Success'}}}
+  /version:
+    get: {tags: [System], operationId: getVersion, summary: "getVersion", security: [], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /auth/register:
+    post: {tags: [Auth], operationId: register, summary: "register", security: [], requestBody: {$ref: '#/components/requestBodies/Register'}, responses: {'201': {$ref: '#/components/responses/Auth'}, '422': {$ref: '#/components/responses/Error'}, '429': {$ref: '#/components/responses/Error'}}}
+  /auth/login:
+    post: {tags: [Auth], operationId: login, summary: "login", security: [], requestBody: {$ref: '#/components/requestBodies/Login'}, responses: {'200': {$ref: '#/components/responses/Auth'}, '401': {$ref: '#/components/responses/Error'}, '429': {$ref: '#/components/responses/Error'}}}
+  /auth/social/google:
+    post: {tags: [Auth], operationId: googleLogin, summary: "googleLogin", security: [], requestBody: {$ref: '#/components/requestBodies/SocialLogin'}, responses: {'200': {$ref: '#/components/responses/Auth'}, '401': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /auth/social/apple:
+    post: {tags: [Auth], operationId: appleLogin, summary: "appleLogin", security: [], requestBody: {$ref: '#/components/requestBodies/SocialLogin'}, responses: {'200': {$ref: '#/components/responses/Auth'}, '401': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /auth/forgot-password:
+    post: {tags: [Auth], operationId: forgotPassword, summary: "forgotPassword", security: [], requestBody: {$ref: '#/components/requestBodies/Email'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /auth/reset-password:
+    post: {tags: [Auth], operationId: resetPassword, summary: "resetPassword", security: [], requestBody: {$ref: '#/components/requestBodies/ResetPassword'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /auth/logout:
+    post: {tags: [Auth], operationId: logout, summary: "logout", responses: {'204': {description: Logged out}, '401': {$ref: '#/components/responses/Error'}}}
+  /auth/logout-all:
+    post: {tags: [Auth], operationId: logoutAll, summary: "logoutAll", responses: {'204': {description: All tokens revoked}, '401': {$ref: '#/components/responses/Error'}}}
+  /me:
+    get: {tags: [Account], operationId: getMe, summary: "getMe", responses: {'200': {$ref: '#/components/responses/User'}, '401': {$ref: '#/components/responses/Error'}}}
+    patch: {tags: [Account], operationId: updateMe, summary: "updateMe", requestBody: {$ref: '#/components/requestBodies/ProfileUpdate'}, responses: {'200': {$ref: '#/components/responses/User'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Account], operationId: deleteMe, summary: "deleteMe", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: Deletion requested}}}
+  /me/avatar:
+    post: {tags: [Account], operationId: uploadAvatar, summary: "uploadAvatar", requestBody: {$ref: '#/components/requestBodies/Avatar'}, responses: {'200': {$ref: '#/components/responses/User'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Account], operationId: deleteAvatar, summary: "deleteAvatar", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: Avatar removed}}}
+  /settings:
+    get: {tags: [Account], operationId: getSettings, summary: "getSettings", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    patch: {tags: [Account], operationId: updateSettings, summary: "updateSettings", requestBody: {$ref: '#/components/requestBodies/SettingsUpdate'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /devices:
+    post: {tags: [Account], operationId: registerDevice, summary: "registerDevice", requestBody: {$ref: '#/components/requestBodies/Device'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /devices/{deviceTokenId}:
+    parameters: [{$ref: '#/components/parameters/DeviceTokenId'}]
+    delete: {tags: [Account], operationId: deleteDevice, summary: "deleteDevice", responses: {'204': {description: Device removed}, '404': {$ref: '#/components/responses/Error'}}}
+  /vehicle-catalog/makes:
+    get: {tags: [Vehicles], operationId: listVehicleMakes, summary: "listVehicleMakes", security: [], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /vehicle-catalog/makes/{makeCode}/models:
+    parameters: [{$ref: '#/components/parameters/MakeCode'}]
+    get: {tags: [Vehicles], operationId: listVehicleModels, summary: "listVehicleModels", security: [], parameters: [{name: year, in: query, schema: {type: integer}}], responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}}}
+  /vehicles:
+    get: {tags: [Vehicles], operationId: listVehicles, summary: "listVehicles", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/VehicleList'}}}
+    post: {tags: [Vehicles], operationId: createVehicle, summary: "createVehicle", requestBody: {$ref: '#/components/requestBodies/Vehicle'}, responses: {'201': {$ref: '#/components/responses/Vehicle'}, '422': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}]
+    get: {tags: [Vehicles], operationId: getVehicle, summary: "getVehicle", responses: {'200': {$ref: '#/components/responses/Vehicle'}, '403': {$ref: '#/components/responses/Error'}, '404': {$ref: '#/components/responses/Error'}}}
+    patch: {tags: [Vehicles], operationId: updateVehicle, summary: "updateVehicle", requestBody: {$ref: '#/components/requestBodies/VehicleUpdate'}, responses: {'200': {$ref: '#/components/responses/Vehicle'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Vehicles], operationId: deleteVehicle, summary: "deleteVehicle", responses: {'204': {description: Vehicle deleted}, '409': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/selected:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}]
+    put: {tags: [Vehicles], operationId: selectVehicle, summary: "selectVehicle", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Vehicle'}}}
+  /vehicles/{vehicleId}/health:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}]
+    get: {tags: [Vehicles], operationId: getVehicleHealth, summary: "getVehicleHealth", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /symptoms:
+    get: {tags: [Diagnostics], operationId: listSymptoms, summary: "listSymptoms", security: [], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /diagnoses:
+    get: {tags: [Diagnostics], operationId: listDiagnoses, summary: "listDiagnoses", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Diagnostics], operationId: createDiagnosis, summary: "createDiagnosis", parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], requestBody: {$ref: '#/components/requestBodies/Diagnosis'}, responses: {'201': {$ref: '#/components/responses/Diagnosis'}, '422': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get: {tags: [Diagnostics], operationId: getDiagnosis, summary: "getDiagnosis", responses: {'200': {$ref: '#/components/responses/Diagnosis'}, '403': {$ref: '#/components/responses/Error'}}}
+    patch: {tags: [Diagnostics], operationId: updateDiagnosis, summary: "updateDiagnosis", requestBody: {$ref: '#/components/requestBodies/DiagnosisUpdate'}, responses: {'200': {$ref: '#/components/responses/Diagnosis'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Diagnostics], operationId: deleteDiagnosis, summary: "deleteDiagnosis", responses: {'204': {description: Draft diagnosis deleted}, '409': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/media:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post: {tags: [Diagnostics], operationId: uploadDiagnosticMedia, summary: "uploadDiagnosticMedia", requestBody: {$ref: '#/components/requestBodies/DiagnosticMedia'}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/media/{mediaId}:
+    parameters: [{$ref: '#/components/parameters/SessionId'}, {$ref: '#/components/parameters/MediaId'}]
+    delete: {tags: [Diagnostics], operationId: deleteDiagnosticMedia, summary: "deleteDiagnosticMedia", responses: {'204': {description: Media removed}, '404': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/obd-snapshots:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post: {tags: [Diagnostics], operationId: createObdSnapshot, summary: "createObdSnapshot", requestBody: {$ref: '#/components/requestBodies/Obd'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/analyze:
+    parameters: [{$ref: '#/components/parameters/SessionId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+    post: {tags: [Diagnostics], operationId: analyzeDiagnosis, summary: "analyzeDiagnosis", responses: {'202': {$ref: '#/components/responses/AnalysisAccepted'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/cancel:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    post: {tags: [Diagnostics], operationId: cancelDiagnosis, summary: "cancelDiagnosis", responses: {'200': {$ref: '#/components/responses/Diagnosis'}, '409': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/retry:
+    parameters: [{$ref: '#/components/parameters/SessionId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+    post: {tags: [Diagnostics], operationId: retryDiagnosis, summary: "retryDiagnosis", responses: {'202': {$ref: '#/components/responses/AnalysisAccepted'}, '409': {$ref: '#/components/responses/Error'}}}
+  /diagnoses/{sessionId}/status:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get: {tags: [Diagnostics], operationId: getDiagnosisStatus, summary: "getDiagnosisStatus", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/AnalysisStatus'}}}
+  /diagnoses/{sessionId}/report:
+    parameters: [{$ref: '#/components/parameters/SessionId'}]
+    get: {tags: [Reports], operationId: getDiagnosisReport, summary: "getDiagnosisReport", responses: {'200': {$ref: '#/components/responses/Report'}, '409': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}:
+    parameters: [{$ref: '#/components/parameters/ReportId'}]
+    get: {tags: [Reports], operationId: getReport, summary: "getReport", responses: {'200': {$ref: '#/components/responses/Report'}, '403': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}/feedback:
+    parameters: [{$ref: '#/components/parameters/ReportId'}]
+    post: {tags: [Reports], operationId: reportFeedback, summary: "reportFeedback", requestBody: {$ref: '#/components/requestBodies/ReportFeedback'}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}/refresh-estimate:
+    parameters: [{$ref: '#/components/parameters/ReportId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
+    post: {tags: [Reports], operationId: refreshEstimate, summary: "refreshEstimate", responses: {'202': {$ref: '#/components/responses/Success'}, '429': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}/share:
+    parameters: [{$ref: '#/components/parameters/ReportId'}]
+    get: {tags: [Reports], operationId: shareReport, summary: "shareReport", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /shared/reports/{reportId}:
+    parameters: [{$ref: '#/components/parameters/ReportId'}, {name: expires, in: query, required: true, schema: {type: integer}}, {name: signature, in: query, required: true, schema: {type: string}}, {name: locale, in: query, schema: {type: string, enum: [en, ar]}}]
+    get: {tags: [Reports], operationId: getSharedReport, summary: "getSharedReport", security: [], responses: {'200': {$ref: '#/components/responses/Report'}, '403': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/maintenance:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}]
+    get: {tags: [Maintenance], operationId: listMaintenance, summary: "listMaintenance", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Maintenance], operationId: createMaintenance, summary: "createMaintenance", requestBody: {$ref: '#/components/requestBodies/MaintenanceRecordCreate'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/maintenance/{recordId}:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}, {$ref: '#/components/parameters/RecordId'}]
+    get: {tags: [Maintenance], operationId: getMaintenance, summary: "getMaintenance", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    patch: {tags: [Maintenance], operationId: updateMaintenance, summary: "updateMaintenance", requestBody: {$ref: '#/components/requestBodies/MaintenanceRecord'}, responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Maintenance], operationId: deleteMaintenance, summary: "deleteMaintenance", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: Record deleted}}}
+  /vehicles/{vehicleId}/maintenance-reminders:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}]
+    get: {tags: [Maintenance], operationId: listMaintenanceReminders, summary: "listMaintenanceReminders", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Maintenance], operationId: createMaintenanceReminder, summary: "createMaintenanceReminder", requestBody: {$ref: '#/components/requestBodies/MaintenanceReminderCreate'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/maintenance-reminders/{reminderId}:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}, {$ref: '#/components/parameters/ReminderId'}]
+    patch: {tags: [Maintenance], operationId: updateMaintenanceReminder, summary: "updateMaintenanceReminder", requestBody: {$ref: '#/components/requestBodies/MaintenanceReminder'}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/maintenance-reminders/{reminderId}/complete:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}, {$ref: '#/components/parameters/ReminderId'}]
+    post: {tags: [Maintenance], operationId: completeMaintenanceReminder, summary: "completeMaintenanceReminder", requestBody: {$ref: '#/components/requestBodies/ReminderCompletion'}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /vehicles/{vehicleId}/maintenance-reminders/{reminderId}/snooze:
+    parameters: [{$ref: '#/components/parameters/VehicleId'}, {$ref: '#/components/parameters/ReminderId'}]
+    post: {tags: [Maintenance], operationId: snoozeMaintenanceReminder, summary: "snoozeMaintenanceReminder", requestBody: {$ref: '#/components/requestBodies/ReminderSnooze'}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /mechanics:
+    get: {tags: [Mechanics], operationId: listMechanics, summary: "listMechanics", security: [], parameters: [{$ref: '#/components/parameters/Latitude'}, {$ref: '#/components/parameters/Longitude'}, {name: radiusKm, in: query, schema: {type: number, minimum: 1, maximum: 200}}, {name: specialty, in: query, schema: {type: string}}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /mechanics/{mechanicId}:
+    parameters: [{$ref: '#/components/parameters/MechanicId'}]
+    get: {tags: [Mechanics], operationId: getMechanic, summary: "getMechanic", security: [], responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}}}
+  /mechanics/{mechanicId}/availability:
+    parameters: [{$ref: '#/components/parameters/MechanicId'}]
+    get: {tags: [Mechanics], operationId: getMechanicAvailability, summary: "getMechanicAvailability", security: [], parameters: [{name: from, in: query, required: true, schema: {type: string, format: date-time}}, {name: to, in: query, required: true, schema: {type: string, format: date-time}}], responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /appointments:
+    post: {tags: [Appointments], operationId: createAppointment, summary: "createAppointment", parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], requestBody: {$ref: '#/components/requestBodies/Appointment'}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+    get: {tags: [Appointments], operationId: listAppointments, summary: "listAppointments", parameters: [{$ref: '#/components/parameters/Cursor'}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /appointments/{appointmentId}:
+    parameters: [{$ref: '#/components/parameters/AppointmentId'}]
+    get: {tags: [Appointments], operationId: getAppointment, summary: "getAppointment", responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+  /appointments/{appointmentId}/cancel:
+    parameters: [{$ref: '#/components/parameters/AppointmentId'}]
+    post: {tags: [Appointments], operationId: cancelAppointment, summary: "cancelAppointment", requestBody: {$ref: '#/components/requestBodies/AppointmentCancel'}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /appointments/{appointmentId}/reviews:
+    parameters: [{$ref: '#/components/parameters/AppointmentId'}]
+    post: {tags: [Appointments], operationId: reviewAppointment, summary: "reviewAppointment", requestBody: {$ref: '#/components/requestBodies/AppointmentReview'}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /notifications:
+    get: {tags: [Notifications], operationId: listNotifications, summary: "listNotifications", parameters: [{$ref: '#/components/parameters/Cursor'}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /notifications/read-all:
+    post: {tags: [Notifications], operationId: readAllNotifications, summary: "readAllNotifications", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: All notifications marked read}}}
+  /notifications/{notificationId}/read:
+    parameters: [{$ref: '#/components/parameters/NotificationId'}]
+    post: {tags: [Notifications], operationId: readNotification, summary: "readNotification", responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}}}
+  /webhooks/openai:
+    post: {tags: [Webhooks], operationId: openAiWebhook, summary: "openAiWebhook", security: [], parameters: [{$ref: '#/components/parameters/WebhookId'}, {$ref: '#/components/parameters/WebhookTimestamp'}, {$ref: '#/components/parameters/WebhookSignature'}], responses: {'202': {description: Accepted}, '400': {$ref: '#/components/responses/Error'}}}
+  /admin/mechanics:
+    get: {tags: [Admin], operationId: adminListMechanics, summary: "adminListMechanics", responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+    post: {tags: [Admin], operationId: adminCreateMechanic, summary: "adminCreateMechanic", requestBody: {$ref: '#/components/requestBodies/AdminMechanicCreate'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/mechanics/{mechanicId}:
+    parameters: [{$ref: '#/components/parameters/MechanicId'}]
+    patch: {tags: [Admin], operationId: adminUpdateMechanic, summary: "adminUpdateMechanic", requestBody: {$ref: '#/components/requestBodies/AdminMechanic'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+    delete: {tags: [Admin], operationId: adminDeleteMechanic, summary: "adminDeleteMechanic", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: Mechanic disabled}}}
+  /admin/mechanics/{mechanicId}/verification:
+    parameters: [{$ref: '#/components/parameters/MechanicId'}]
+    put: {tags: [Admin], operationId: adminVerifyMechanic, summary: "adminVerifyMechanic", requestBody: {required: true, content: {application/json: {schema: {type: object, required: [verified], properties: {verified: {type: boolean}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/vehicle-catalog/makes:
+    post: {tags: [Admin], operationId: adminCreateMake, summary: "adminCreateMake", requestBody: {$ref: '#/components/requestBodies/AdminMakeCreate'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/vehicle-catalog/makes/{makeId}:
+    parameters: [{$ref: '#/components/parameters/MakeId'}]
+    patch: {tags: [Admin], operationId: adminUpdateMake, summary: "adminUpdateMake", requestBody: {$ref: '#/components/requestBodies/AdminMake'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/vehicle-catalog/makes/{makeId}/models:
+    parameters: [{$ref: '#/components/parameters/MakeId'}]
+    post: {tags: [Admin], operationId: adminCreateModel, summary: "adminCreateModel", requestBody: {$ref: '#/components/requestBodies/AdminModel'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/maintenance-service-definitions:
+    get: {tags: [Admin], operationId: adminListServiceDefinitions, summary: "adminListServiceDefinitions", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Admin], operationId: adminCreateServiceDefinition, summary: "adminCreateServiceDefinition", requestBody: {$ref: '#/components/requestBodies/AdminServiceDefinitionCreate'}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/maintenance-service-definitions/{serviceId}:
+    parameters: [{$ref: '#/components/parameters/ServiceId'}]
+    patch: {tags: [Admin], operationId: adminUpdateServiceDefinition, summary: "adminUpdateServiceDefinition", requestBody: {$ref: '#/components/requestBodies/AdminServiceDefinition'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/notifications/broadcast:
+    post: {tags: [Admin], operationId: adminBroadcastNotification, summary: "adminBroadcastNotification", requestBody: {$ref: '#/components/requestBodies/AdminBroadcast'}, responses: {'202': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /admin/labor-rate-sources:
+    get: {tags: [Admin], operationId: adminListLaborRates, summary: "List versioned labor hours and hourly rates", parameters: [{name: countryCode, in: query, schema: {type: string, minLength: 2, maxLength: 2}}, {name: city, in: query, schema: {type: string}}, {name: serviceCategory, in: query, schema: {type: string}}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+    post:
+      tags: [Admin]
+      operationId: adminCreateLaborRate
+      summary: Append a sourced or administrator-maintained labor basis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [countryCode, serviceCategory, hourlyLow, hourlyTypical, hourlyHigh, hoursLow, hoursTypical, hoursHigh, currency, observedAt]
+              properties:
+                countryCode: {type: string, minLength: 2, maxLength: 2}
+                city: {type: [string, 'null']}
+                serviceCategory: {type: string, description: Use a canonical part code or default for a whole-job basis.}
+                hourlyLow: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                hourlyTypical: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                hourlyHigh: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                hoursLow: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                hoursTypical: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                hoursHigh: {type: string, pattern: '^\d+(?:\.\d{1,2})?$'}
+                currency: {type: string, pattern: '^[A-Z]{3}$'}
+                observedAt: {type: string, format: date-time}
+                expiresAt: {type: [string, 'null'], format: date-time}
+      responses: {'201': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}
+  /admin/currency-rates:
+    get: {tags: [Admin], operationId: adminListCurrencyRates, summary: "List configured currency-rate evidence", parameters: [{name: baseCurrency, in: query, schema: {type: string, minLength: 3, maxLength: 3}}, {name: quoteCurrency, in: query, schema: {type: string, minLength: 3, maxLength: 3}}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+    post:
+      tags: [Admin]
+      operationId: adminCreateCurrencyRate
+      summary: Append a sourced currency conversion rate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [baseCurrency, quoteCurrency, rate, provider, effectiveAt]
+              properties:
+                baseCurrency: {type: string, pattern: '^[A-Z]{3}$'}
+                quoteCurrency: {type: string, pattern: '^[A-Z]{3}$'}
+                rate: {type: string, pattern: '^\d+(?:\.\d{1,10})?$'}
+                provider: {type: string}
+                effectiveAt: {type: string, format: date-time}
+      responses: {'201': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}
+  /admin/ai-runs/failed:
+    get: {tags: [Admin], operationId: adminListFailedAiRuns, summary: "adminListFailedAiRuns", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /admin/ai-runs/{runId}/retry:
+    parameters: [{$ref: '#/components/parameters/RunId'}]
+    post: {tags: [Admin], operationId: adminRetryAiRun, summary: "adminRetryAiRun", responses: {'400': {$ref: '#/components/responses/Error'}, '202': {$ref: '#/components/responses/Success'}}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: Sanctum}
+  parameters:
+    HealthType: {name: type, in: query, schema: {type: string, enum: [liveness, readiness]}}
+    Cursor: {name: cursor, in: query, schema: {type: string}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, schema: {type: string, maxLength: 128}}
+    Latitude: {name: latitude, in: query, schema: {type: number, minimum: -90, maximum: 90}}
+    Longitude: {name: longitude, in: query, schema: {type: number, minimum: -180, maximum: 180}}
+    VehicleId: {name: vehicleId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    SessionId: {name: sessionId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    ReportId: {name: reportId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    MediaId: {name: mediaId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    RecordId: {name: recordId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    ReminderId: {name: reminderId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    MechanicId: {name: mechanicId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    AppointmentId: {name: appointmentId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    NotificationId: {name: notificationId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    DeviceTokenId: {name: deviceTokenId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    MakeId: {name: makeId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    ServiceId: {name: serviceId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    RunId: {name: runId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    MakeCode: {name: makeCode, in: path, required: true, schema: {type: string}}
+    WebhookId: {name: webhook-id, in: header, required: true, schema: {type: string}}
+    WebhookTimestamp: {name: webhook-timestamp, in: header, required: true, schema: {type: string}}
+    WebhookSignature: {name: webhook-signature, in: header, required: true, schema: {type: string}}
+  requestBodies:
+    Register: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}}}
+    Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
+    SocialLogin: {required: true, content: {application/json: {schema: {type: object, required: [identityToken], properties: {identityToken: {type: string}, nonce: {type: [string, 'null']}, deviceName: {type: [string, 'null']}}}}}}
+    Email: {required: true, content: {application/json: {schema: {type: object, required: [email], properties: {email: {type: string, format: email}}}}}}
+    ResetPassword: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ResetPasswordRequest'}}}}
+    Avatar: {required: true, content: {multipart/form-data: {schema: {type: object, required: [avatar], properties: {avatar: {type: string, format: binary}}}}}}
+    ProfileUpdate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProfileUpdateRequest'}}}}
+    SettingsUpdate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SettingsUpdateRequest'}}}}
+    Device: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DeviceRequest'}}}}
+    Vehicle: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleInput'}}}}
+    VehicleUpdate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/VehicleUpdateInput'}}}}
+    Diagnosis: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DiagnosisInput'}}}}
+    DiagnosisUpdate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DiagnosisUpdateRequest'}}}}
+    DiagnosticMedia: {required: true, content: {multipart/form-data: {schema: {type: object, required: [kind, file], properties: {kind: {type: string, enum: [photo, engine_sound, spoken_description]}, file: {type: string, format: binary}}}}}}
+    Obd: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ObdInput'}}}}
+    ReportFeedback: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReportFeedbackRequest'}}}}
+    MaintenanceRecordCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MaintenanceRecordCreateRequest'}}}}
+    MaintenanceRecord: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MaintenanceRecordRequest'}}}}
+    MaintenanceReminderCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MaintenanceReminderCreateRequest'}}}}
+    MaintenanceReminder: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MaintenanceReminderRequest'}}}}
+    ReminderCompletion: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReminderCompletionRequest'}}}}
+    ReminderSnooze: {required: true, content: {application/json: {schema: {type: object, required: [until], properties: {until: {type: string, format: date-time}}}}}}
+    Appointment: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppointmentInput'}}}}
+    AppointmentCancel: {required: true, content: {application/json: {schema: {type: object, required: [reason], properties: {reason: {type: string, maxLength: 1000}}}}}}
+    AppointmentReview: {required: true, content: {application/json: {schema: {type: object, required: [rating], properties: {rating: {type: integer, minimum: 1, maximum: 5}, comment: {type: [string, 'null'], maxLength: 2000}}}}}}
+    AdminMechanicCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminMechanicCreateRequest'}}}}
+    AdminMechanic: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminMechanicRequest'}}}}
+    AdminMakeCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminMakeCreateRequest'}}}}
+    AdminMake: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminMakeRequest'}}}}
+    AdminModel: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminModelRequest'}}}}
+    AdminServiceDefinitionCreate: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminServiceDefinitionCreateRequest'}}}}
+    AdminServiceDefinition: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminServiceDefinitionRequest'}}}}
+    AdminBroadcast: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminBroadcastRequest'}}}}
+  responses:
+    Success: {description: Successful response, content: {application/json: {schema: {$ref: '#/components/schemas/SuccessEnvelope'}}}}
+    Error: {description: Error response, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
+    Auth: {description: Authenticated, content: {application/json: {schema: {$ref: '#/components/schemas/AuthEnvelope'}}}}
+    User: {description: User, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/User'}}}]}}}}
+    Vehicle: {description: Vehicle, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/Vehicle'}}}]}}}}
+    VehicleList: {description: Vehicles, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Vehicle'}}}}]}}}}
+    Diagnosis: {description: Diagnostic session, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/DiagnosticSession'}}}]}}}}
+    AnalysisAccepted: {description: Analysis queued, content: {application/json: {schema: {$ref: '#/components/schemas/AnalysisEnvelope'}}}}
+    AnalysisStatus: {description: Current analysis status, content: {application/json: {schema: {$ref: '#/components/schemas/AnalysisEnvelope'}}}}
+    Report: {description: Completed diagnostic report, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/DiagnosticReport'}}}]}}}}
+  schemas:
+    Ulid: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$', example: 01J00000000000000000000000}
+    Meta: {type: object, required: [requestId], properties: {requestId: {type: string, pattern: '^[A-Za-z0-9._-]{8,64}$'}, locale: {type: string, enum: [en, ar]}, nextCursor: {type: [string, 'null']}}}
+    SuccessEnvelope: {type: object, required: [data, meta], properties: {data: {}, meta: {$ref: '#/components/schemas/Meta'}}}
+    ErrorEnvelope: {type: object, required: [error], properties: {error: {type: object, required: [code, message, requestId], properties: {code: {type: string}, message: {type: string}, details: {type: object, additionalProperties: {type: array, items: {type: string}}}, requestId: {type: string}}}}}
+    RegisterRequest: {type: object, required: [name, email, password, password_confirmation], properties: {name: {type: string}, email: {type: string, format: email}, password: {type: string, format: password, minLength: 8}, password_confirmation: {type: string, format: password}, locale: {type: string, enum: [en, ar]}, deviceName: {type: string}}}
+    LoginRequest: {type: object, required: [email, password], properties: {email: {type: string, format: email}, password: {type: string, format: password}, deviceName: {type: string}}}
+    ResetPasswordRequest: {type: object, required: [email, token, password, password_confirmation], properties: {email: {type: string, format: email}, token: {type: string}, password: {type: string, format: password, minLength: 8}, password_confirmation: {type: string, format: password}}}
+    ProfileUpdateRequest: {type: object, properties: {name: {type: string, maxLength: 120}, email: {type: string, format: email}, phone: {type: [string, 'null'], maxLength: 32}, countryCode: {type: [string, 'null'], minLength: 2, maxLength: 2}, city: {type: [string, 'null'], maxLength: 120}, latitude: {type: [number, 'null'], minimum: -90, maximum: 90}, longitude: {type: [number, 'null'], minimum: -180, maximum: 180}, currency: {type: string, minLength: 3, maxLength: 3}}}
+    SettingsUpdateRequest: {type: object, properties: {locale: {type: string, enum: [en, ar]}, themeMode: {type: string, enum: [system, light, dark]}, units: {type: string, enum: [metric, imperial]}, maintenanceRemindersEnabled: {type: boolean}}}
+    DeviceRequest: {type: object, required: [platform, token], properties: {platform: {type: string, enum: [ios, android, web]}, token: {type: string, maxLength: 4096}, deviceName: {type: [string, 'null'], maxLength: 120}, appVersion: {type: [string, 'null'], maxLength: 32}}}
+    AuthEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: object, required: [user, accessToken, tokenType], properties: {user: {$ref: '#/components/schemas/User'}, accessToken: {type: string}, tokenType: {const: Bearer}}}}}]}
+    User: {type: object, required: [id, name, email, locale, themeMode, units], properties: {id: {$ref: '#/components/schemas/Ulid'}, name: {type: string}, email: {type: string, format: email}, phone: {type: [string, 'null']}, avatarUrl: {type: [string, 'null'], format: uri}, locale: {type: string, enum: [en, ar]}, themeMode: {type: string, enum: [system, light, dark]}, units: {type: string, enum: [metric, imperial]}, currency: {type: string, minLength: 3, maxLength: 3}}}
+    VehicleInput: {type: object, required: [brand, model, year, engine, fuelType, transmission, mileage], properties: {brand: {type: string, maxLength: 120}, model: {type: string, maxLength: 120}, year: {type: integer, minimum: 1886}, engine: {type: string, maxLength: 120}, fuelType: {type: string, enum: [Petrol, Diesel, Hybrid, Electric, LPG, Other]}, transmission: {type: string, enum: [Manual, Automatic, CVT, DCT, Other]}, mileage: {type: integer, minimum: 0, maximum: 5000000}, vin: {type: [string, 'null'], pattern: '^[A-HJ-NPR-Z0-9]{17}$'}, plateNumber: {type: [string, 'null'], maxLength: 64}, nickname: {type: [string, 'null'], maxLength: 120}, catalogMakeId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}, catalogModelId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}}}
+    VehicleUpdateInput: {type: object, properties: {brand: {type: string, maxLength: 120}, model: {type: string, maxLength: 120}, year: {type: integer, minimum: 1886}, engine: {type: string, maxLength: 120}, fuelType: {type: string, enum: [Petrol, Diesel, Hybrid, Electric, LPG, Other]}, transmission: {type: string, enum: [Manual, Automatic, CVT, DCT, Other]}, mileage: {type: integer, minimum: 0, maximum: 5000000}, vin: {type: [string, 'null'], pattern: '^[A-HJ-NPR-Z0-9]{17}$'}, plateNumber: {type: [string, 'null'], maxLength: 64}, nickname: {type: [string, 'null'], maxLength: 120}, catalogMakeId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}, catalogModelId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}}}
+    Vehicle: {allOf: [{$ref: '#/components/schemas/VehicleInput'}, {type: object, required: [id, userId, healthScore, isSelected, createdAt, updatedAt], properties: {id: {$ref: '#/components/schemas/Ulid'}, userId: {$ref: '#/components/schemas/Ulid'}, imagePath: {type: [string, 'null'], format: uri}, healthScore: {type: integer, minimum: 0, maximum: 100}, isSelected: {type: boolean}, createdAt: {type: string, format: date-time}, updatedAt: {type: string, format: date-time}}}]}
+    Market: {type: object, properties: {countryCode: {type: string, minLength: 2, maxLength: 2}, city: {type: [string, 'null']}, currency: {type: string, minLength: 3, maxLength: 3}}}
+    DiagnosisInput: {type: object, required: [vehicleId, inputLocale, reportLocale, consentVersion], anyOf: [{required: [description]}, {required: [selectedSymptoms]}], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, inputLocale: {type: string, enum: [en, ar]}, reportLocale: {type: string, enum: [en, ar]}, market: {$ref: '#/components/schemas/Market'}, clientReference: {type: [string, 'null']}, consentVersion: {type: string}}}
+    DiagnosisUpdateRequest: {type: object, properties: {description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, reportLocale: {type: string, enum: [en, ar]}}}
+    DiagnosticStatus: {type: string, enum: [draft, uploading, queued, analyzing, completed, failed, cancelled]}
+    DiagnosticStep: {type: string, enum: [preparingData, analyzingDescription, analyzingSound, analyzingPhotos, readingObd, researchingPrices, buildingReport, completed, failed]}
+    DiagnosticSession: {type: object, required: [id, vehicleId, status, progress, currentStep], properties: {id: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null']}, selectedSymptoms: {type: array, items: {type: string}}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer, minimum: 0, maximum: 100}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, createdAt: {type: string, format: date-time}}}
+    AnalysisEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: object, required: [sessionId, status, progress, currentStep], properties: {sessionId: {$ref: '#/components/schemas/Ulid'}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, statusUrl: {type: string}}}}}]}
+    ObdInput:
+      type: object
+      required: [recordedAt]
+      properties:
+        recordedAt: {type: string, format: date-time}
+        troubleCodes: {type: array, maxItems: 64, items: {type: string, pattern: '^[PBCU][0-3A-F][0-9A-F]{3}$'}}
+        rpm: {type: number, minimum: 0, maximum: 20000}
+        speed: {type: number, minimum: 0, description: Maximum 500 km/h or 310.686 mph according to units.speed.}
+        coolantTemperature: {type: number, description: Between -50 and 220 Celsius or -58 and 428 Fahrenheit according to units.coolantTemperature.}
+        batteryVoltage: {type: number, minimum: 0, maximum: 1000}
+        fuelTrim: {type: number, minimum: -100, maximum: 100}
+        engineLoad: {type: number, minimum: 0, maximum: 100}
+        units:
+          type: object
+          properties:
+            speed: {type: string, enum: [km/h, mph], default: km/h}
+            coolantTemperature: {type: string, enum: [celsius, fahrenheit], default: celsius}
+    Severity: {type: string, enum: [low, medium, high, critical, unknown]}
+    DrivingRecommendation: {type: string, enum: [safeToDrive, driveWithCaution, stopSoon, stopImmediately, towRequired, unknown]}
+    ReportEvidence:
+      type: object
+      required: [sourceType, referenceId, observation, reliability]
+      properties:
+        sourceType: {type: string, enum: [text, photo, engine_sound, spoken_description, obd]}
+        referenceId: {type: [string, 'null']}
+        observation: {type: string}
+        reliability: {type: number, minimum: 0, maximum: 1}
+    RecommendedPart:
+      type: object
+      required: [canonicalName, name, reason, partNumber, required, compatibilityConfidence]
+      properties:
+        canonicalName: {type: string}
+        name: {type: string}
+        reason: {type: string}
+        partNumber: {type: [string, 'null']}
+        required: {type: boolean}
+        compatibilityConfidence: {type: number, minimum: 0, maximum: 1}
+    SuspectedFault:
+      type: object
+      required: [code, obdCode, title, description, confidence, severity, possibleCauses, recommendedActions, recommendedParts, evidence]
+      properties:
+        code: {type: string}
+        obdCode: {type: [string, 'null']}
+        title: {type: string}
+        description: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        severity: {$ref: '#/components/schemas/Severity'}
+        possibleCauses: {type: array, items: {type: string}}
+        recommendedActions: {type: array, items: {type: string}}
+        recommendedParts: {type: array, items: {$ref: '#/components/schemas/RecommendedPart'}}
+        evidence: {type: array, items: {$ref: '#/components/schemas/ReportEvidence'}}
+    SafeCheck:
+      type: object
+      required: [text, stopCondition]
+      properties:
+        text: {type: string}
+        stopCondition: {type: [string, 'null']}
+    ReportAction:
+      type: object
+      required: [code, text, priority, professionalRequired]
+      properties:
+        code: {type: [string, 'null']}
+        text: {type: string}
+        priority: {type: integer, minimum: 1, maximum: 5}
+        professionalRequired: {type: boolean}
+    PriceSource:
+      type: object
+      required: [id, url, title, domain, retrievedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Ulid'}
+        url: {type: string, format: uri}
+        title: {type: string}
+        domain: {type: string}
+        retrievedAt: {type: string, format: date-time}
+        sourceDate: {type: [string, 'null'], format: date-time}
+        qualityScore: {type: [number, 'null'], minimum: 0, maximum: 1}
+    EstimateLineItem:
+      type: object
+      required: [id, category, canonicalCode, quantity, unit, low, typical, high, currency, sourceConfidence]
+      properties:
+        id: {$ref: '#/components/schemas/Ulid'}
+        category: {type: string, enum: [part, labor, fee, tax]}
+        canonicalCode: {type: string}
+        quantity: {type: string}
+        unit: {type: string}
+        low: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        typical: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        high: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        sourceConfidence: {type: [object, 'null']}
+    ServiceEstimate:
+      type: object
+      required: [status, currency, low, typical, high, confidence, searchedAt, expiresAt, assumptions, disclaimer, lineItems, sources]
+      properties:
+        status: {type: string, enum: [available, partial, unavailable]}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        low: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        typical: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        high: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
+        confidence: {type: [number, 'null'], minimum: 0, maximum: 1}
+        searchedAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        assumptions: {type: array, items: {type: string}}
+        disclaimer: {type: string}
+        lineItems: {type: array, items: {$ref: '#/components/schemas/EstimateLineItem'}}
+        sources: {type: array, items: {$ref: '#/components/schemas/PriceSource'}}
+    ReportFeedbackRequest: {type: object, required: [helpful], properties: {helpful: {type: boolean}, comment: {type: [string, 'null'], maxLength: 2000}, confirmedMechanicDiagnosis: {type: [string, 'null'], maxLength: 2000}}}
+    MaintenanceRecordRequest:
+      type: object
+      properties:
+        serviceDefinitionId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}
+        customService: {type: [string, 'null'], maxLength: 160}
+        serviceDate: {type: string, format: date}
+        odometerKm: {type: integer, minimum: 0, maximum: 5000000}
+        amount: {type: [string, 'null'], pattern: '^\d+(?:\.\d{1,2})?$'}
+        currency: {type: [string, 'null'], pattern: '^[A-Z]{3}$'}
+        mechanic: {type: [string, 'null'], maxLength: 160}
+        notes: {type: [string, 'null'], maxLength: 2000}
+        nextDueDate: {type: [string, 'null'], format: date}
+        nextDueKm: {type: [integer, 'null'], minimum: 0, maximum: 5000000}
+    MaintenanceRecordCreateRequest: {allOf: [{$ref: '#/components/schemas/MaintenanceRecordRequest'}, {type: object, required: [serviceDate, odometerKm], anyOf: [{required: [serviceDefinitionId]}, {required: [customService]}]}]}
+    MaintenanceReminderRequest: {type: object, properties: {serviceDefinitionId: {$ref: '#/components/schemas/Ulid'}, dueDate: {type: [string, 'null'], format: date}, dueKm: {type: [integer, 'null'], minimum: 0, maximum: 5000000}, status: {type: string, enum: [pending, snoozed, completed, dismissed]}, notificationPreferences: {type: [object, 'null']}}}
+    MaintenanceReminderCreateRequest: {allOf: [{$ref: '#/components/schemas/MaintenanceReminderRequest'}, {type: object, required: [serviceDefinitionId], anyOf: [{required: [dueDate]}, {required: [dueKm]}]}]}
+    ReminderCompletionRequest: {type: object, required: [serviceDate, odometerKm], properties: {serviceDate: {type: string, format: date}, odometerKm: {type: integer, minimum: 0, maximum: 5000000}, amount: {type: [string, 'null'], pattern: '^\d+(?:\.\d{1,2})?$'}, currency: {type: [string, 'null'], pattern: '^[A-Z]{3}$'}, notes: {type: [string, 'null'], maxLength: 2000}}}
+    AdminMechanicRequest:
+      type: object
+      properties:
+        nameEn: {type: string, maxLength: 160}
+        nameAr: {type: string, maxLength: 160}
+        descriptionEn: {type: [string, 'null'], maxLength: 2000}
+        descriptionAr: {type: [string, 'null'], maxLength: 2000}
+        phone: {type: [string, 'null'], maxLength: 32}
+        email: {type: [string, 'null'], format: email}
+        address: {type: string, maxLength: 255}
+        city: {type: string, maxLength: 120}
+        countryCode: {type: string, minLength: 2, maxLength: 2}
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
+        workingHours: {type: [object, 'null']}
+        specialtyCodes: {type: array, uniqueItems: true, maxItems: 20, items: {type: string}}
+        active: {type: boolean}
+    AdminMechanicCreateRequest: {allOf: [{$ref: '#/components/schemas/AdminMechanicRequest'}, {type: object, required: [nameEn, nameAr, address, city, countryCode, latitude, longitude]}]}
+    AdminMakeRequest: {type: object, properties: {code: {type: string, maxLength: 80}, nameEn: {type: string, maxLength: 120}, nameAr: {type: string, maxLength: 120}, active: {type: boolean}}}
+    AdminMakeCreateRequest: {allOf: [{$ref: '#/components/schemas/AdminMakeRequest'}, {type: object, required: [code, nameEn, nameAr]}]}
+    AdminModelRequest: {type: object, required: [code, nameEn, nameAr], properties: {code: {type: string, maxLength: 100}, nameEn: {type: string, maxLength: 120}, nameAr: {type: string, maxLength: 120}, startYear: {type: [integer, 'null'], minimum: 1886, maximum: 2200}, endYear: {type: [integer, 'null'], minimum: 1886, maximum: 2200}, active: {type: boolean}}}
+    AdminServiceDefinitionRequest: {type: object, properties: {code: {type: string, maxLength: 100}, nameEn: {type: string, maxLength: 160}, nameAr: {type: string, maxLength: 160}, descriptionEn: {type: [string, 'null']}, descriptionAr: {type: [string, 'null']}, defaultMonthInterval: {type: [integer, 'null'], minimum: 1, maximum: 240}, defaultKmInterval: {type: [integer, 'null'], minimum: 1, maximum: 1000000}, active: {type: boolean}}}
+    AdminServiceDefinitionCreateRequest: {allOf: [{$ref: '#/components/schemas/AdminServiceDefinitionRequest'}, {type: object, required: [code, nameEn, nameAr]}]}
+    AdminBroadcastRequest: {type: object, required: [titleEn, titleAr, bodyEn, bodyAr], properties: {titleEn: {type: string, maxLength: 160}, titleAr: {type: string, maxLength: 160}, bodyEn: {type: string, maxLength: 1000}, bodyAr: {type: string, maxLength: 1000}, userIds: {type: [array, 'null'], maxItems: 10000, items: {$ref: '#/components/schemas/Ulid'}}, data: {type: [object, 'null']}}}
+    DiagnosticReport:
+      type: object
+      required: [id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, drivingAdvice, evidenceQuality, professionalInspectionRequired, suspectedFaults, safeChecks, recommendedActions, limitations, missingEvidence, serviceEstimate, sources, disclaimer, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Ulid'}
+        sessionId: {$ref: '#/components/schemas/Ulid'}
+        vehicleId: {$ref: '#/components/schemas/Ulid'}
+        vehicleName: {type: string}
+        title: {type: string}
+        summary: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        severity: {$ref: '#/components/schemas/Severity'}
+        drivingRecommendation: {$ref: '#/components/schemas/DrivingRecommendation'}
+        drivingAdvice: {type: string}
+        evidenceQuality: {type: string, enum: [poor, limited, moderate, strong]}
+        professionalInspectionRequired: {type: boolean}
+        suspectedFaults: {type: array, items: {$ref: '#/components/schemas/SuspectedFault'}}
+        safeChecks: {type: array, items: {$ref: '#/components/schemas/SafeCheck'}}
+        recommendedActions: {type: array, items: {$ref: '#/components/schemas/ReportAction'}}
+        limitations: {type: array, items: {type: string}}
+        missingEvidence: {type: array, items: {type: string, enum: [description, symptoms, engineSound, photos, obd, mileage, vin, serviceHistory]}}
+        serviceEstimate:
+          oneOf:
+            - {$ref: '#/components/schemas/ServiceEstimate'}
+            - {type: 'null'}
+        sources: {type: array, items: {$ref: '#/components/schemas/PriceSource'}}
+        disclaimer: {type: string}
+        createdAt: {type: string, format: date-time}
+    AppointmentInput: {type: object, required: [mechanicId, vehicleId, requestedStart, requestedEnd], properties: {mechanicId: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, reportId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}, requestedStart: {type: string, format: date-time}, requestedEnd: {type: string, format: date-time}, customerNote: {type: [string, 'null'], maxLength: 1000}}}

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: automind_test
+          MYSQL_USER: automind
+          MYSQL_PASSWORD: automind
+          MYSQL_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=3s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, exif, fileinfo, gd, intl, pdo_mysql, redis, zip
+          coverage: xdebug
+      - uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: locked
+      - run: composer validate --strict
+      - run: composer audit --locked
+      - run: vendor/bin/pint --test
+      - run: vendor/bin/phpstan analyse --memory-limit=1G
+      - name: Fresh MySQL migration and tests
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: automind_test
+          DB_USERNAME: automind
+          DB_PASSWORD: automind
+          REDIS_CLIENT: phpredis
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: sync
+        run: php artisan migrate:fresh --schema-path=/tmp/automind-no-schema.sql --seed --force && php artisan test --coverage --min=40
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npx --yes @redocly/cli@2.18.1 lint docs/openapi.yaml
+      - run: php scripts/audit-api-contract.php
+      - run: php scripts/audit-postman-contract.php
+      - run: php scripts/export-mysql-schema.php --check
+      - run: php artisan automind:check-provider-config --allow-missing-key
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
