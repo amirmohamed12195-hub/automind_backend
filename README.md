@@ -62,3 +62,9 @@ The OpenAPI 3.1 source is `docs/openapi.yaml`, Postman artifacts are under `docs
 ## Deployment
 
 Use HTTPS, immutable images, external MySQL/Redis/S3, at least one worker for every named queue, one scheduler leader, encrypted backups, centralized JSON logs, health monitoring, and secret rotation. Run `php artisan migrate --force` before shifting traffic and `php artisan automind:check-provider-config` before enabling workers. See [deployment.md](docs/deployment.md) for rollback and zero-downtime details.
+
+For a first deployment, start from `.env.production.example`. On Apache, point
+the document root to `public/` when the host allows it; the root `.htaccess`
+supports shared hosts that cannot change the document root. After configuring
+production secrets, use `composer run deploy:production` for the repeatable
+release steps.

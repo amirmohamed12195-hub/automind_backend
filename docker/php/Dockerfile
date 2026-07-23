@@ -1,4 +1,12 @@
-FROM php:8.4-fpm-alpine AS base
+FROM node:24-alpine AS frontend
+
+WORKDIR /app
+COPY package.json package-lock.json vite.config.js ./
+COPY resources ./resources
+RUN npm ci --no-audit --no-fund \
+    && npm run build
+
+FROM php:8.3-fpm-alpine AS base
 
 RUN apk add --no-cache bash clamav curl ffmpeg icu-libs libjpeg-turbo libpng libwebp libzip nginx supervisor \
     && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS icu-dev libjpeg-turbo-dev libpng-dev libwebp-dev libzip-dev \
@@ -10,9 +18,10 @@ COPY --from=composer:2.10 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
-RUN composer install --no-interaction --prefer-dist --no-scripts --no-autoloader
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
 COPY . .
-RUN composer dump-autoload --optimize \
+COPY --from=frontend /app/public/build ./public/build
+RUN composer dump-autoload --no-dev --classmap-authoritative \
     && chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data

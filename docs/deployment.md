@@ -9,6 +9,75 @@
 5. Start workers for all named queues and one scheduler leader. Restart workers after every deployment.
 6. Run an authenticated smoke flow that does not invoke OpenAI, then an explicitly approved low-cost provider smoke if required.
 
+## First production deployment
+
+The host must provide PHP 8.3 with BCMath, Fileinfo, GD, Mbstring, OpenSSL,
+PDO MySQL, Tokenizer, and XML extensions, plus Node.js 20.19+ or 22.12+.
+Create the production environment file and replace every `CHANGE_ME` value
+before continuing:
+
+```bash
+cp .env.production.example .env
+composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+php artisan key:generate --force
+composer run deploy:production
+```
+
+Generate `APP_KEY` only for the first deployment. Replacing it later invalidates
+encrypted data, signed URLs, cookies, and tokens. Store the generated value in
+the host's secret manager and keep `.env` out of Git.
+
+For every later deployment, run:
+
+```bash
+composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+composer run deploy:production
+```
+
+The production deployment script builds the frontend assets, clears stale
+caches, validates provider configuration without making a paid request, applies
+migrations, rebuilds Laravel's caches, and restarts queue workers.
+
+Verify the release before directing traffic to it:
+
+```bash
+php artisan about --only=environment
+curl --fail --silent --show-error 'https://api.example.com/api/v1/health?type=liveness'
+curl --fail --silent --show-error 'https://api.example.com/api/v1/health?type=readiness'
+```
+
+Replace `api.example.com` with the real API domain.
+
+## Apache and shared hosting
+
+The preferred Apache document root is the repository's `public/` directory.
+Enable `mod_rewrite`, allow `.htaccess` overrides, and make only `storage/` and
+`bootstrap/cache/` writable by the PHP process. Do not use world-writable
+permissions such as `chmod 777`.
+
+`public/.htaccess` contains Laravel routing and production response headers.
+The repository-root `.htaccess` is a shared-hosting fallback when the provider
+cannot point the document root directly at `public/`; it blocks application
+internals and forwards requests into `public/`.
+
+Apache or PHP-FPM serves the API, so do not use `php artisan serve` in
+production.
+
+## Queue workers and scheduler
+
+Run the queue worker under Supervisor, systemd, or the hosting provider's
+persistent worker feature:
+
+```bash
+php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders --sleep=1 --tries=4 --timeout=240 --max-time=3600
+```
+
+Configure this cron entry with the actual absolute project path:
+
+```cron
+* * * * * cd /absolute/path/to/automind_backend && php artisan schedule:run >> /dev/null 2>&1
+```
+
 ## Runtime layout
 
 - HTTPS load balancer or maintained Nginx in front of PHP-FPM.

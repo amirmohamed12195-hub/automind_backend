@@ -70,6 +70,18 @@
             "@php scripts/audit-postman-contract.php",
             "@php scripts/export-mysql-schema.php --check"
         ],
+        "build:production": [
+            "npm ci --no-audit --no-fund",
+            "npm run build"
+        ],
+        "deploy:production": [
+            "@build:production",
+            "@php artisan optimize:clear --ansi",
+            "@php artisan automind:check-provider-config --ansi",
+            "@php artisan migrate --force --ansi",
+            "@php artisan optimize --ansi",
+            "@php artisan queue:restart --ansi"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
