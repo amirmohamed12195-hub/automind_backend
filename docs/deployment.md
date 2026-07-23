@@ -71,6 +71,12 @@ The repository-root `.htaccess` is a shared-hosting fallback when the provider
 cannot point the document root directly at `public/`; it blocks application
 internals and forwards requests into `public/`.
 
+The production environment template defaults to local storage, file cache, and
+database-backed sessions and queues so it works without Redis or S3. If the
+host provides managed Redis, set `CACHE_STORE`, `QUEUE_CONNECTION`, and
+`SESSION_DRIVER` to `redis` only after replacing `REDIS_HOST` and the related
+credentials with the real connection details.
+
 Apache or PHP-FPM serves the API, so do not use `php artisan serve` in
 production.
 
@@ -82,6 +88,8 @@ persistent worker feature:
 ```bash
 php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders --sleep=1 --tries=4 --timeout=240 --max-time=3600
 ```
+
+When using the shared-hosting defaults, replace `redis` with `database`.
 
 Configure this cron entry with the actual absolute project path:
 
