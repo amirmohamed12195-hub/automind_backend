@@ -3,6 +3,7 @@
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\RecordRequestMetrics;
 use App\Http\Middleware\RequireAdmin;
+use App\Http\Middleware\RequireWebAdmin;
 use App\Http\Middleware\SetApiLocale;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -24,7 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [AssignRequestId::class, SetApiLocale::class, RecordRequestMetrics::class]);
-        $middleware->alias(['admin' => RequireAdmin::class]);
+        $middleware->alias([
+            'admin' => RequireAdmin::class,
+            'web-admin' => RequireWebAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*'));

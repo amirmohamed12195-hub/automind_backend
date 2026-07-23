@@ -15,6 +15,8 @@ class ProductionConfigurationValidatorTest extends TestCase
             'app.cipher' => 'AES-256-CBC',
             'app.debug' => false,
             'app.url' => 'https://automind.example',
+            'admin.username' => 'admin',
+            'admin.password_hash' => password_hash('strong-password', PASSWORD_BCRYPT),
             'database.default' => 'mysql',
             'database.connections.mysql' => [
                 'host' => '127.0.0.1',
@@ -33,6 +35,8 @@ class ProductionConfigurationValidatorTest extends TestCase
             'app.key' => '',
             'app.debug' => false,
             'app.url' => 'https://automind.example',
+            'admin.username' => 'admin',
+            'admin.password_hash' => password_hash('strong-password', PASSWORD_BCRYPT),
             'database.default' => 'mysql',
             'database.connections.mysql' => [
                 'host' => '127.0.0.1',

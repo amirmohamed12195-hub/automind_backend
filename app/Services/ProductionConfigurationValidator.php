@@ -22,6 +22,19 @@ class ProductionConfigurationValidator
             $errors[] = 'APP_DEBUG must be false in production.';
         }
 
+        $adminUsername = (string) config('admin.username');
+        $adminPasswordHash = (string) config('admin.password_hash');
+        if ($adminUsername === '' || $this->isPlaceholder($adminUsername)) {
+            $errors[] = 'ADMIN_WEB_USERNAME must contain the production administrator username.';
+        }
+        if (
+            $adminPasswordHash === ''
+            || $this->isPlaceholder($adminPasswordHash)
+            || password_get_info($adminPasswordHash)['algo'] === null
+        ) {
+            $errors[] = 'ADMIN_WEB_PASSWORD_HASH must contain a valid password hash. Run php artisan automind:configure-admin.';
+        }
+
         $appUrl = (string) config('app.url');
         if (! str_starts_with($appUrl, 'https://')) {
             $errors[] = 'APP_URL must use HTTPS in production.';

@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.backup-*
+.env.admin-*
 .env.tmp-*
 .env.production
 .phpactor.json

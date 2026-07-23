@@ -33,7 +33,14 @@
             <button class="admin-nav-item" type="button" data-admin-view="settings"><i>⚙</i><span>Settings</span></button>
         </nav>
         <div class="sidebar-status"><div><span><i></i> All systems operational</span><small>Last checked 2m ago</small></div><b>99.9%</b></div>
-        <div class="sidebar-user"><span class="user-avatar">OA</span><div><strong>Omar Adel</strong><small>Super administrator</small></div><button type="button" aria-label="User menu">⋮</button></div>
+        <div class="sidebar-user">
+            <span class="user-avatar">AD</span>
+            <div><strong>{{ session('automind_admin_username', 'admin') }}</strong><small>Super administrator</small></div>
+            <form method="POST" action="{{ route('admin.logout') }}">
+                @csrf
+                <button type="submit" aria-label="Sign out" title="Sign out">↪</button>
+            </form>
+        </div>
     </aside>
 
     <div class="admin-shell">
@@ -53,7 +60,7 @@
         <main class="admin-content">
             <section class="admin-view active" data-view="overview">
                 <div class="admin-heading">
-                    <div><span class="admin-eyebrow"><i></i> LIVE OVERVIEW</span><h1>Good morning, Omar.</h1><p>Here’s what’s happening across AutoMind today.</p></div>
+                    <div><span class="admin-eyebrow"><i></i> LIVE OVERVIEW</span><h1>Good morning, {{ ucfirst(session('automind_admin_username', 'admin')) }}.</h1><p>Here’s what’s happening across AutoMind today.</p></div>
                     <div class="heading-actions"><button class="admin-button secondary" type="button" data-demo-action="Report exported successfully">⇩ Export report</button><button class="admin-button primary" type="button" data-admin-view="landing">Edit landing page <span>→</span></button></div>
                 </div>
 

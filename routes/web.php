@@ -1,10 +1,18 @@
 <?php
 
+use App\Http\Controllers\AdminSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing');
 
-Route::view('/admin', 'admin')->name('admin.dashboard');
+Route::get('/admin/login', [AdminSessionController::class, 'create'])->name('admin.login');
+Route::post('/admin/login', [AdminSessionController::class, 'store'])
+    ->middleware('throttle:admin-login')
+    ->name('admin.login.store');
+Route::middleware('web-admin')->group(function (): void {
+    Route::view('/admin', 'admin')->name('admin.dashboard');
+    Route::post('/admin/logout', [AdminSessionController::class, 'destroy'])->name('admin.logout');
+});
 
 Route::get('/docs/openapi.yaml', function () {
     abort_if(app()->environment('production'), 404);

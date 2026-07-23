@@ -128,5 +128,6 @@ if (! rename($temporaryPath, $environmentPath)) {
 fwrite(
     STDOUT,
     "Hostinger .env installed and the existing APP_KEY preserved.\n".
-    "The supplied MySQL and OpenAI credentials were installed.\n",
+    "The supplied MySQL and OpenAI credentials were installed.\n".
+    "Next, run: php artisan automind:configure-admin --username=admin\n",
 );

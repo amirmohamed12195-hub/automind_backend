@@ -52,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production') && $providerRuntime) {
             $this->app->make(OpenAiConfigurationValidator::class)->validate();
         }
-        foreach (['login' => 8, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20] as $name => $perMinute) {
+        foreach (['login' => 8, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20] as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($perMinute) {
                 $user = $request->user();
 
