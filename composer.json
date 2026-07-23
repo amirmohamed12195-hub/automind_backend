@@ -75,7 +75,7 @@
             "npm run build"
         ],
         "deploy:production": [
-            "@build:production",
+            "@php -r \"if (! file_exists('public/build/manifest.json')) { fwrite(STDERR, 'Missing public/build/manifest.json. Build and commit frontend assets before deployment.'.PHP_EOL); exit(1); }\"",
             "@php artisan config:clear --ansi",
             "@php artisan automind:check-provider-config --ansi",
             "@php artisan migrate --force --ansi",

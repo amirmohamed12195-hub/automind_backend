@@ -12,9 +12,9 @@
 ## First production deployment
 
 The host must provide PHP 8.3 with BCMath, Fileinfo, GD, Mbstring, OpenSSL,
-PDO MySQL, Tokenizer, and XML extensions, plus Node.js 20.19+ or 22.12+.
-Create the production environment file and replace every `CHANGE_ME` value
-before continuing:
+PDO MySQL, Tokenizer, and XML extensions. Frontend assets are built before
+release and committed for PHP-only shared hosts. Create the production
+environment file and replace every `CHANGE_ME` value before continuing:
 
 ```bash
 cp .env.production.example .env
@@ -34,9 +34,20 @@ composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 composer run deploy:production
 ```
 
-The production deployment script builds the frontend assets, clears stale
-caches, validates provider configuration without making a paid request, applies
-migrations, rebuilds Laravel's caches, and restarts queue workers.
+The production deployment script clears stale caches, validates provider
+configuration without making a paid request, applies migrations, rebuilds
+Laravel's caches, and restarts queue workers.
+
+After changing frontend source files, build and commit the generated assets on
+a development machine with Node.js 20.19+ or 22.12+:
+
+```bash
+composer run build:production
+git add public/build
+```
+
+The Docker image performs this frontend build in its own Node.js stage; do not
+run the frontend build again on a PHP-only production host.
 
 Verify the release before directing traffic to it:
 
