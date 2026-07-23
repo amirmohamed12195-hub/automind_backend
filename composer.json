@@ -76,9 +76,10 @@
         ],
         "deploy:production": [
             "@build:production",
-            "@php artisan optimize:clear --ansi",
+            "@php artisan config:clear --ansi",
             "@php artisan automind:check-provider-config --ansi",
             "@php artisan migrate --force --ansi",
+            "@php artisan optimize:clear --ansi",
             "@php artisan optimize --ansi",
             "@php artisan queue:restart --ansi"
         ],
