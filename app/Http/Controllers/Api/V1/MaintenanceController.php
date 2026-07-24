@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\MaintenanceRecordRequest;
+use App\Models\MaintenanceServiceDefinition;
 use App\Models\Vehicle;
 use App\Models\VehicleMaintenanceRecord;
 use App\Support\ApiResponse;
@@ -10,6 +11,27 @@ use Illuminate\Support\Facades\Gate;
 
 class MaintenanceController
 {
+    public function serviceDefinitions()
+    {
+        $locale = app()->getLocale();
+
+        $services = MaintenanceServiceDefinition::query()
+            ->where('active', true)
+            ->orderBy('code')
+            ->get()
+            ->map(fn (MaintenanceServiceDefinition $service): array => [
+                'id' => (string) $service->id,
+                'code' => $service->code,
+                'name' => $service->{"name_$locale"},
+                'description' => $service->{"description_$locale"},
+                'defaultMonthInterval' => $service->default_month_interval,
+                'defaultKmInterval' => $service->default_km_interval,
+            ])
+            ->all();
+
+        return ApiResponse::success($services);
+    }
+
     public function index(Vehicle $vehicle)
     {
         Gate::authorize('view', $vehicle);

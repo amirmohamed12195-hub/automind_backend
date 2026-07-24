@@ -1,9 +1,13 @@
 <?php
 
 use App\Http\Controllers\AdminSessionController;
+use App\Http\Controllers\AppleSignInCallbackController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing');
+Route::post('/callbacks/sign_in_with_apple', AppleSignInCallbackController::class)
+    ->middleware('throttle:60,1')
+    ->name('apple-sign-in.callback');
 
 Route::get('/admin/login', [AdminSessionController::class, 'create'])->name('admin.login');
 Route::post('/admin/login', [AdminSessionController::class, 'store'])

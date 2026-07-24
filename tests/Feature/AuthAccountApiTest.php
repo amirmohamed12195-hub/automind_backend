@@ -104,9 +104,46 @@ class AuthAccountApiTest extends ApiTestCase
         ]);
         $this->app->instance(SocialIdentityVerifier::class, $verifier);
 
-        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'new-token'])
+        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'new-token', 'nonce' => 'raw-nonce'])
             ->assertUnprocessable()->assertJsonPath('error.code', 'SOCIAL_EMAIL_REQUIRED');
-        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'known-token'])
+        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'known-token', 'nonce' => 'raw-nonce'])
             ->assertOk()->assertJsonPath('data.user.id', $existingUser->id)->assertJsonStructure(['data' => ['accessToken']]);
+    }
+
+    public function test_apple_social_login_accepts_first_authorization_name_and_marks_login_time(): void
+    {
+        $verifier = Mockery::mock(SocialIdentityVerifier::class);
+        $verifier->shouldReceive('verify')->once()->andReturn([
+            'subject' => 'new-apple-subject',
+            'email' => 'private-relay@example.com',
+            'name' => null,
+        ]);
+        $this->app->instance(SocialIdentityVerifier::class, $verifier);
+
+        $this->postJson('/api/v1/auth/social/apple', [
+            'identityToken' => 'apple-token',
+            'nonce' => 'raw-nonce',
+            'name' => 'Apple Driver',
+            'deviceName' => 'iPhone',
+        ])->assertOk()
+            ->assertJsonPath('data.user.name', 'Apple Driver')
+            ->assertJsonPath('data.user.email', 'private-relay@example.com');
+
+        $user = User::query()->where('email', 'private-relay@example.com')->sole();
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertNotNull($user->last_login_at);
+        $this->assertDatabaseHas('social_identities', [
+            'user_id' => $user->id,
+            'provider' => 'apple',
+            'provider_subject' => 'new-apple-subject',
+        ]);
+    }
+
+    public function test_apple_social_login_requires_nonce(): void
+    {
+        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'apple-token'])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED')
+            ->assertJsonStructure(['error' => ['details' => ['nonce']]]);
     }
 }

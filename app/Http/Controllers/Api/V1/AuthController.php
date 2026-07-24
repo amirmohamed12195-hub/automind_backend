@@ -38,7 +38,12 @@ class AuthController
 
     public function social(Request $request, string $provider, SocialIdentityVerifier $verifier)
     {
-        $data = $request->validate(['identityToken' => ['required', 'string'], 'nonce' => ['nullable', 'string'], 'deviceName' => ['nullable', 'string', 'max:120']]);
+        $data = $request->validate([
+            'identityToken' => ['required', 'string'],
+            'nonce' => [$provider === 'apple' ? 'required' : 'nullable', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:120'],
+            'deviceName' => ['nullable', 'string', 'max:120'],
+        ]);
         try {
             $identity = $verifier->verify($provider, $data['identityToken'], $data['nonce'] ?? null);
         } catch (Throwable) {
@@ -48,16 +53,37 @@ class AuthController
         if (! $knownIdentity && ! $identity['email']) {
             return ApiResponse::error('SOCIAL_EMAIL_REQUIRED', __('api.social_email_required'), 422);
         }
-        $user = DB::transaction(function () use ($identity, $provider) {
-            $social = SocialIdentity::query()->where('provider', $provider)->where('provider_subject', $identity['subject'])->first();
+        $user = DB::transaction(function () use ($data, $identity, $provider) {
+            $social = SocialIdentity::query()
+                ->where('provider', $provider)
+                ->where('provider_subject', $identity['subject'])
+                ->lockForUpdate()
+                ->first();
             if ($social) {
                 return User::query()->findOrFail($social->user_id);
             }
-            $user = User::query()->firstOrCreate(['email' => $identity['email']], ['name' => $identity['name'] ?: Str::before($identity['email'], '@'), 'locale' => app()->getLocale(), 'email_verified_at' => now()]);
-            SocialIdentity::query()->create(['user_id' => $user->id, 'provider' => $provider, 'provider_subject' => $identity['subject'], 'provider_email' => $identity['email']]);
 
-            return $user;
+            $user = User::query()->firstOrCreate(
+                ['email' => $identity['email']],
+                [
+                    'name' => $identity['name'] ?: ($data['name'] ?? null) ?: Str::before($identity['email'], '@'),
+                    'locale' => app()->getLocale(),
+                    'email_verified_at' => now(),
+                ],
+            );
+            if ($user->email_verified_at === null) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
+            $social = SocialIdentity::query()->firstOrCreate(
+                ['provider' => $provider, 'provider_subject' => $identity['subject']],
+                ['user_id' => $user->id, 'provider_email' => $identity['email']],
+            );
+
+            return $social->user_id === $user->id
+                ? $user
+                : User::query()->findOrFail($social->user_id);
         });
+        $user->forceFill(['last_login_at' => now()])->save();
 
         return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($data['deviceName'] ?? 'AutoMind mobile')->plainTextToken, 'tokenType' => 'Bearer']);
     }

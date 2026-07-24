@@ -1,85 +1,109 @@
 # Flutter integration
 
-The checked-in Flutter app currently has remote data-source interfaces but its repository implementations still bind local/mock sources. The backend preserves the existing `Vehicle`, `DiagnosticSession`, and `DiagnosticResult` required fields; the app needs the additive wiring below to use it.
+The sibling Flutter application at `../autoMind` is connected to the remote
+Laravel API. Its production default is:
 
-## Exact client files to change
-
-| File | Required change |
-|---|---|
-| `lib/core/constants/api_constants.dart` | Change the default from `https://api.example.com/v1` to the deployed `https://host/api/v1`; local Android emulator uses `http://10.0.2.2:8080/api/v1`. Prefer `--dart-define=API_BASE_URL=...`. |
-| `lib/core/network/api_client.dart` | Add PATCH, PUT, DELETE, multipart POST, response-envelope unwrapping, and optional idempotency/header support. Current client only has JSON GET/POST. |
-| `lib/core/network/auth_interceptor.dart` | Keep Bearer injection; also send `Accept: application/json`, current `Accept-Language`, and a new UUID/ULID `X-Request-Id`. On 401, clear the token and route to sign-in without looping retries. |
-| `lib/features/authentication/data/datasources/auth_remote_data_source.dart` | Implement login with `POST /auth/login`, current user with `GET /me`, logout with `POST /auth/logout`; add register/reset/social/profile/settings/device-token methods as UI exposes them. Save `data.accessToken`. |
-| `lib/features/authentication/data/repositories/auth_repository_impl.dart` | Inject/bind the remote implementation instead of `AuthLocalDataSource`; keep local storage only as an offline cache/session bootstrap. |
-| `lib/features/vehicles/data/datasources/vehicles_remote_data_source.dart` | Map GET/POST/PATCH/DELETE `/vehicles`; implement selected vehicle, health, and catalog calls. |
-| `lib/features/vehicles/data/repositories/vehicles_repository_impl.dart` | Inject/bind `VehiclesRemoteDataSource` instead of `VehiclesLocalDataSource`. |
-| `lib/features/diagnosis/data/datasources/diagnosis_remote_data_source.dart` | Implement session CRUD, media/OBD upload, analyze, polling, cancel/retry, report/history, feedback, estimate refresh, and share. |
-| `lib/features/diagnosis/data/repositories/diagnosis_repository_impl.dart` | Inject/bind `DiagnosisRemoteDataSource` instead of `DiagnosisLocalDataSource`. |
-| `lib/features/diagnosis/domain/entities/diagnosis_entities.dart` | Add `queued` and `cancelled` statuses; model `progress`/`currentStep`; add optional service estimate, sources, disclaimer, limitations, missing evidence, evidence quality, professional inspection, and emergency warnings. Existing required result fields stay unchanged. |
-| generated Injectable configuration | Regenerate after adding `@LazySingleton(as: ...)` remote implementations. |
-
-## Existing method-to-endpoint mapping
-
-| Current interface method | API operation | Response data |
-|---|---|---|
-| `AuthRemoteDataSource.login` | `POST /auth/login` | `{user, accessToken, tokenType}` |
-| `AuthRemoteDataSource.logout` | `POST /auth/logout` | HTTP 204 |
-| `AuthRemoteDataSource.getCurrentUser` | `GET /me` | user |
-| `VehiclesRemoteDataSource.getVehicles` | `GET /vehicles` | vehicle array |
-| `addVehicle` | `POST /vehicles` | vehicle |
-| `updateVehicle` | `PATCH /vehicles/{vehicleId}` | vehicle |
-| `deleteVehicle` | `DELETE /vehicles/{vehicleId}` | HTTP 204 |
-| `DiagnosisRemoteDataSource.createSession` | `POST /diagnoses` | diagnostic session |
-| `updateSession` | `PATCH /diagnoses/{sessionId}` | diagnostic session |
-| `analyzeSession` | `POST /diagnoses/{sessionId}/analyze`, poll status, then fetch report | accepted status then diagnostic report |
-| `getHistory` | `GET /diagnoses`; fetch each completed report or introduce an app-side session/history model | cursor page |
-| `getResult` | `GET /reports/{reportId}` or `/diagnoses/{sessionId}/report` | diagnostic report |
-
-Other API groups map directly: catalog/symptoms; media and OBD; report feedback/estimate/share; vehicle maintenance/reminders; mechanics/availability; appointments/reviews; notifications/read; account/settings/devices; and role-protected admin operations. `docs/openapi.yaml` is authoritative for all 87 operations and can generate typed clients.
-
-## Envelope and error mapping
-
-Successful JSON is `{ "data": ..., "meta": { "requestId": "...", "locale": "en", "nextCursor": null } }`. Errors are `{ "error": { "code": "VALIDATION_FAILED", "message": "...", "details": {...}, "requestId": "..." } }`. Map by stable `error.code`, preserve `requestId` for support, and use HTTP status only for broad categories. Validation details are arrays keyed by camelCase request fields.
-
-## Dio examples
-
-```dart
-final form = FormData.fromMap({
-  'kind': 'engine_sound', // photo | engine_sound | spoken_description
-  'file': await MultipartFile.fromFile(path, filename: path.split('/').last),
-});
-final response = await dio.post<Map<String, dynamic>>(
-  '/diagnoses/$sessionId/media',
-  data: form,
-  options: Options(headers: {'Idempotency-Key': uploadId}),
-);
-final media = response.data!['data'] as Map<String, dynamic>;
+```text
+https://automind.rafeequae.com/api/v1
 ```
 
-```dart
-await dio.post('/diagnoses/$sessionId/analyze',
-  options: Options(headers: {'Idempotency-Key': analysisId}));
+Override the API for development with
+`--dart-define=API_BASE_URL=https://host/api/v1`. The client implements the API
+envelope, localized errors, bearer-token storage, request IDs, multipart
+uploads, idempotency keys, cursor pagination, and session invalidation.
 
-while (true) {
-  final response = await dio.get<Map<String, dynamic>>('/diagnoses/$sessionId/status');
-  final status = response.data!['data'] as Map<String, dynamic>;
-  switch (status['status']) {
-    case 'completed':
-      return (await dio.get<Map<String, dynamic>>('/diagnoses/$sessionId/report')).data!['data'];
-    case 'failed':
-    case 'cancelled':
-      throw DiagnosticTerminalException(status);
-  }
-  await Future<void>.delayed(const Duration(seconds: 2));
-}
+## Implemented API groups
+
+- Email/password registration, login, reset, logout, profile, settings, account
+  deletion, device registration, Google login, and Apple login.
+- Vehicle catalog, vehicle CRUD/selection/health, symptoms, diagnostic sessions,
+  photos, audio, OBD payloads, analysis/status/cancel/retry, reports, history,
+  sharing, feedback, and estimate refresh.
+- Maintenance, mechanics and availability, appointments and reviews,
+  notifications, system status/version, and typed admin data access.
+- All 87 OpenAPI operations are accounted for in
+  `lib/core/network/api_operation_manifest.dart`. The OpenAI webhook is
+  intentionally backend-only and admin operations are not exposed in consumer
+  navigation.
+
+`docs/openapi.yaml` remains authoritative for request and response contracts.
+Run `dart run tool/api_operation_audit.dart` from the Flutter project when the
+API changes.
+
+## Native Google login
+
+Create OAuth clients for Android, iOS, and a web/server client in the same
+Google Cloud/Firebase project. Add every accepted web/server audience to
+`GOOGLE_CLIENT_IDS` on the backend.
+
+Android needs a regenerated `android/app/google-services.json` containing the
+Android OAuth client for package `com.automind.ai`, the app signing SHA-1 and
+SHA-256 fingerprints, and the web/server OAuth client.
+
+iOS needs a regenerated `ios/Runner/GoogleService-Info.plist` containing
+`CLIENT_ID` and `REVERSED_CLIENT_ID`. Register `REVERSED_CLIENT_ID` under
+`CFBundleURLTypes` in `ios/Runner/Info.plist`.
+
+Build the client with:
+
+```bash
+flutter build appbundle \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=WEB_CLIENT_ID
+
+flutter build ipa \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=WEB_CLIENT_ID \
+  --dart-define=GOOGLE_IOS_CLIENT_ID=IOS_CLIENT_ID
 ```
 
-Every create/analyze/refresh/appointment retry should reuse the same `Idempotency-Key`. Do not generate a new key after a network timeout unless the user intentionally starts a new operation.
+The client sends the Google ID token to `POST /api/v1/auth/social/google`. The
+backend verifies the provider signature, issuer, configured audience, subject,
+expiry, and an explicit verified-email claim before linking an account.
 
-## Payload notes
+## Native Apple login
 
-- Vehicle request: `brand`, `model`, `year`, `engine`, `fuelType`, `transmission`, `mileage`, optional `vin`, `plateNumber`, `nickname`, and catalog IDs.
-- Diagnosis request: `vehicleId`, description up to 500 characters, `selectedSymptoms`, `inputLocale`, `reportLocale`, consent version, and optional `{countryCode, city, currency}` market.
-- OBD: `recordedAt`, normalized `troubleCodes`, and optional sensor numbers. Unknown codes remain unknown.
-- Report keeps all existing required fields: `id`, `sessionId`, `vehicleId`, `vehicleName`, `title`, `summary`, `confidence`, `severity`, `drivingRecommendation`, `suspectedFaults`, `safeChecks`, `recommendedActions`, and `createdAt`.
-- `serviceEstimate` adds low/typical/high decimal ranges, currency, assumptions, status, and expiry. `sources` adds clickable `url`, domain/title, retrieval time, and quality metadata. Display the supplied disclaimer and do not label estimates as repair quotes.
+Enable Sign in with Apple for App ID `com.automind.ai` and its production
+provisioning profiles. Add the app ID and every Apple Service ID used by
+Android/web to `APPLE_CLIENT_IDS`.
+
+For Android, create an Apple Service ID and configure this HTTPS return URL:
+
+```text
+https://automind.rafeequae.com/callbacks/sign_in_with_apple
+```
+
+Build Android with:
+
+```bash
+flutter build appbundle \
+  --dart-define=APPLE_SERVICE_ID=YOUR_APPLE_SERVICE_ID \
+  --dart-define=APPLE_REDIRECT_URI=https://automind.rafeequae.com/callbacks/sign_in_with_apple
+```
+
+The app creates a cryptographically random raw nonce, supplies its SHA-256 hash
+to Apple, and sends the raw nonce to the backend. The backend verifies the hash
+against the signed Apple token. The HTTPS callback only forwards expected
+Apple fields to the fixed `com.automind.ai` Android application intent.
+
+## Envelope and diagnosis behavior
+
+Successful JSON uses
+`{"data": ..., "meta": {"requestId": "...", "locale": "en"}}`. Errors use
+`{"error": {"code": "...", "message": "...", "details": {...},
+"requestId": "..."}}`. The client maps stable error codes and preserves the
+request ID for support.
+
+Analysis uploads server-owned media IDs, starts the job with an idempotency key,
+polls the real status/progress fields, handles failed and cancelled terminal
+states, and fetches the report from the API. Reports expose safety guidance,
+limitations, missing evidence, sourced estimates, and the server disclaimer.
+
+Flutter contains no OpenAI API key, model name, prompt, pricing, or webhook
+secret. Those remain server-only.
+
+## External mobile release requirements
+
+Before store submission, supply the Android upload keystore through the ignored
+`android/key.properties`, configure Apple distribution certificates and
+profiles, upload the APNs key to Firebase, and replace both Firebase client
+configuration files after the OAuth clients are created. These credentials
+cannot be generated from source control.

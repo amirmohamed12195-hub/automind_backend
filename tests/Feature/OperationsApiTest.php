@@ -15,6 +15,38 @@ use Laravel\Sanctum\Sanctum;
 
 class OperationsApiTest extends ApiTestCase
 {
+    public function test_active_maintenance_service_definitions_are_public_and_localized(): void
+    {
+        MaintenanceServiceDefinition::query()->create([
+            'code' => 'oil_change',
+            'name_en' => 'Oil change',
+            'name_ar' => 'تغيير الزيت',
+            'description_en' => 'Replace engine oil.',
+            'description_ar' => 'استبدال زيت المحرك.',
+            'default_month_interval' => 6,
+            'default_km_interval' => 10000,
+            'active' => true,
+        ]);
+        MaintenanceServiceDefinition::query()->create([
+            'code' => 'legacy_service',
+            'name_en' => 'Legacy service',
+            'name_ar' => 'خدمة قديمة',
+            'active' => false,
+        ]);
+
+        $this->getJson('/api/v1/maintenance-service-definitions')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Oil change')
+            ->assertJsonPath('data.0.defaultKmInterval', 10000);
+
+        $this->withHeader('Accept-Language', 'ar')
+            ->getJson('/api/v1/maintenance-service-definitions')
+            ->assertOk()
+            ->assertJsonPath('data.0.name', 'تغيير الزيت')
+            ->assertJsonPath('data.0.description', 'استبدال زيت المحرك.');
+    }
+
     public function test_maintenance_history_and_reminder_completion_preserve_odometer(): void
     {
         $user = $this->actingAsUser();
@@ -26,6 +58,9 @@ class OperationsApiTest extends ApiTestCase
         $reminder = $this->postJson("/api/v1/vehicles/$vehicle->id/maintenance-reminders", ['serviceDefinitionId' => $service->id, 'dueKm' => 95000, 'notificationPreferences' => ['daysBefore' => 7]])
             ->assertCreated()->assertJsonPath('data.notificationPreferences.daysBefore', 7);
         $this->getJson("/api/v1/vehicles/$vehicle->id/maintenance-reminders")->assertOk()->assertJsonPath('data.0.isDue', true);
+        $this->patchJson("/api/v1/vehicles/$vehicle->id/maintenance-reminders/{$reminder->json('data.id')}", ['status' => 'completed'])
+            ->assertUnprocessable()
+            ->assertJsonPath('error.code', 'VALIDATION_FAILED');
         $this->postJson("/api/v1/vehicles/$vehicle->id/maintenance-reminders/{$reminder->json('data.id')}/complete", ['serviceDate' => today()->toDateString(), 'odometerKm' => 100000])->assertOk()->assertJsonPath('data.status', 'completed');
     }
 

@@ -16,7 +16,10 @@ class SocialIdentityVerifier
             throw new RuntimeException('Unsupported social provider.');
         }
         $config = config("services.$provider");
-        $clientIds = $config['client_ids'] ?? [];
+        $clientIds = array_values(array_filter(array_map(
+            static fn (mixed $clientId): string => trim((string) $clientId),
+            $config['client_ids'] ?? [],
+        )));
         if ($clientIds === []) {
             throw new RuntimeException('Social identity provider is not configured.');
         }
@@ -28,13 +31,23 @@ class SocialIdentityVerifier
         if (! $validIssuer || array_intersect($clientIds, $audiences) === []) {
             throw new RuntimeException('Invalid token issuer or audience.');
         }
-        if ($nonce !== null && ! hash_equals($nonce, (string) ($claims['nonce'] ?? ''))) {
+        if ($provider === 'apple') {
+            if ($nonce === null || $nonce === '') {
+                throw new RuntimeException('Apple social login requires a nonce.');
+            }
+            if (! hash_equals(hash('sha256', $nonce), (string) ($claims['nonce'] ?? ''))) {
+                throw new RuntimeException('Invalid social token nonce.');
+            }
+        } elseif ($nonce !== null && ! hash_equals($nonce, (string) ($claims['nonce'] ?? ''))) {
             throw new RuntimeException('Invalid social token nonce.');
         }
         if (empty($claims['sub'])) {
             throw new RuntimeException('Social token has no subject.');
         }
-        if (isset($claims['email_verified']) && ! in_array($claims['email_verified'], [true, 'true', 1, '1'], true)) {
+        if (
+            isset($claims['email'])
+            && ! in_array($claims['email_verified'] ?? null, [true, 'true', 1, '1'], true)
+        ) {
             throw new RuntimeException('Social email is not verified.');
         }
 

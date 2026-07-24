@@ -4,7 +4,7 @@
 
 1. Build an immutable PHP-FPM image from the repository and scan dependencies/image layers.
 2. Inject production secrets at runtime. Run `php artisan automind:check-provider-config`; it makes no paid provider call.
-3. Run `php artisan migrate --force` from one release task. Never run the demo seeder in production; it is blocked unless an explicit unsafe override is set. Migrations are additive-first; delay destructive changes until old application versions are drained.
+3. Run `php artisan migrate --force` from one release task, then `php artisan db:seed --class=Database\\Seeders\\ReferenceDataSeeder --force`. The reference seeder is safe and idempotent; never enable demo seeding in production. Migrations are additive-first; delay destructive changes until old application versions are drained.
 4. Warm configuration/routes/views, start web instances, and pass `/api/v1/health?type=readiness` before shifting traffic.
 5. Start workers for all named queues and one scheduler leader. Restart workers after every deployment.
 6. Run an authenticated smoke flow that does not invoke OpenAI, then an explicitly approved low-cost provider smoke if required.
@@ -35,7 +35,8 @@ composer run deploy:production
 ```
 
 The production deployment script clears stale caches, validates provider
-configuration without making a paid request, applies migrations, rebuilds
+configuration without making a paid request, applies migrations, refreshes
+the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
 Laravel's caches, and restarts queue workers.
 
 After changing frontend source files, build and commit the generated assets on

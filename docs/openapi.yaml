@@ -5,7 +5,7 @@ info:
   description: Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
   license: {name: Proprietary, url: https://automind.example/terms}
 servers:
-  - url: https://api.automind.example/api/v1
+  - url: https://automind.rafeequae.com/api/v1
   - url: http://localhost:8080/api/v1
 security:
   - bearerAuth: []
@@ -79,6 +79,8 @@ paths:
     get: {tags: [Vehicles], operationId: getVehicleHealth, summary: "getVehicleHealth", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
   /symptoms:
     get: {tags: [Diagnostics], operationId: listSymptoms, summary: "listSymptoms", security: [], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
+  /maintenance-service-definitions:
+    get: {tags: [Maintenance], operationId: listMaintenanceServiceDefinitions, summary: "List localized active maintenance services", security: [], responses: {'200': {$ref: '#/components/responses/Success'}}}
   /diagnoses:
     get: {tags: [Diagnostics], operationId: listDiagnoses, summary: "listDiagnoses", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
     post: {tags: [Diagnostics], operationId: createDiagnosis, summary: "createDiagnosis", parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], requestBody: {$ref: '#/components/requestBodies/Diagnosis'}, responses: {'201': {$ref: '#/components/responses/Diagnosis'}, '422': {$ref: '#/components/responses/Error'}}}
@@ -285,7 +287,7 @@ components:
   requestBodies:
     Register: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}}}
     Login: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}}}
-    SocialLogin: {required: true, content: {application/json: {schema: {type: object, required: [identityToken], properties: {identityToken: {type: string}, nonce: {type: [string, 'null']}, deviceName: {type: [string, 'null']}}}}}}
+    SocialLogin: {required: true, content: {application/json: {schema: {type: object, required: [identityToken], properties: {identityToken: {type: string}, nonce: {type: [string, 'null'], description: "Required for Apple; send the raw nonce whose SHA-256 digest was included in the authorization request."}, name: {type: [string, 'null'], maxLength: 120, description: "Optional display name returned by Apple on first authorization."}, deviceName: {type: [string, 'null']}}}}}}
     Email: {required: true, content: {application/json: {schema: {type: object, required: [email], properties: {email: {type: string, format: email}}}}}}
     ResetPassword: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ResetPasswordRequest'}}}}
     Avatar: {required: true, content: {multipart/form-data: {schema: {type: object, required: [avatar], properties: {avatar: {type: string, format: binary}}}}}}
@@ -471,7 +473,7 @@ components:
         nextDueDate: {type: [string, 'null'], format: date}
         nextDueKm: {type: [integer, 'null'], minimum: 0, maximum: 5000000}
     MaintenanceRecordCreateRequest: {allOf: [{$ref: '#/components/schemas/MaintenanceRecordRequest'}, {type: object, required: [serviceDate, odometerKm], anyOf: [{required: [serviceDefinitionId]}, {required: [customService]}]}]}
-    MaintenanceReminderRequest: {type: object, properties: {serviceDefinitionId: {$ref: '#/components/schemas/Ulid'}, dueDate: {type: [string, 'null'], format: date}, dueKm: {type: [integer, 'null'], minimum: 0, maximum: 5000000}, status: {type: string, enum: [pending, snoozed, completed, dismissed]}, notificationPreferences: {type: [object, 'null']}}}
+    MaintenanceReminderRequest: {type: object, properties: {serviceDefinitionId: {$ref: '#/components/schemas/Ulid'}, dueDate: {type: [string, 'null'], format: date}, dueKm: {type: [integer, 'null'], minimum: 0, maximum: 5000000}, status: {type: string, enum: [pending, dismissed]}, notificationPreferences: {type: [object, 'null']}}}
     MaintenanceReminderCreateRequest: {allOf: [{$ref: '#/components/schemas/MaintenanceReminderRequest'}, {type: object, required: [serviceDefinitionId], anyOf: [{required: [dueDate]}, {required: [dueKm]}]}]}
     ReminderCompletionRequest: {type: object, required: [serviceDate, odometerKm], properties: {serviceDate: {type: string, format: date}, odometerKm: {type: integer, minimum: 0, maximum: 5000000}, amount: {type: [string, 'null'], pattern: '^\d+(?:\.\d{1,2})?$'}, currency: {type: [string, 'null'], pattern: '^[A-Z]{3}$'}, notes: {type: [string, 'null'], maxLength: 2000}}}
     AdminMechanicRequest:

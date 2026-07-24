@@ -82,7 +82,7 @@ class MaintenanceReminderController
     {
         $required = $create ? 'required' : 'sometimes';
 
-        return $request->validate(['serviceDefinitionId' => [$required, 'ulid', 'exists:maintenance_service_definitions,id'], 'dueDate' => [$create ? 'required_without:dueKm' : 'sometimes', 'nullable', 'date'], 'dueKm' => [$create ? 'required_without:dueDate' : 'sometimes', 'nullable', 'integer', 'between:0,5000000'], 'status' => ['sometimes', 'in:pending,snoozed,completed,dismissed'], 'notificationPreferences' => ['sometimes', 'nullable', 'array']]);
+        return $request->validate(['serviceDefinitionId' => [$required, 'ulid', 'exists:maintenance_service_definitions,id'], 'dueDate' => [$create ? 'required_without:dueKm' : 'sometimes', 'nullable', 'date'], 'dueKm' => [$create ? 'required_without:dueDate' : 'sometimes', 'nullable', 'integer', 'between:0,5000000'], 'status' => ['sometimes', 'in:pending,dismissed'], 'notificationPreferences' => ['sometimes', 'nullable', 'array']]);
     }
 
     private function nested(Vehicle $vehicle, MaintenanceReminder $reminder): void

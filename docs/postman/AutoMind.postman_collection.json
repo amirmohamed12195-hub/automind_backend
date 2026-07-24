@@ -8379,6 +8379,43 @@
             },
             "item": [
                 {
+                    "id": "4d61a909-8851-4a3a-9b9d-a10e59bb9ab8",
+                    "name": "listMaintenanceServiceDefinitions",
+                    "request": {
+                        "name": "listMaintenanceServiceDefinitions",
+                        "description": {
+                            "content": "Lists active, localized service definitions for maintenance records and reminders.",
+                            "type": "text/plain"
+                        },
+                        "url": {
+                            "path": [
+                                "maintenance-service-definitions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": []
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "response": [],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
                     "id": "eba5491e-861a-4563-b2f1-e5b72836f2aa",
                     "name": "listMaintenance",
                     "request": {
@@ -17143,7 +17180,7 @@
     "variable": [
         {
             "type": "any",
-            "value": "https://api.automind.example/api/v1",
+            "value": "https://automind.rafeequae.com/api/v1",
             "key": "baseUrl"
         }
     ],

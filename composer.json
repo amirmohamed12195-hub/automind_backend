@@ -80,6 +80,7 @@
             "@php artisan automind:check-production-config --ansi",
             "@php artisan automind:check-provider-config --ansi",
             "@php artisan migrate --force --ansi",
+            "@php artisan db:seed --class=Database\\\\Seeders\\\\ReferenceDataSeeder --force --ansi",
             "@php artisan optimize:clear --ansi",
             "@php artisan optimize --ansi",
             "@php artisan queue:restart --ansi"

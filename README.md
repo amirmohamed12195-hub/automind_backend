@@ -10,7 +10,7 @@ Production-oriented Laravel 13 REST API for the AutoMind Flutter application. It
 - OpenAI API adapters are behind contracts. Diagnostic synthesis, image understanding, engine audio, spoken transcription, and web price search are distinct stages.
 - Reports are strict-schema validated twice, passed through deterministic safety rules, and persisted as a normalized bilingual graph.
 
-See [architecture](docs/architecture.md), [OpenAI integration](docs/openai-integration.md), [notifications](docs/notifications.md), [Flutter integration](docs/flutter-integration.md), [security](docs/security.md), and [deployment](docs/deployment.md).
+See [architecture](docs/architecture.md), [OpenAI integration](docs/openai-integration.md), [notifications](docs/notifications.md), [Flutter integration](docs/flutter-integration.md), [security](docs/security.md), [deployment](docs/deployment.md), and the current [production-readiness report](docs/production-readiness-report.md).
 
 ## Local setup
 
@@ -34,6 +34,11 @@ The API is served at `http://localhost:8080/api/v1`. Non-production Swagger UI i
 - MySQL and Redis credentials, `APP_KEY`, HTTPS `APP_URL`, and non-debug production mode.
 - `OPENAI_API_KEY`, capability-verified model IDs, an optional webhook secret for signed provider events, and a versioned `OPENAI_PRICING_MODELS_JSON` snapshot from official pricing. Keep provider background mode disabled; Laravel queues orchestrate the workflow.
 - S3-compatible private bucket credentials, Google and Apple OAuth client IDs, FCM credentials, geocoding credentials, mail transport, and exact admin CORS origins as applicable.
+
+`ReferenceDataSeeder` contains 42 makes, 285 common models, symptoms,
+maintenance services, and workshop specialties. It is idempotent and runs as
+part of `composer run deploy:production`; demo users and the sample workshop
+remain disabled in production.
 
 Pricing JSON keys are model IDs and rates are USD per million tokens: `input`, `cachedInput`, `output`, plus optional per-call `webSearchCall`. Run `php artisan automind:check-provider-config` in deployment; it validates capabilities, endpoint, webhook, and pricing without spending API credit.
 

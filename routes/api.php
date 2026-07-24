@@ -38,6 +38,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('vehicle-catalog/makes', [VehicleCatalogController::class, 'makes']);
     Route::get('vehicle-catalog/makes/{makeCode}/models', [VehicleCatalogController::class, 'models']);
     Route::get('symptoms', [DiagnosisController::class, 'symptoms']);
+    Route::get('maintenance-service-definitions', [MaintenanceController::class, 'serviceDefinitions']);
     Route::get('mechanics', [MechanicController::class, 'index']);
     Route::get('mechanics/{mechanic}', [MechanicController::class, 'show']);
     Route::get('mechanics/{mechanic}/availability', [MechanicController::class, 'availability']);

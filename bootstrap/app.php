@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [AssignRequestId::class, SetApiLocale::class, RecordRequestMetrics::class]);
+        $middleware->validateCsrfTokens(except: ['callbacks/sign_in_with_apple']);
         $middleware->alias([
             'admin' => RequireAdmin::class,
             'web-admin' => RequireWebAdmin::class,
