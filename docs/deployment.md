@@ -125,6 +125,19 @@ submitting a diagnosis and confirming that readiness remains HTTP 200 with
 `checks.queue` set to `ok`; an available database job older than 90 seconds
 now makes readiness return HTTP 503.
 
+If the Hostinger plan has no persistent worker feature, configure a separate
+cron task every minute to drain the database queues. In hPanel, set the
+schedule to once per minute and use the following command with the real project
+path and PHP binary:
+
+```bash
+/usr/bin/php /home/HOSTINGER_USER/domains/DOMAIN/public_html/automind/artisan queue:work database --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders --sleep=1 --tries=4 --timeout=240 --stop-when-empty
+```
+
+This queue cron is required in addition to the scheduler cron below. Monitor
+`storage/logs/laravel.log` and the readiness queue depth so failed or stalled
+workers do not go unnoticed.
+
 Configure this cron entry with the actual absolute project path:
 
 ```cron
