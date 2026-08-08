@@ -78,11 +78,12 @@ host provides managed Redis, set `CACHE_STORE`, `QUEUE_CONNECTION`, and
 `SESSION_DRIVER` to `redis` only after replacing `REDIS_HOST` and the related
 credentials with the real connection details.
 
-Diagnostic audio requires both `ffmpeg` and `ffprobe`. The application resolves
-them from `PATH` by default and the readiness endpoint reports
-`checks.mediaTools=failed` when either is unavailable. On hosts that do not add
-the tools to `PATH`, set `FFMPEG_PATH` and `FFPROBE_PATH` to their executable
-absolute paths before accepting audio uploads.
+The mobile application records 16-bit PCM WAV, which the backend validates and
+submits without external media tools. `ffmpeg` and `ffprobe` remain optional for
+legacy compressed uploads. The application resolves them from `PATH` and the
+readiness endpoint reports `checks.mediaTools=optional` when unavailable. On
+hosts that support compressed uploads but do not add the tools to `PATH`, set
+`FFMPEG_PATH` and `FFPROBE_PATH` to their executable absolute paths.
 
 For the `automind.rafeequae.com` Hostinger deployment, install the dedicated
 environment template with:

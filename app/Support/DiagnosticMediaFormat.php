@@ -45,6 +45,11 @@ final class DiagnosticMediaFormat
         };
     }
 
+    public static function isWav(string $mime): bool
+    {
+        return in_array(strtolower(trim($mime)), ['audio/wav', 'audio/x-wav'], true);
+    }
+
     public static function openAiAudioFormat(string $mime): string
     {
         return match (strtolower(trim($mime))) {

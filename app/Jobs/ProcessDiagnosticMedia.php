@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\DiagnosticMedia;
 use App\Services\Media\MediaToolchain;
+use App\Services\Media\WavAudioInspector;
+use App\Support\DiagnosticMediaFormat;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -31,7 +33,7 @@ class ProcessDiagnosticMedia implements ShouldQueue
         return [random_int(25, 35), random_int(165, 195)];
     }
 
-    public function handle(MediaToolchain $toolchain): void
+    public function handle(MediaToolchain $toolchain, WavAudioInspector $wavInspector): void
     {
         $media = DiagnosticMedia::query()->findOrFail($this->mediaId);
         if ($media->deleted_at) {
@@ -59,7 +61,12 @@ class ProcessDiagnosticMedia implements ShouldQueue
                 $media->update(['scan_status' => 'not_configured']);
             }
             if ($media->media_kind !== 'photo') {
-                $this->normalizeAudio($media, $input, $toolchain);
+                if (DiagnosticMediaFormat::isWav($media->mime_type)) {
+                    $metadata = $wavInspector->inspect($input);
+                    $media->update(['sample_rate' => $metadata['sampleRate'], 'channels' => $metadata['channels']]);
+                } else {
+                    $this->normalizeAudio($media, $input, $toolchain);
+                }
             }
             $media->update(['processing_status' => 'ready', 'failure_code' => null]);
         } catch (Throwable $e) {

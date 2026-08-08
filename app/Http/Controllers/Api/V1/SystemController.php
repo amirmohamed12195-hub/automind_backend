@@ -40,7 +40,7 @@ class SystemController
             $this->mediaToolchain->assertAvailable();
             $checks['mediaTools'] = 'ok';
         } catch (Throwable) {
-            $checks['mediaTools'] = 'failed';
+            $checks['mediaTools'] = 'optional';
         }
         if (config('cache.default') === 'redis') {
             try {

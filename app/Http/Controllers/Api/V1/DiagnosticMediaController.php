@@ -8,6 +8,7 @@ use App\Jobs\ProcessDiagnosticMedia;
 use App\Models\DiagnosticMedia;
 use App\Models\DiagnosticSession;
 use App\Services\Media\MediaToolchain;
+use App\Services\Media\WavAudioInspector;
 use App\Support\ApiResponse;
 use App\Support\DiagnosticMediaFormat;
 use Illuminate\Support\Facades\Gate;
@@ -16,7 +17,10 @@ use Throwable;
 
 class DiagnosticMediaController
 {
-    public function __construct(private readonly MediaToolchain $toolchain) {}
+    public function __construct(
+        private readonly MediaToolchain $toolchain,
+        private readonly WavAudioInspector $wavInspector,
+    ) {}
 
     public function store(DiagnosticMediaRequest $request, DiagnosticSession $diagnosis, ObjectStorageProvider $storage)
     {
@@ -41,7 +45,7 @@ class DiagnosticMediaController
         if ((clone $active)->where('sha256', $sha)->exists()) {
             return ApiResponse::error('DUPLICATE_MEDIA', __('api.duplicate_media'), 409);
         }
-        $width = $height = $duration = null;
+        $width = $height = $duration = $sampleRate = $channels = null;
         if ($kind === 'photo') {
             $dimensions = @getimagesize($file->getRealPath());
             if (! $dimensions) {
@@ -50,6 +54,18 @@ class DiagnosticMediaController
             [$width, $height] = $dimensions;
             if (max($width, $height) > config('automind.media.max_image_dimension')) {
                 return ApiResponse::error('IMAGE_DIMENSIONS_EXCEEDED', __('api.image_dimensions_exceeded'), 422);
+            }
+        } elseif (DiagnosticMediaFormat::isWav($mime)) {
+            try {
+                $metadata = $this->wavInspector->inspect($file->getRealPath());
+                $duration = $metadata['durationMilliseconds'];
+                $sampleRate = $metadata['sampleRate'];
+                $channels = $metadata['channels'];
+            } catch (Throwable) {
+                return ApiResponse::error('MALFORMED_MEDIA', __('api.malformed_media'), 422);
+            }
+            if ($kind === 'engine_sound' && $duration > 30000) {
+                return ApiResponse::error('AUDIO_TOO_LONG', __('api.audio_too_long'), 422);
             }
         } else {
             try {
@@ -62,7 +78,7 @@ class DiagnosticMediaController
             }
         }
         $stored = $storage->storePrivate($file, "diagnostics/{$diagnosis->id}");
-        $media = DiagnosticMedia::query()->create(['diagnostic_session_id' => $diagnosis->id, 'media_kind' => $kind, 'storage_disk' => $stored['disk'], 'storage_path' => $stored['path'], 'original_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255), 'mime_type' => $mime, 'extension' => $stored['extension'], 'byte_size' => $stored['byteSize'], 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_milliseconds' => $duration, 'upload_status' => 'uploaded', 'scan_status' => config('automind.media.clamav_command') ? 'pending' : 'not_configured', 'processing_status' => 'pending']);
+        $media = DiagnosticMedia::query()->create(['diagnostic_session_id' => $diagnosis->id, 'media_kind' => $kind, 'storage_disk' => $stored['disk'], 'storage_path' => $stored['path'], 'original_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255), 'mime_type' => $mime, 'extension' => $stored['extension'], 'byte_size' => $stored['byteSize'], 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_milliseconds' => $duration, 'sample_rate' => $sampleRate, 'channels' => $channels, 'upload_status' => 'uploaded', 'scan_status' => config('automind.media.clamav_command') ? 'pending' : 'not_configured', 'processing_status' => 'pending']);
         $diagnosis->update(['status' => 'uploading']);
         ProcessDiagnosticMedia::dispatch($media->id)->afterCommit();
 

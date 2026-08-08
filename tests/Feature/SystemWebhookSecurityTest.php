@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessOpenAiWebhook;
+use App\Services\Media\MediaToolchain;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
@@ -34,6 +35,22 @@ class SystemWebhookSecurityTest extends ApiTestCase
         $this->call('POST', '/api/v1/webhooks/openai', [], [], [], $server, $payload)->assertStatus(202);
         $this->assertDatabaseCount('webhook_receipts', 1);
         Queue::assertPushed(ProcessOpenAiWebhook::class, 1);
+    }
+
+    public function test_readiness_remains_ready_when_optional_legacy_media_tools_are_unavailable(): void
+    {
+        $this->app->instance(MediaToolchain::class, new class extends MediaToolchain
+        {
+            public function assertAvailable(): void
+            {
+                throw new \RuntimeException('Media tools are intentionally unavailable in this test.');
+            }
+        });
+
+        $this->getJson('/api/v1/health')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'ready')
+            ->assertJsonPath('data.checks.mediaTools', 'optional');
     }
 
     public function test_readiness_fails_when_a_database_queue_job_is_stalled(): void

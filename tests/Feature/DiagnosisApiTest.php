@@ -20,7 +20,6 @@ use App\Services\Media\MediaToolchain;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\Process\Process;
 use Tests\Fakes\FakeAiProviders;
 
 class DiagnosisApiTest extends ApiTestCase
@@ -230,6 +229,23 @@ class DiagnosisApiTest extends ApiTestCase
     {
         Queue::fake();
         Storage::fake('local');
+        $this->app->instance(MediaToolchain::class, new class extends MediaToolchain
+        {
+            public function ffmpeg(): string
+            {
+                throw new \RuntimeException('FFmpeg is intentionally unavailable in this test.');
+            }
+
+            public function ffprobe(): string
+            {
+                throw new \RuntimeException('FFprobe is intentionally unavailable in this test.');
+            }
+
+            public function assertAvailable(): void
+            {
+                throw new \RuntimeException('Media tools are intentionally unavailable in this test.');
+            }
+        });
         $user = $this->actingAsUser();
         $vehicle = Vehicle::factory()->for($user)->create();
         $description = 'The engine shakes at idle and makes a repeating tapping sound.';
@@ -250,12 +266,11 @@ class DiagnosisApiTest extends ApiTestCase
         ], ['Accept' => 'application/json'])->assertCreated();
         $audio = $this->post("/api/v1/diagnoses/$sessionId/media", [
             'kind' => 'engine_sound',
-            'file' => UploadedFile::fake()->createWithContent('engine.m4a', $this->m4aFixture()),
+            'file' => UploadedFile::fake()->createWithContent('engine.wav', $this->wavFixture()),
         ], ['Accept' => 'application/json'])
             ->assertCreated()
-            ->assertJsonPath('data.kind', 'engine_sound');
-        $this->assertGreaterThanOrEqual(900, $audio->json('data.durationMilliseconds'));
-        $this->assertLessThanOrEqual(1100, $audio->json('data.durationMilliseconds'));
+            ->assertJsonPath('data.kind', 'engine_sound')
+            ->assertJsonPath('data.durationMilliseconds', 1000);
 
         foreach ([$photo->json('data.id'), $audio->json('data.id')] as $mediaId) {
             $this->app->call([new ProcessDiagnosticMedia($mediaId), 'handle']);
@@ -300,27 +315,17 @@ class DiagnosisApiTest extends ApiTestCase
             ->assertJsonPath('data.sessionId', $sessionId);
     }
 
-    private function m4aFixture(): string
+    private function wavFixture(): string
     {
-        $output = tempnam(sys_get_temp_dir(), 'automind-m4a-fixture-');
-        if ($output === false) {
-            throw new \RuntimeException('Unable to allocate the M4A fixture.');
+        $sampleRate = 16000;
+        $samples = '';
+        for ($sample = 0; $sample < $sampleRate; $sample++) {
+            $value = (int) round(sin(2 * M_PI * 220 * $sample / $sampleRate) * 8000);
+            $samples .= pack('v', $value & 0xFFFF);
         }
-        @unlink($output);
-        $output .= '.m4a';
 
-        try {
-            $process = new Process([
-                app(MediaToolchain::class)->ffmpeg(), '-nostdin', '-y',
-                '-f', 'lavfi', '-i', 'sine=frequency=220:duration=1',
-                '-c:a', 'aac', '-b:a', '64k', $output,
-            ]);
-            $process->setTimeout(15);
-            $process->mustRun();
-
-            return (string) file_get_contents($output);
-        } finally {
-            @unlink($output);
-        }
+        return 'RIFF'.pack('V', 36 + strlen($samples)).'WAVE'
+            .'fmt '.pack('VvvVVvv', 16, 1, 1, $sampleRate, $sampleRate * 2, 2, 16)
+            .'data'.pack('V', strlen($samples)).$samples;
     }
 }
