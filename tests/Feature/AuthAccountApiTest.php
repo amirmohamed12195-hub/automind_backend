@@ -28,6 +28,7 @@ class AuthAccountApiTest extends ApiTestCase
 
         $login = $this->postJson('/api/v1/auth/login', ['email' => 'DRIVER@example.com', 'password' => 'Secret123']);
         $token = $login->assertOk()->json('data.accessToken');
+        $this->assertNotNull(User::query()->where('email', 'driver@example.com')->value('last_login_at'));
         $this->withToken($token)->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.name', 'Driver');
         $this->withToken($token)->patchJson('/api/v1/settings', ['locale' => 'ar', 'themeMode' => 'dark', 'units' => 'imperial'])->assertOk()->assertJsonPath('data.themeMode', 'dark');
         $this->withToken($token)->postJson('/api/v1/auth/logout')->assertNoContent();

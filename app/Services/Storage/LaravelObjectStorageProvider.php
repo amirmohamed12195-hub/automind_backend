@@ -3,6 +3,7 @@
 namespace App\Services\Storage;
 
 use App\Contracts\ObjectStorageProvider;
+use App\Support\DiagnosticMediaFormat;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -13,9 +14,7 @@ class LaravelObjectStorageProvider implements ObjectStorageProvider
     {
         $disk = (string) config('automind.media.disk');
         $mime = (string) $file->getMimeType();
-        $extension = match ($mime) {
-            'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'audio/mpeg' => 'mp3', 'audio/wav', 'audio/x-wav' => 'wav', 'audio/mp4', 'audio/x-m4a' => 'm4a', 'audio/ogg' => 'ogg', 'audio/webm' => 'webm', default => strtolower($file->getClientOriginalExtension())
-        };
+        $extension = DiagnosticMediaFormat::extension($mime, $file->getClientOriginalExtension());
         $temporary = null;
         if (str_starts_with($mime, 'image/')) {
             $temporary = $this->stripImageMetadata($file, $mime, $extension);

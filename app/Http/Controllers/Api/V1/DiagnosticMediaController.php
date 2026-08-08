@@ -8,6 +8,7 @@ use App\Jobs\ProcessDiagnosticMedia;
 use App\Models\DiagnosticMedia;
 use App\Models\DiagnosticSession;
 use App\Support\ApiResponse;
+use App\Support\DiagnosticMediaFormat;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\Process\Process;
 use Throwable;
@@ -23,8 +24,7 @@ class DiagnosticMediaController
         $kind = $request->input('kind');
         $file = $request->file('file');
         $mime = (string) $file->getMimeType();
-        $allowed = $kind === 'photo' ? ['image/jpeg', 'image/png', 'image/webp'] : ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/x-m4a', 'audio/ogg', 'audio/webm'];
-        if (! in_array($mime, $allowed, true)) {
+        if (! DiagnosticMediaFormat::supports($kind, $mime)) {
             return ApiResponse::error('UNSUPPORTED_MEDIA', __('api.validation_failed'), 422, ['file' => [__('api.unsupported_media')]]);
         }
         $active = $diagnosis->media()->whereNull('deleted_at');
@@ -83,10 +83,14 @@ class DiagnosticMediaController
 
     private function durationMilliseconds(string $path): int
     {
-        $process = new Process([(string) config('automind.media.ffprobe_path'), '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', $path]);
+        $process = new Process([(string) config('automind.media.ffprobe_path'), '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type:format=duration', '-of', 'json', $path]);
         $process->setTimeout(15);
         $process->mustRun();
-        $seconds = (float) trim($process->getOutput());
+        $probe = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
+        if (($probe['streams'][0]['codec_type'] ?? null) !== 'audio') {
+            throw new \RuntimeException('The uploaded file does not contain an audio stream.');
+        }
+        $seconds = (float) ($probe['format']['duration'] ?? 0);
         if ($seconds <= 0 || $seconds > 600) {
             throw new \RuntimeException('Invalid audio duration.');
         }

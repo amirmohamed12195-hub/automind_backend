@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Contracts\AudioUnderstandingProvider;
 use App\DTO\AiProviderResult;
 use App\Exceptions\AiProviderException;
+use App\Support\DiagnosticMediaFormat;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 
@@ -14,9 +15,7 @@ class OpenAiAudioUnderstandingProvider implements AudioUnderstandingProvider
 
     public function understand(string $disk, string $path, string $mimeType, string $safetyIdentifier): AiProviderResult
     {
-        $format = match ($mimeType) {
-            'audio/wav', 'audio/x-wav' => 'wav', 'audio/mpeg' => 'mp3', default => 'm4a'
-        };
+        $format = DiagnosticMediaFormat::openAiAudioFormat($mimeType);
         $response = $this->transport->post('/chat/completions', [
             'model' => config('openai.audio_model'), 'safety_identifier' => $safetyIdentifier,
             'messages' => [['role' => 'user', 'content' => [
