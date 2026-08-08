@@ -16,9 +16,11 @@ use App\Models\SymptomDefinition;
 use App\Models\UserNotification;
 use App\Models\Vehicle;
 use App\Services\Diagnostics\DiagnosticReportPersister;
+use App\Services\Media\MediaToolchain;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Process;
 use Tests\Fakes\FakeAiProviders;
 
 class DiagnosisApiTest extends ApiTestCase
@@ -222,5 +224,103 @@ class DiagnosisApiTest extends ApiTestCase
         $this->assertDatabaseHas('media_observations', ['observation_type' => 'photo', 'canonical_code' => 'visible_surface']);
         $this->assertDatabaseHas('media_observations', ['observation_type' => 'transcription', 'canonical_code' => 'spoken_transcript']);
         $this->assertSame(1, $session->fresh()->media()->where('media_kind', 'photo')->firstOrFail()->observations()->count());
+    }
+
+    public function test_text_engine_audio_and_photo_complete_the_full_analysis_pipeline(): void
+    {
+        Queue::fake();
+        Storage::fake('local');
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $description = 'The engine shakes at idle and makes a repeating tapping sound.';
+
+        $created = $this->withHeader('Idempotency-Key', 'multimodal-diagnosis-1')->postJson('/api/v1/diagnoses', [
+            'vehicleId' => $vehicle->id,
+            'description' => $description,
+            'selectedSymptoms' => ['engine', 'performance'],
+            'inputLocale' => 'en',
+            'reportLocale' => 'en',
+            'consentVersion' => 'privacy-v1',
+        ])->assertCreated();
+        $sessionId = $created->json('data.id');
+
+        $photo = $this->post("/api/v1/diagnoses/$sessionId/media", [
+            'kind' => 'photo',
+            'file' => UploadedFile::fake()->image('engine-bay.jpg', 320, 240),
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $audio = $this->post("/api/v1/diagnoses/$sessionId/media", [
+            'kind' => 'engine_sound',
+            'file' => UploadedFile::fake()->createWithContent('engine.m4a', $this->m4aFixture()),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.kind', 'engine_sound');
+        $this->assertGreaterThanOrEqual(900, $audio->json('data.durationMilliseconds'));
+        $this->assertLessThanOrEqual(1100, $audio->json('data.durationMilliseconds'));
+
+        foreach ([$photo->json('data.id'), $audio->json('data.id')] as $mediaId) {
+            $this->app->call([new ProcessDiagnosticMedia($mediaId), 'handle']);
+        }
+
+        $this->assertDatabaseHas('diagnostic_media', [
+            'id' => $audio->json('data.id'),
+            'media_kind' => 'engine_sound',
+            'mime_type' => 'audio/wav',
+            'processing_status' => 'ready',
+            'sample_rate' => 16000,
+            'channels' => 1,
+        ]);
+        $this->assertDatabaseHas('diagnostic_media', [
+            'id' => $photo->json('data.id'),
+            'media_kind' => 'photo',
+            'processing_status' => 'ready',
+        ]);
+
+        $fake = new FakeAiProviders;
+        foreach ([AiDiagnosticProvider::class, AudioUnderstandingProvider::class, SpeechTranscriptionProvider::class, VisionUnderstandingProvider::class, WebPriceSearchProvider::class] as $contract) {
+            $this->app->instance($contract, $fake);
+        }
+
+        $this->postJson("/api/v1/diagnoses/$sessionId/analyze")
+            ->assertStatus(202)
+            ->assertJsonPath('data.status', 'queued');
+        $this->app->call([new AnalyzeDiagnosticSession($sessionId), 'handle']);
+
+        $session = DiagnosticSession::query()->findOrFail($sessionId);
+        $this->assertSame('completed', $session->status);
+        $this->assertSame(['audio', 'vision', 'synthesize'], array_column($fake->calls, 0));
+        $synthesis = collect($fake->calls)->first(fn (array $call): bool => $call[0] === 'synthesize');
+        $manifest = $synthesis[1];
+        $this->assertSame($description, data_get($manifest, 'untrustedEvidence.description'));
+        $this->assertSame('rhythmic_variation', data_get($manifest, 'untrustedEvidence.engineSoundObservations.observations.0.code'));
+        $this->assertSame('visible_surface', data_get($manifest, 'untrustedEvidence.photoObservations.observations.0.code'));
+        $this->assertDatabaseHas('media_observations', ['observation_type' => 'engine_audio', 'canonical_code' => 'rhythmic_variation']);
+        $this->assertDatabaseHas('media_observations', ['observation_type' => 'photo', 'canonical_code' => 'visible_surface']);
+        $this->getJson("/api/v1/diagnoses/$sessionId/report")
+            ->assertOk()
+            ->assertJsonPath('data.sessionId', $sessionId);
+    }
+
+    private function m4aFixture(): string
+    {
+        $output = tempnam(sys_get_temp_dir(), 'automind-m4a-fixture-');
+        if ($output === false) {
+            throw new \RuntimeException('Unable to allocate the M4A fixture.');
+        }
+        @unlink($output);
+        $output .= '.m4a';
+
+        try {
+            $process = new Process([
+                app(MediaToolchain::class)->ffmpeg(), '-nostdin', '-y',
+                '-f', 'lavfi', '-i', 'sine=frequency=220:duration=1',
+                '-c:a', 'aac', '-b:a', '64k', $output,
+            ]);
+            $process->setTimeout(15);
+            $process->mustRun();
+
+            return (string) file_get_contents($output);
+        } finally {
+            @unlink($output);
+        }
     }
 }

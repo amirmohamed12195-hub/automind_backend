@@ -7,6 +7,7 @@ use App\Http\Requests\DiagnosticMediaRequest;
 use App\Jobs\ProcessDiagnosticMedia;
 use App\Models\DiagnosticMedia;
 use App\Models\DiagnosticSession;
+use App\Services\Media\MediaToolchain;
 use App\Support\ApiResponse;
 use App\Support\DiagnosticMediaFormat;
 use Illuminate\Support\Facades\Gate;
@@ -15,6 +16,8 @@ use Throwable;
 
 class DiagnosticMediaController
 {
+    public function __construct(private readonly MediaToolchain $toolchain) {}
+
     public function store(DiagnosticMediaRequest $request, DiagnosticSession $diagnosis, ObjectStorageProvider $storage)
     {
         Gate::authorize('update', $diagnosis);
@@ -83,7 +86,7 @@ class DiagnosticMediaController
 
     private function durationMilliseconds(string $path): int
     {
-        $process = new Process([(string) config('automind.media.ffprobe_path'), '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type:format=duration', '-of', 'json', $path]);
+        $process = new Process([$this->toolchain->ffprobe(), '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type:format=duration', '-of', 'json', $path]);
         $process->setTimeout(15);
         $process->mustRun();
         $probe = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);

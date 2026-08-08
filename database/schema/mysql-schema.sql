@@ -185,6 +185,8 @@ alter table `audit_logs` add constraint `audit_logs_actor_user_id_foreign` forei
 alter table `audit_logs` add index `audit_logs_target_type_target_id_index`(`target_type`, `target_id`);
 alter table `audit_logs` add index `audit_logs_action_index`(`action`);
 alter table `audit_logs` add index `audit_logs_request_id_index`(`request_id`);
+select column_name as `name`, data_type as `type_name`, column_type as `type`, collation_name as `collation`, is_nullable as `nullable`, column_default as `default`, column_comment as `comment`, generation_expression as `expression`, extra as `extra` from information_schema.columns where table_schema = schema() and table_name = 'users' order by ordinal_position asc;
+alter table `users` add `last_login_at` timestamp null after `email_verified_at`;
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -193,4 +195,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000100_creat
 insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000200_create_ai_report_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000300_create_pricing_and_operations_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000400_create_mechanic_notification_admin_tables', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_08_08_000100_add_last_login_at_to_users_table', 1);
 SET FOREIGN_KEY_CHECKS=1;

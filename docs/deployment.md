@@ -78,6 +78,12 @@ host provides managed Redis, set `CACHE_STORE`, `QUEUE_CONNECTION`, and
 `SESSION_DRIVER` to `redis` only after replacing `REDIS_HOST` and the related
 credentials with the real connection details.
 
+Diagnostic audio requires both `ffmpeg` and `ffprobe`. The application resolves
+them from `PATH` by default and the readiness endpoint reports
+`checks.mediaTools=failed` when either is unavailable. On hosts that do not add
+the tools to `PATH`, set `FFMPEG_PATH` and `FFPROBE_PATH` to their executable
+absolute paths before accepting audio uploads.
+
 For the `automind.rafeequae.com` Hostinger deployment, install the dedicated
 environment template with:
 

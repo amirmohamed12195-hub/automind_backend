@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Services\Media\MediaToolchain;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,8 @@ use Throwable;
 
 class SystemController
 {
+    public function __construct(private readonly MediaToolchain $mediaToolchain) {}
+
     public function health(Request $request)
     {
         $type = $request->validate([
@@ -32,6 +35,12 @@ class SystemController
             $checks['storage'] = 'ok';
         } catch (Throwable) {
             $checks['storage'] = 'failed';
+        }
+        try {
+            $this->mediaToolchain->assertAvailable();
+            $checks['mediaTools'] = 'ok';
+        } catch (Throwable) {
+            $checks['mediaTools'] = 'failed';
         }
         if (config('cache.default') === 'redis') {
             try {

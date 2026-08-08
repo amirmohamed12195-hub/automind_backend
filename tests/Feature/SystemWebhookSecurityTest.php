@@ -12,7 +12,10 @@ class SystemWebhookSecurityTest extends ApiTestCase
     {
         $this->getJson('/api/v1/health?type=liveness')->assertOk()->assertJsonPath('data.status', 'alive')->assertHeader('X-Request-Id');
         $this->getJson('/api/v1/health?type=unknown')->assertUnprocessable()->assertJsonPath('error.code', 'VALIDATION_FAILED');
-        $this->getJson('/api/v1/health')->assertOk()->assertJsonPath('data.checks.database', 'ok');
+        $this->getJson('/api/v1/health')
+            ->assertOk()
+            ->assertJsonPath('data.checks.database', 'ok')
+            ->assertJsonPath('data.checks.mediaTools', 'ok');
         $this->getJson('/api/v1/version')->assertOk()->assertJsonStructure(['data' => ['apiVersion', 'laravelVersion', 'environment']]);
     }
 

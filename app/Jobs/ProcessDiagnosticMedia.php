@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\DiagnosticMedia;
+use App\Services\Media\MediaToolchain;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -30,7 +31,7 @@ class ProcessDiagnosticMedia implements ShouldQueue
         return [random_int(25, 35), random_int(165, 195)];
     }
 
-    public function handle(): void
+    public function handle(MediaToolchain $toolchain): void
     {
         $media = DiagnosticMedia::query()->findOrFail($this->mediaId);
         if ($media->deleted_at) {
@@ -58,7 +59,7 @@ class ProcessDiagnosticMedia implements ShouldQueue
                 $media->update(['scan_status' => 'not_configured']);
             }
             if ($media->media_kind !== 'photo') {
-                $this->normalizeAudio($media, $input);
+                $this->normalizeAudio($media, $input, $toolchain);
             }
             $media->update(['processing_status' => 'ready', 'failure_code' => null]);
         } catch (Throwable $e) {
@@ -69,7 +70,7 @@ class ProcessDiagnosticMedia implements ShouldQueue
         }
     }
 
-    private function normalizeAudio(DiagnosticMedia $media, string $input): void
+    private function normalizeAudio(DiagnosticMedia $media, string $input, MediaToolchain $toolchain): void
     {
         $output = tempnam(sys_get_temp_dir(), 'automind-audio-');
         if ($output === false) {
@@ -77,7 +78,7 @@ class ProcessDiagnosticMedia implements ShouldQueue
         } @unlink($output);
         $output .= '.wav';
         try {
-            $process = new Process([(string) config('automind.media.ffmpeg_path'), '-nostdin', '-y', '-i', $input, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', $output]);
+            $process = new Process([$toolchain->ffmpeg(), '-nostdin', '-y', '-i', $input, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', $output]);
             $process->setTimeout(60);
             $process->mustRun();
             $newPath = preg_replace('/\.[^.]+$/', '.normalized.wav', $media->storage_path);
