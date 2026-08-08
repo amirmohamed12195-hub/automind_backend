@@ -29,7 +29,7 @@ class OpenAiWebPriceSearchProvider implements WebPriceSearchProvider
             'input' => json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'tools' => [['type' => 'web_search', 'search_context_size' => 'low']], 'tool_choice' => 'auto',
             'max_tool_calls' => 3, 'max_output_tokens' => config('openai.max_output_tokens'),
-            'include' => ['web_search_call.action.sources'], 'text' => ['format' => $format], 'store' => config('openai.store_responses'), 'safety_identifier' => $safetyIdentifier,
+            'include' => ['web_search_call.action.sources'], 'text' => ['format' => $format], 'reasoning' => ['effort' => config('openai.price_search_reasoning_effort')], 'store' => config('openai.store_responses'), 'safety_identifier' => $safetyIdentifier,
         ]);
 
         $sources = $this->parser->sources($response);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProcessOpenAiWebhook;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
 class SystemWebhookSecurityTest extends ApiTestCase
@@ -30,5 +31,30 @@ class SystemWebhookSecurityTest extends ApiTestCase
         $this->call('POST', '/api/v1/webhooks/openai', [], [], [], $server, $payload)->assertStatus(202);
         $this->assertDatabaseCount('webhook_receipts', 1);
         Queue::assertPushed(ProcessOpenAiWebhook::class, 1);
+    }
+
+    public function test_readiness_fails_when_a_database_queue_job_is_stalled(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'queue.connections.database.connection' => 'sqlite',
+            'automind.queue.critical' => ['diagnostic-ai'],
+            'automind.queue.stale_after_seconds' => 30,
+        ]);
+        DB::table('jobs')->insert([
+            'queue' => 'diagnostic-ai',
+            'payload' => '{}',
+            'attempts' => 0,
+            'reserved_at' => null,
+            'available_at' => time() - 31,
+            'created_at' => time() - 31,
+        ]);
+
+        $this->getJson('/api/v1/health')
+            ->assertServiceUnavailable()
+            ->assertJsonPath('data.status', 'not_ready')
+            ->assertJsonPath('data.checks.queue', 'failed')
+            ->assertJsonPath('data.queue.connection', 'database')
+            ->assertJsonPath('data.queue.depth', 1);
     }
 }

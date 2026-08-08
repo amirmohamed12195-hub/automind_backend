@@ -8,7 +8,7 @@ All OpenAI API calls originate on the trusted backend. The Flutter app never rec
 |---|---|---|---|---|
 | Diagnostic synthesis | `POST /v1/responses` | `gpt-5.6-terra` | text, Structured Outputs | strict bilingual report graph |
 | Photo observations | `POST /v1/responses` | `gpt-5.6-terra` | image input, Structured Outputs | evidence observations and run metadata |
-| Engine acoustic observations | `POST /v1/chat/completions` | `gpt-audio-1.5` | audio input, JSON schema | cautious acoustic evidence |
+| Engine acoustic observations | `POST /v1/chat/completions` | `gpt-audio-1.5` | audio input, JSON-only output with local validation | cautious acoustic evidence |
 | Spoken symptom transcript | `POST /v1/audio/transcriptions` | `gpt-4o-mini-transcribe` | transcription | original-language user evidence |
 | Part-price research | `POST /v1/responses` | `gpt-5.6-luna` | `web_search`, Structured Outputs | attributable sources, quotes, estimate |
 
@@ -17,8 +17,9 @@ Terra is the balanced diagnosis/vision choice and Luna is used for efficient web
 ## Request behavior
 
 - Diagnostic schema version: `diagnostic-report-v1`; prompt version: `diagnostic-v1`. Every object rejects additional properties.
-- Responses requests set `store: false` by default, a hashed `safety_identifier`, bounded output tokens, and no raw email, phone, VIN, or database ID.
+- Responses requests set `store: false` by default, low reasoning effort for interactive latency, a hashed `safety_identifier`, bounded output tokens, and no raw email, phone, VIN, or database ID.
 - Images use resized, re-encoded private bytes as data URLs and default to `high` detail for vehicle damage and component inspection; deployments may explicitly lower it only after an image-quality and cost evaluation. Engine audio is normalized and submitted as audio, never fake-transcribed.
+- `gpt-audio-1.5` does not support Structured Outputs, so its short JSON-only response is strictly validated in the application before it can become diagnostic evidence.
 - Web search is capped at three tool calls, includes the full source list, deduplicates by URL hash, rejects currency/part incompatibility, and returns unavailable when evidence is insufficient.
 - User text, OCR, OBD descriptions, transcripts, and web pages are untrusted evidence. Prompts explicitly prohibit following instructions found inside that evidence.
 
@@ -36,14 +37,14 @@ Rates live in versioned `OPENAI_PRICING_MODELS_JSON`, never business logic. Exam
 
 ```json
 {
-  "gpt-5.6-terra": {"input": "2.5", "cachedInput": "0.25", "output": "15"},
+  "gpt-5.6-terra": {"input": "2", "cachedInput": "0.2", "output": "12"},
   "gpt-audio-1.5": {"input": "32", "output": "10"},
   "gpt-4o-mini-transcribe": {"input": "1.25", "output": "5"},
-  "gpt-5.6-luna": {"input": "1", "cachedInput": "0.1", "output": "6", "webSearchCall": "0.01"}
+  "gpt-5.6-luna": {"input": "0.2", "cachedInput": "0.02", "output": "1.2", "webSearchCall": "0.01"}
 }
 ```
 
-This `openai-api-standard-2026-07-23` snapshot uses standard-tier USD rates
+This `openai-api-standard-2026-08-08` snapshot uses standard-tier USD rates
 per million tokens and $0.01 per web-search call. The audio-analysis request
 uses the audio-input rate and text-output rate. Re-verify the snapshot against
 the [official API pricing](https://developers.openai.com/api/docs/pricing) page

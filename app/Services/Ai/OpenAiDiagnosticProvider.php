@@ -17,6 +17,7 @@ class OpenAiDiagnosticProvider implements AiDiagnosticProvider
             'instructions' => file_get_contents(resource_path('ai/diagnostic_system_prompt.txt')),
             'input' => [['role' => 'user', 'content' => [['type' => 'input_text', 'text' => json_encode($evidenceManifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]]]],
             'text' => ['format' => $format],
+            'reasoning' => ['effort' => config('openai.diagnosis_reasoning_effort')],
             'max_output_tokens' => config('openai.max_output_tokens'),
             'store' => config('openai.store_responses'),
             'background' => config('openai.background_mode'),

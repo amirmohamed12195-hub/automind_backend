@@ -41,6 +41,12 @@ class OpenAiConfigurationValidator
         if (! in_array(config('openai.vision_detail'), ['low', 'high', 'auto', 'original'], true)) {
             $errors[] = 'OPENAI_VISION_DETAIL must be low, high, auto, or original.';
         }
+        foreach (['diagnosis', 'vision', 'price_search'] as $task) {
+            $effort = config("openai.{$task}_reasoning_effort");
+            if (! in_array($effort, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], true)) {
+                $errors[] = 'OPENAI_'.strtoupper($task).'_REASONING_EFFORT must be none, low, medium, high, xhigh, or max.';
+            }
+        }
         if ($requireKey && config('openai.pricing.version') === 'unconfigured') {
             $errors[] = 'OPENAI_PRICING_VERSION must identify the official pricing snapshot.';
         }

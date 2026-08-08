@@ -76,6 +76,16 @@ class ProductionConfigurationValidatorTest extends TestCase
         );
     }
 
+    public function test_invalid_reasoning_effort_is_rejected(): void
+    {
+        config(['openai.diagnosis_reasoning_effort' => 'fastest']);
+
+        $this->assertContains(
+            'OPENAI_DIAGNOSIS_REASONING_EFFORT must be none, low, medium, high, xhigh, or max.',
+            app(OpenAiConfigurationValidator::class)->errors(false),
+        );
+    }
+
     public function test_enabled_social_login_requires_both_provider_client_ids(): void
     {
         config([

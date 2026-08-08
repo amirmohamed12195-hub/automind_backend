@@ -37,23 +37,67 @@ class SystemController
             try {
                 app('redis')->connection()->ping();
                 $checks['redis'] = 'ok';
-                Queue::size('diagnostic-ai');
-                $checks['queue'] = 'ok';
             } catch (Throwable) {
                 $checks['redis'] = 'failed';
-                $checks['queue'] = 'failed';
             }
         } else {
             $checks['redis'] = 'not-required';
-            $checks['queue'] = config('queue.default') === 'sync' ? 'sync' : 'not-checked';
         }
+        $queue = $this->queueReadiness();
+        $checks['queue'] = $queue['status'];
         $ready = ! in_array('failed', $checks, true);
 
-        return ApiResponse::success(['status' => $ready ? 'ready' : 'not_ready', 'checks' => $checks], $ready ? 200 : 503);
+        return ApiResponse::success([
+            'status' => $ready ? 'ready' : 'not_ready',
+            'checks' => $checks,
+            'queue' => ['connection' => $queue['connection'], 'depth' => $queue['depth']],
+        ], $ready ? 200 : 503);
     }
 
     public function version()
     {
         return ApiResponse::success(['apiVersion' => config('automind.api_version'), 'laravelVersion' => app()->version(), 'environment' => app()->environment()]);
+    }
+
+    /** @return array{status: string, connection: string, depth: ?int} */
+    private function queueReadiness(): array
+    {
+        $connection = (string) config('queue.default');
+        $driver = (string) config("queue.connections.$connection.driver");
+        if ($driver === 'sync') {
+            return ['status' => 'sync', 'connection' => $connection, 'depth' => 0];
+        }
+
+        try {
+            $queues = config('automind.queue.critical', ['diagnostic-ai']);
+            $queues = is_array($queues) ? $queues : ['diagnostic-ai'];
+            $queueConnection = Queue::connection($connection);
+            $depth = array_sum(array_map(
+                fn (string $queue): int => $queueConnection->size($queue),
+                $queues,
+            ));
+
+            if ($driver === 'database' && $this->databaseQueueHasStalledJob($connection, $queues)) {
+                return ['status' => 'failed', 'connection' => $connection, 'depth' => $depth];
+            }
+
+            return ['status' => 'ok', 'connection' => $connection, 'depth' => $depth];
+        } catch (Throwable) {
+            return ['status' => 'failed', 'connection' => $connection, 'depth' => null];
+        }
+    }
+
+    private function databaseQueueHasStalledJob(string $connection, array $queues): bool
+    {
+        $table = (string) config("queue.connections.$connection.table", 'jobs');
+        $databaseConnection = config("queue.connections.$connection.connection");
+        $staleAfter = max(15, (int) config('automind.queue.stale_after_seconds', 90));
+
+        return DB::connection($databaseConnection)
+            ->table($table)
+            ->whereIn('queue', $queues)
+            ->whereNull('reserved_at')
+            ->where('available_at', '<=', time() - $staleAfter)
+            ->exists();
     }
 }

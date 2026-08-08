@@ -51,6 +51,9 @@ class DiagnosisApiTest extends ApiTestCase
         $this->getJson("/api/v1/diagnoses/$id/status")->assertOk()->assertJsonPath('data.status', 'queued');
         $this->postJson("/api/v1/diagnoses/$id/analyze")->assertStatus(202);
         Queue::assertPushed(AnalyzeDiagnosticSession::class, 1);
+        DiagnosticSession::query()->whereKey($id)->update(['updated_at' => now()->subMinutes(2)]);
+        $this->postJson("/api/v1/diagnoses/$id/analyze")->assertStatus(202);
+        Queue::assertPushed(AnalyzeDiagnosticSession::class, 2);
         $this->postJson("/api/v1/diagnoses/$id/cancel")->assertOk()->assertJsonPath('data.status', 'cancelled');
     }
 

@@ -24,7 +24,7 @@ class OpenAiVisionUnderstandingProvider implements VisionUnderstandingProvider
                 'quality' => ['type' => 'string', 'enum' => ['poor', 'limited', 'moderate', 'strong']],
             ], '$defs' => ['bilingual' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['en', 'ar'], 'properties' => ['en' => ['type' => 'string'], 'ar' => ['type' => 'string']]]],
         ]];
-        $response = $this->transport->post('/responses', ['model' => config('openai.vision_model'), 'input' => [['role' => 'user', 'content' => $content]], 'text' => ['format' => $format], 'max_output_tokens' => min(2500, (int) config('openai.max_output_tokens')), 'store' => config('openai.store_responses'), 'safety_identifier' => $safetyIdentifier]);
+        $response = $this->transport->post('/responses', ['model' => config('openai.vision_model'), 'input' => [['role' => 'user', 'content' => $content]], 'text' => ['format' => $format], 'reasoning' => ['effort' => config('openai.vision_reasoning_effort')], 'max_output_tokens' => min(2500, (int) config('openai.max_output_tokens')), 'store' => config('openai.store_responses'), 'safety_identifier' => $safetyIdentifier]);
 
         return new AiProviderResult($this->parser->structured($response), $response['id'] ?? null, $response['model'] ?? config('openai.vision_model'), '/v1/responses', $this->parser->usage($response));
     }

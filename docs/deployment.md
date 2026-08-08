@@ -112,6 +112,11 @@ php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search
 ```
 
 When using the shared-hosting defaults, replace `redis` with `database`.
+On Hostinger, this must be configured as a persistent background process. A
+scheduler cron by itself does not consume queued diagnostic jobs. Verify it by
+submitting a diagnosis and confirming that readiness remains HTTP 200 with
+`checks.queue` set to `ok`; an available database job older than 90 seconds
+now makes readiness return HTTP 503.
 
 Configure this cron entry with the actual absolute project path:
 

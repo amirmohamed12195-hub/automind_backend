@@ -117,7 +117,16 @@ class DiagnosisController
     public function analyze(Request $request, DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine)
     {
         Gate::authorize('update', $diagnosis);
-        if (in_array($diagnosis->status, ['queued', 'analyzing'], true)) {
+        if ($diagnosis->status === 'queued') {
+            $redispatchAfter = max(30, (int) config('automind.queue.diagnostic_redispatch_after_seconds', 90));
+            if ($diagnosis->updated_at?->lte(now()->subSeconds($redispatchAfter))) {
+                $diagnosis->touch();
+                AnalyzeDiagnosticSession::dispatch($diagnosis->id)->afterCommit();
+            }
+
+            return $this->accepted($diagnosis->fresh());
+        }
+        if ($diagnosis->status === 'analyzing') {
             return $this->accepted($diagnosis);
         }
         if (! in_array($diagnosis->status, ['draft', 'uploading', 'failed'], true)) {
