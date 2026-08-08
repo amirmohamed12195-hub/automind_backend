@@ -23,10 +23,10 @@ class UserResource extends JsonResource
 
         return [
             'id' => (string) $this->id, 'name' => $this->name, 'email' => $this->email, 'phone' => $this->phone,
-            'avatarUrl' => $avatarUrl, 'locale' => $this->locale, 'themeMode' => $this->theme_mode, 'units' => $this->units,
+            'avatarUrl' => $avatarUrl, 'locale' => $this->locale ?: 'en', 'themeMode' => $this->theme_mode ?: 'system', 'units' => $this->units ?: 'metric',
             'countryCode' => $this->country_code, 'city' => $this->city, 'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null, 'currency' => $this->currency,
-            'maintenanceRemindersEnabled' => (bool) $this->maintenance_reminders_enabled,
+            'maintenanceRemindersEnabled' => $this->maintenance_reminders_enabled === null ? true : (bool) $this->maintenance_reminders_enabled,
             'createdAt' => $this->created_at?->utc()->toIso8601ZuluString(), 'updatedAt' => $this->updated_at?->utc()->toIso8601ZuluString(),
         ];
     }

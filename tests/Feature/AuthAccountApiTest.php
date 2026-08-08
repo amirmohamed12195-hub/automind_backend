@@ -16,7 +16,14 @@ class AuthAccountApiTest extends ApiTestCase
     public function test_registration_login_me_settings_and_logout_contract(): void
     {
         $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en']);
-        $register->assertCreated()->assertJsonPath('data.user.email', 'driver@example.com')->assertJsonStructure(['data' => ['user' => ['id', 'name', 'email'], 'accessToken', 'tokenType'], 'meta' => ['requestId']])->assertHeader('X-Request-Id');
+        $register->assertCreated()
+            ->assertJsonPath('data.user.email', 'driver@example.com')
+            ->assertJsonPath('data.user.locale', 'en')
+            ->assertJsonPath('data.user.themeMode', 'system')
+            ->assertJsonPath('data.user.units', 'metric')
+            ->assertJsonPath('data.user.maintenanceRemindersEnabled', true)
+            ->assertJsonStructure(['data' => ['user' => ['id', 'name', 'email'], 'accessToken', 'tokenType'], 'meta' => ['requestId']])
+            ->assertHeader('X-Request-Id');
         $this->assertTrue(Hash::check('Secret123', User::query()->firstOrFail()->password));
 
         $login = $this->postJson('/api/v1/auth/login', ['email' => 'DRIVER@example.com', 'password' => 'Secret123']);
