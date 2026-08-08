@@ -28,17 +28,19 @@ class UserNotificationService
             'data_json' => $data === [] ? null : $data,
         ]);
 
-        $arabic = $user->locale === 'ar';
-        SendPushNotification::dispatch(
-            (string) $user->id,
-            $arabic ? $titleAr : $titleEn,
-            $arabic ? $bodyAr : $bodyEn,
-            [
-                ...$data,
-                'notificationId' => (string) $notification->id,
-                'type' => $type,
-            ],
-        )->afterCommit();
+        if ((bool) config('automind.push_notifications_enabled')) {
+            $arabic = $user->locale === 'ar';
+            SendPushNotification::dispatch(
+                (string) $user->id,
+                $arabic ? $titleAr : $titleEn,
+                $arabic ? $bodyAr : $bodyEn,
+                [
+                    ...$data,
+                    'notificationId' => (string) $notification->id,
+                    'type' => $type,
+                ],
+            )->afterCommit();
+        }
 
         return $notification;
     }

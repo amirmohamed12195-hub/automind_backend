@@ -138,6 +138,31 @@ class DiagnosisApiTest extends ApiTestCase
         Queue::assertPushed(RefreshServiceEstimate::class, 1);
     }
 
+    public function test_report_persister_bounds_long_fault_cause_codes_without_losing_text(): void
+    {
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id]);
+        $sharedPrefix = str_repeat('Engine oil level and condition require professional inspection because ', 3);
+        $firstCause = $sharedPrefix.'the first possible cause must be verified.';
+        $secondCause = $sharedPrefix.'the second possible cause must be verified.';
+        $structured = FakeAiProviders::report();
+        $structured['suspectedFaults'][0]['possibleCauses'] = [
+            ['en' => $firstCause, 'ar' => 'السبب المحتمل الأول يحتاج إلى التحقق.'],
+            ['en' => $secondCause, 'ar' => 'السبب المحتمل الثاني يحتاج إلى التحقق.'],
+        ];
+
+        $report = app(DiagnosticReportPersister::class)->persist($session, $structured);
+        $causes = $report->faults()->firstOrFail()->causes()->orderBy('sort_order')->get();
+
+        $this->assertCount(2, $causes);
+        $this->assertLessThanOrEqual(120, strlen($causes[0]->canonical_code));
+        $this->assertLessThanOrEqual(120, strlen($causes[1]->canonical_code));
+        $this->assertNotSame($causes[0]->canonical_code, $causes[1]->canonical_code);
+        $this->assertSame($firstCause, $causes[0]->translations()->where('locale', 'en')->value('text'));
+        $this->assertSame($secondCause, $causes[1]->translations()->where('locale', 'en')->value('text'));
+    }
+
     public function test_stale_job_cannot_complete_cancelled_session(): void
     {
         $user = $this->actingAsUser();

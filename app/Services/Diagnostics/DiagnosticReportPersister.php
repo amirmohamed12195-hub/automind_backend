@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 
 class DiagnosticReportPersister
 {
+    private const CANONICAL_CODE_MAX_LENGTH = 120;
+
     public function persist(DiagnosticSession $session, array $data): DiagnosticReport
     {
         return DB::transaction(function () use ($session, $data) {
@@ -30,7 +32,7 @@ class DiagnosticReportPersister
                     $fault->translations()->create(['locale' => $locale, 'title' => $faultData['title'][$locale], 'description' => $faultData['description'][$locale]]);
                 }
                 foreach ($faultData['possibleCauses'] as $causeIndex => $causeData) {
-                    $cause = $fault->causes()->create(['canonical_code' => Str::slug($causeData['en'], '_'), 'sort_order' => $causeIndex]);
+                    $cause = $fault->causes()->create(['canonical_code' => $this->canonicalCauseCode($causeData['en']), 'sort_order' => $causeIndex]);
                     foreach (['en', 'ar'] as $locale) {
                         $cause->translations()->create(['locale' => $locale, 'text' => $causeData[$locale]]);
                     }
@@ -80,5 +82,24 @@ class DiagnosticReportPersister
     private function ulidOrNull(?string $value): ?string
     {
         return $value && Str::isUlid($value) ? $value : null;
+    }
+
+    private function canonicalCauseCode(string $value): string
+    {
+        $slug = Str::slug($value, '_');
+        $hash = substr(hash('sha256', $slug !== '' ? $slug : $value), 0, 12);
+
+        if ($slug === '') {
+            return 'cause_'.$hash;
+        }
+
+        if (strlen($slug) <= self::CANONICAL_CODE_MAX_LENGTH) {
+            return $slug;
+        }
+
+        $prefixLength = self::CANONICAL_CODE_MAX_LENGTH - strlen($hash) - 1;
+        $prefix = rtrim(substr($slug, 0, $prefixLength), '_');
+
+        return $prefix.'_'.$hash;
     }
 }

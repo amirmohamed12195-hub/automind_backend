@@ -35,6 +35,10 @@ class SendPushNotification implements ShouldQueue
 
     public function handle(PushNotificationProvider $provider): void
     {
+        if (! (bool) config('automind.push_notifications_enabled')) {
+            return;
+        }
+
         $staleBefore = now()->subDays(max(1, (int) config('services.fcm.stale_token_days', 90)));
         DeviceToken::query()
             ->where('user_id', $this->userId)
