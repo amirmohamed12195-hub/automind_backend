@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\DeviceToken;
 use App\Models\SocialIdentity;
 use App\Models\User;
 use App\Services\Auth\SocialIdentityVerifier;
@@ -119,7 +120,14 @@ class AuthController
 
     public function logoutAll(Request $request)
     {
-        $request->user()->tokens()->delete();
+        DB::transaction(function () use ($request): void {
+            $user = $request->user();
+            $user->tokens()->delete();
+            DeviceToken::query()
+                ->where('user_id', $user->id)
+                ->where('enabled', true)
+                ->update(['enabled' => false]);
+        });
 
         return response()->noContent();
     }

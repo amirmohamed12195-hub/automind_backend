@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Contracts\AiDiagnosticProvider;
+use App\Contracts\AppleStoreProvider;
 use App\Contracts\AudioUnderstandingProvider;
 use App\Contracts\CurrencyRateProvider;
 use App\Contracts\FcmAccessTokenProvider;
 use App\Contracts\GeocodingProvider;
+use App\Contracts\GooglePlayProvider;
 use App\Contracts\ObjectStorageProvider;
 use App\Contracts\PushNotificationProvider;
 use App\Contracts\SpeechTranscriptionProvider;
@@ -19,6 +21,8 @@ use App\Services\Ai\OpenAiDiagnosticProvider;
 use App\Services\Ai\OpenAiSpeechTranscriptionProvider;
 use App\Services\Ai\OpenAiVisionUnderstandingProvider;
 use App\Services\Ai\OpenAiWebPriceSearchProvider;
+use App\Services\Billing\AppleAppStoreProvider;
+use App\Services\Billing\GooglePlayDeveloperProvider;
 use App\Services\Geocoding\HttpGeocodingProvider;
 use App\Services\Notifications\FcmPushNotificationProvider;
 use App\Services\Notifications\GoogleFcmAccessTokenProvider;
@@ -43,6 +47,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PushNotificationProvider::class, FcmPushNotificationProvider::class);
         $this->app->singleton(FcmAccessTokenProvider::class, GoogleFcmAccessTokenProvider::class);
         $this->app->bind(GeocodingProvider::class, HttpGeocodingProvider::class);
+        $this->app->bind(AppleStoreProvider::class, AppleAppStoreProvider::class);
+        $this->app->bind(GooglePlayProvider::class, GooglePlayDeveloperProvider::class);
     }
 
     public function boot(): void
@@ -52,7 +58,7 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production') && $providerRuntime) {
             $this->app->make(OpenAiConfigurationValidator::class)->validate();
         }
-        foreach (['login' => 8, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20] as $name => $perMinute) {
+        foreach (['login' => 8, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($perMinute) {
                 $user = $request->user();
 

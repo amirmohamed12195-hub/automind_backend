@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminBillingDashboardController;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Controllers\AppleSignInCallbackController;
 use Illuminate\Support\Facades\Route;
@@ -14,7 +15,10 @@ Route::post('/admin/login', [AdminSessionController::class, 'store'])
     ->middleware('throttle:admin-login')
     ->name('admin.login.store');
 Route::middleware('web-admin')->group(function (): void {
-    Route::view('/admin', 'admin')->name('admin.dashboard');
+    Route::get('/admin', [AdminBillingDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::patch('/admin/billing/plans/{plan}', [AdminBillingDashboardController::class, 'updatePlan'])->name('admin.billing.plans.update');
+    Route::patch('/admin/billing/products/{product}', [AdminBillingDashboardController::class, 'updateProduct'])->name('admin.billing.products.update');
+    Route::post('/admin/billing/events/{event}/reprocess', [AdminBillingDashboardController::class, 'reprocessEvent'])->name('admin.billing.events.reprocess');
     Route::post('/admin/logout', [AdminSessionController::class, 'destroy'])->name('admin.logout');
 });
 

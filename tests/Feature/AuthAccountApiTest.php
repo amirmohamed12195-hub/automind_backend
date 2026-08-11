@@ -102,6 +102,26 @@ class AuthAccountApiTest extends ApiTestCase
         $this->assertSame('Pixel 2', $device->fresh()->device_name);
     }
 
+    public function test_logout_all_revokes_sessions_and_push_devices(): void
+    {
+        $user = $this->actingAsUser();
+        $secondToken = $user->createToken('second-device');
+        $device = DeviceToken::query()->create([
+            'user_id' => $user->id,
+            'platform' => 'android',
+            'push_token' => 'logout-all-push-token',
+            'token_hash' => hash('sha256', 'logout-all-push-token'),
+            'enabled' => true,
+        ]);
+
+        $this->postJson('/api/v1/auth/logout-all')->assertNoContent();
+
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'id' => $secondToken->accessToken->id,
+        ]);
+        $this->assertFalse((bool) $device->fresh()->enabled);
+    }
+
     public function test_social_login_requires_email_only_when_linking_a_new_identity(): void
     {
         $existingUser = User::factory()->create();

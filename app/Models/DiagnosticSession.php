@@ -59,4 +59,10 @@ class DiagnosticSession extends UlidModel
     {
         return $this->hasOne(DiagnosticReport::class);
     }
+
+    /** @return HasOne<ReportEntitlementReservation, $this> */
+    public function entitlementReservation(): HasOne
+    {
+        return $this->hasOne(ReportEntitlementReservation::class);
+    }
 }

@@ -1,8 +1,10 @@
 <?php
 
+use App\Exceptions\BillingException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\RecordRequestMetrics;
 use App\Http\Middleware\RequireAdmin;
+use App\Http\Middleware\RequireBillingPermission;
 use App\Http\Middleware\RequireWebAdmin;
 use App\Http\Middleware\SetApiLocale;
 use App\Support\ApiResponse;
@@ -28,11 +30,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['callbacks/sign_in_with_apple']);
         $middleware->alias([
             'admin' => RequireAdmin::class,
+            'billing-permission' => RequireBillingPermission::class,
             'web-admin' => RequireWebAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*'));
+        $exceptions->render(function (BillingException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error($e->errorCode, $e->getMessage(), $e->httpStatus, ['retryable' => $e->retryable]);
+            }
+        });
         $exceptions->render(function (ValidationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error('VALIDATION_FAILED', __('api.validation_failed'), 422, $e->errors());

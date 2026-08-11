@@ -27,6 +27,7 @@
             <button class="admin-nav-item" type="button" data-admin-view="vehicles"><i>◇</i><span>Vehicles</span></button>
             <button class="admin-nav-item" type="button" data-admin-view="mechanics"><i>⌘</i><span>Mechanics</span><b>8</b></button>
             <button class="admin-nav-item" type="button" data-admin-view="appointments"><i>▦</i><span>Appointments</span></button>
+            <button class="admin-nav-item" type="button" data-admin-view="billing"><i>¤</i><span>Billing</span><b>{{ $billingOverview['eventsNeedingAttention'] }}</b></button>
             <span class="nav-label">System</span>
             <button class="admin-nav-item" type="button" data-admin-view="ai"><i>✦</i><span>AI operations</span></button>
             <button class="admin-nav-item" type="button" data-admin-view="notifications"><i>♢</i><span>Notifications</span></button>
@@ -105,6 +106,89 @@
                         <div class="donut-wrap"><div class="donut"><span>8.2K<small>Total</small></span></div><div class="donut-legend"><span><i class="legend-blue"></i><b>Symptoms</b><strong>38%</strong></span><span><i class="legend-cyan"></i><b>OBD data</b><strong>29%</strong></span><span><i class="legend-purple"></i><b>Photos</b><strong>21%</strong></span><span><i class="legend-slate"></i><b>Audio</b><strong>12%</strong></span></div></div>
                     </article>
                 </div>
+            </section>
+
+            <section class="admin-view" data-view="billing">
+                <div class="admin-heading compact-heading">
+                    <div><span class="admin-eyebrow"><i></i> STORE & ENTITLEMENTS</span><h1>Billing</h1><p>Live catalog, entitlement, transaction, and store-event controls.</p></div>
+                    <div class="heading-actions"><span class="saved-state">Environment: {{ strtoupper(config('billing.environment')) }}</span></div>
+                </div>
+                @if (session('billing_status'))
+                    <div class="editor-note"><span>✓</span><p><strong>{{ session('billing_status') }}</strong></p></div>
+                @endif
+                @if ($errors->any())
+                    <div class="editor-note"><span>!</span><p><strong>{{ $errors->first() }}</strong></p></div>
+                @endif
+                <div class="resource-stats">
+                    <article><span class="metric-icon blue">¤</span><div><small>Active subscriptions</small><strong>{{ number_format($billingOverview['activeSubscriptions']) }}</strong></div></article>
+                    <article><span class="metric-icon amber">◌</span><div><small>Grace / billing retry</small><strong>{{ number_format($billingOverview['graceOrRetry']) }}</strong></div></article>
+                    <article><span class="metric-icon cyan">▤</span><div><small>Credits outstanding</small><strong>{{ number_format($billingOverview['creditsOutstanding']) }}</strong></div></article>
+                    <article><span class="metric-icon red">!</span><div><small>Events needing attention</small><strong>{{ number_format($billingOverview['eventsNeedingAttention']) }}</strong></div></article>
+                </div>
+
+                <article class="admin-panel resource-table-panel">
+                    <div class="panel-title"><div><strong>Plans and feature limits</strong><span>Publishing does not enable an unconfirmed store product.</span></div></div>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table resource-table">
+                            <thead><tr><th>Plan</th><th>Vehicles</th><th>Reports / period</th><th>Active</th><th>Published</th><th>Recommended</th><th>Action</th></tr></thead>
+                            <tbody>
+                                @foreach ($billingPlans as $plan)
+                                    <tr>
+                                        <td><form id="billing-plan-{{ $plan->id }}" method="POST" action="{{ route('admin.billing.plans.update', $plan) }}">@csrf @method('PATCH')</form><strong>{{ $plan->localizations->firstWhere('locale', 'en')?->display_name ?? $plan->code }}</strong><small>{{ $plan->code }}</small></td>
+                                        <td><input form="billing-plan-{{ $plan->id }}" name="maxVehicles" type="number" min="1" value="{{ $plan->max_vehicles }}" style="width:72px"></td>
+                                        <td><input form="billing-plan-{{ $plan->id }}" name="reportsPerPeriod" type="number" min="1" value="{{ $plan->reports_per_period }}" style="width:72px"></td>
+                                        <td><input form="billing-plan-{{ $plan->id }}" type="hidden" name="active" value="0"><input form="billing-plan-{{ $plan->id }}" name="active" type="checkbox" value="1" @checked($plan->active)></td>
+                                        <td><input form="billing-plan-{{ $plan->id }}" type="hidden" name="published" value="0"><input form="billing-plan-{{ $plan->id }}" name="published" type="checkbox" value="1" @checked($plan->published)></td>
+                                        <td><input form="billing-plan-{{ $plan->id }}" type="hidden" name="recommended" value="0"><input form="billing-plan-{{ $plan->id }}" name="recommended" type="checkbox" value="1" @checked($plan->recommended)></td>
+                                        <td><button form="billing-plan-{{ $plan->id }}" class="admin-button secondary" type="submit">Save</button></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="admin-panel resource-table-panel" style="margin-top:18px">
+                    <div class="panel-title"><div><strong>Store products</strong><span>IDs are immutable after purchases exist. Confirm store status before sale.</span></div></div>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table resource-table">
+                            <thead><tr><th>Platform</th><th>Environment</th><th>Product / base plan</th><th>Plan</th><th>Store price</th><th>Store status</th><th>For sale</th><th>Last sync</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach ($billingProducts as $product)
+                                    <tr>
+                                        <td><form id="billing-product-{{ $product->id }}" method="POST" action="{{ route('admin.billing.products.update', $product) }}">@csrf @method('PATCH')</form><strong>{{ ucfirst($product->platform) }}</strong></td>
+                                        <td>{{ ucfirst($product->environment) }}</td>
+                                        <td><strong>{{ $product->product_id }}</strong><small>{{ $product->base_plan_id ?: '—' }}</small></td>
+                                        <td>{{ $product->plan?->code }}</td>
+                                        <td><strong>{{ $product->priceSnapshots->first()?->formatted_price ?? 'Not synced' }}</strong><small>{{ $product->priceSnapshots->first()?->country_code ?? 'store authoritative' }}</small></td>
+                                        <td><select form="billing-product-{{ $product->id }}" name="storeStatus"><option @selected($product->store_status === 'pending')>pending</option><option @selected($product->store_status === 'active')>active</option><option @selected($product->store_status === 'rejected')>rejected</option><option @selected($product->store_status === 'retired')>retired</option></select></td>
+                                        <td><input form="billing-product-{{ $product->id }}" type="hidden" name="activeForSale" value="0"><input form="billing-product-{{ $product->id }}" name="activeForSale" type="checkbox" value="1" @checked($product->active_for_sale)></td>
+                                        <td>{{ $product->last_synced_at?->diffForHumans() ?? 'Never' }}</td>
+                                        <td><button form="billing-product-{{ $product->id }}" class="admin-button secondary" type="submit">Save</button></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="admin-panel resource-table-panel" style="margin-top:18px">
+                    <div class="panel-title"><div><strong>Recent transactions</strong><span>Tokens and signed payloads are never displayed.</span></div></div>
+                    <div class="admin-table-wrap"><table class="admin-table resource-table"><thead><tr><th>User</th><th>Platform</th><th>Product</th><th>State</th><th>Store completion</th><th>Verified</th></tr></thead><tbody>
+                        @forelse ($billingTransactions as $purchase)
+                            <tr><td>{{ $purchase->user?->email ?? 'Deleted user' }}</td><td>{{ ucfirst($purchase->platform) }}</td><td><strong>{{ $purchase->product_id }}</strong><small>{{ $purchase->storeProduct?->plan?->code }}</small></td><td><span class="status-pill {{ in_array($purchase->state, ['active', 'gracePeriod']) ? 'success' : 'processing' }}">{{ $purchase->state }}</span></td><td>{{ $purchase->acknowledged || $purchase->consumed ? 'Complete' : 'Pending' }}</td><td>{{ $purchase->last_verified_at?->diffForHumans() ?? 'Never' }}</td></tr>
+                        @empty <tr><td colspan="6">No verified store transactions yet.</td></tr> @endforelse
+                    </tbody></table></div>
+                </article>
+
+                <article class="admin-panel resource-table-panel" style="margin-top:18px">
+                    <div class="panel-title"><div><strong>Store events</strong><span>Durable, deduplicated Apple and Google notifications.</span></div></div>
+                    <div class="admin-table-wrap"><table class="admin-table resource-table"><thead><tr><th>Platform</th><th>Type</th><th>Environment</th><th>Status</th><th>Attempts</th><th>Received</th><th></th></tr></thead><tbody>
+                        @forelse ($billingEvents as $event)
+                            <tr><td>{{ ucfirst($event->platform) }}</td><td><strong>{{ $event->event_type }}</strong><small>{{ $event->event_subtype }}</small></td><td>{{ ucfirst($event->environment) }}</td><td><span class="status-pill {{ $event->processing_status === 'processed' ? 'success' : 'processing' }}">{{ $event->processing_status }}</span></td><td>{{ $event->attempts }}</td><td>{{ $event->received_at?->diffForHumans() }}</td><td><form method="POST" action="{{ route('admin.billing.events.reprocess', $event) }}">@csrf<button class="admin-button secondary" type="submit">Reprocess</button></form></td></tr>
+                        @empty <tr><td colspan="7">No billing webhook events received yet.</td></tr> @endforelse
+                    </tbody></table></div>
+                </article>
             </section>
 
             <section class="admin-view" data-view="landing">

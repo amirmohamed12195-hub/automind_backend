@@ -12,6 +12,7 @@ use App\Jobs\AnalyzeDiagnosticSession;
 use App\Models\DiagnosticSession;
 use App\Models\SymptomDefinition;
 use App\Models\Vehicle;
+use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -114,7 +115,7 @@ class DiagnosisController
         return response()->noContent();
     }
 
-    public function analyze(Request $request, DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine)
+    public function analyze(Request $request, DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine, ReportEntitlementService $reportEntitlements)
     {
         Gate::authorize('update', $diagnosis);
         if ($diagnosis->status === 'queued') {
@@ -139,26 +140,35 @@ class DiagnosisController
         if (! $hasEvidence) {
             return ApiResponse::error('EVIDENCE_REQUIRED', __('api.no_evidence'), 422);
         }
-        $diagnosis = $stateMachine->transition($diagnosis, DiagnosticStatus::Queued, ['progress_percentage' => 0, 'current_step' => DiagnosticStep::PreparingData->value, 'error_code' => null, 'safe_error_message' => null, 'failed_at' => null]);
+        $diagnosis = DB::transaction(function () use ($diagnosis, $reportEntitlements, $stateMachine): DiagnosticSession {
+            $reportEntitlements->reserve($diagnosis);
+
+            return $stateMachine->transition($diagnosis->fresh(), DiagnosticStatus::Queued, ['progress_percentage' => 0, 'current_step' => DiagnosticStep::PreparingData->value, 'error_code' => null, 'safe_error_message' => null, 'failed_at' => null]);
+        });
         AnalyzeDiagnosticSession::dispatch($diagnosis->id)->afterCommit();
 
         return $this->accepted($diagnosis);
     }
 
-    public function cancel(DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine)
+    public function cancel(DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine, ReportEntitlementService $reportEntitlements)
     {
         Gate::authorize('update', $diagnosis);
         if (in_array($diagnosis->status, ['completed', 'cancelled'], true)) {
             return ApiResponse::error('INVALID_DIAGNOSTIC_STATE', __('api.invalid_transition'), 409);
         }
-        $diagnosis = $stateMachine->transition($diagnosis, DiagnosticStatus::Cancelled, ['cancelled_at' => now()]);
+        $diagnosis = DB::transaction(function () use ($diagnosis, $stateMachine, $reportEntitlements): DiagnosticSession {
+            $cancelled = $stateMachine->transition($diagnosis, DiagnosticStatus::Cancelled, ['cancelled_at' => now()]);
+            $reportEntitlements->release($cancelled);
+
+            return $cancelled;
+        });
 
         return ApiResponse::success((new DiagnosticSessionResource($diagnosis->load('symptoms')->loadCount(['media', 'obdSnapshots'])))->resolve());
     }
 
-    public function retry(Request $request, DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine)
+    public function retry(Request $request, DiagnosticSession $diagnosis, DiagnosticStateMachine $stateMachine, ReportEntitlementService $reportEntitlements)
     {
-        return $this->analyze($request, $diagnosis, $stateMachine);
+        return $this->analyze($request, $diagnosis, $stateMachine, $reportEntitlements);
     }
 
     public function status(DiagnosticSession $diagnosis)

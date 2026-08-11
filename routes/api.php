@@ -1,11 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\AdminBillingController;
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\AppleBillingWebhookController;
 use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DiagnosisController;
+use App\Http\Controllers\Api\V1\DiagnosticEntitlementController;
 use App\Http\Controllers\Api\V1\DiagnosticMediaController;
+use App\Http\Controllers\Api\V1\GoogleBillingWebhookController;
 use App\Http\Controllers\Api\V1\MaintenanceController;
 use App\Http\Controllers\Api\V1\MaintenanceReminderController;
 use App\Http\Controllers\Api\V1\MechanicController;
@@ -24,6 +29,10 @@ Route::prefix('v1')->group(function (): void {
     Route::get('health', [SystemController::class, 'health']);
     Route::get('version', [SystemController::class, 'version']);
     Route::post('webhooks/openai', OpenAiWebhookController::class)->middleware('throttle:120,1');
+    Route::post('billing/webhooks/apple', AppleBillingWebhookController::class)->middleware('throttle:240,1');
+    Route::post('billing/webhooks/google', GoogleBillingWebhookController::class)->middleware('throttle:240,1');
+    Route::post('webhooks/apple/app-store-server-notifications', AppleBillingWebhookController::class)->middleware('throttle:240,1');
+    Route::post('webhooks/google/play-notifications', GoogleBillingWebhookController::class)->middleware('throttle:240,1');
     Route::get('shared/reports/{report}', [ReportController::class, 'shared'])->middleware('signed')->name('reports.shared');
 
     Route::prefix('auth')->group(function (): void {
@@ -55,6 +64,23 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('settings', [AccountController::class, 'updateSettings']);
         Route::post('devices', [AccountController::class, 'registerDevice'])->middleware('throttle:60,1');
         Route::delete('devices/{deviceTokenId}', [AccountController::class, 'deleteDevice']);
+
+        Route::prefix('billing')->middleware('throttle:billing')->group(function (): void {
+            Route::get('catalog', [BillingController::class, 'catalog']);
+            Route::get('account', [BillingController::class, 'account']);
+            Route::get('entitlements', [BillingController::class, 'entitlements']);
+            Route::get('credits', [BillingController::class, 'credits']);
+            Route::get('subscription', [BillingController::class, 'subscription']);
+            Route::get('manage', [BillingController::class, 'manage']);
+            Route::get('subscription/manage-link', [BillingController::class, 'manage']);
+            Route::post('purchases/apple/verify', [BillingController::class, 'verifyApple']);
+            Route::post('purchases/google/verify', [BillingController::class, 'verifyGoogle']);
+            Route::post('restore', [BillingController::class, 'restore']);
+            Route::post('reconcile', [BillingController::class, 'reconcile']);
+        });
+        Route::post('diagnostics/{diagnosis}/reserve-entitlement', [DiagnosticEntitlementController::class, 'reserve'])->middleware('throttle:billing');
+        Route::post('diagnostics/{diagnosis}/finalize-entitlement', [DiagnosticEntitlementController::class, 'finalize'])->middleware('throttle:billing');
+        Route::post('diagnostics/{diagnosis}/release-entitlement', [DiagnosticEntitlementController::class, 'release'])->middleware('throttle:billing');
 
         Route::get('vehicles', [VehicleController::class, 'index']);
         Route::post('vehicles', [VehicleController::class, 'store']);
@@ -104,6 +130,37 @@ Route::prefix('v1')->group(function (): void {
         Route::post('notifications/{notification}/read', [NotificationController::class, 'read']);
 
         Route::prefix('admin')->middleware('admin')->group(function (): void {
+            Route::prefix('billing')->group(function (): void {
+                Route::get('overview', [AdminBillingController::class, 'overview'])->middleware('billing-permission:billing.view');
+                Route::get('plans', [AdminBillingController::class, 'plans'])->middleware('billing-permission:billing.view');
+                Route::post('plans', [AdminBillingController::class, 'createPlan'])->middleware('billing-permission:billing.catalog.manage');
+                Route::get('plans/{plan}', [AdminBillingController::class, 'showPlan'])->middleware('billing-permission:billing.view');
+                Route::patch('plans/{plan}', [AdminBillingController::class, 'updatePlan'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('plans/{plan}/activate', [AdminBillingController::class, 'activatePlan'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('plans/{plan}/deactivate', [AdminBillingController::class, 'deactivatePlan'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('plans/{plan}/duplicate', [AdminBillingController::class, 'duplicatePlan'])->middleware('billing-permission:billing.catalog.manage');
+                Route::get('products', [AdminBillingController::class, 'products'])->middleware('billing-permission:billing.view');
+                Route::post('products', [AdminBillingController::class, 'createProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::patch('products/{product}', [AdminBillingController::class, 'updateProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('products/{product}/sync-google', [AdminBillingController::class, 'syncGoogleProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::get('store-products', [AdminBillingController::class, 'products'])->middleware('billing-permission:billing.view');
+                Route::post('store-products', [AdminBillingController::class, 'createProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::patch('store-products/{product}', [AdminBillingController::class, 'updateProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('store-products/{product}/sync', [AdminBillingController::class, 'syncGoogleProduct'])->middleware('billing-permission:billing.catalog.manage');
+                Route::post('catalog/sync-all', [AdminBillingController::class, 'syncGoogleCatalog'])->middleware('billing-permission:billing.catalog.manage');
+                Route::get('transactions', [AdminBillingController::class, 'transactions'])->middleware('billing-permission:billing.view');
+                Route::get('subscriptions', [AdminBillingController::class, 'subscriptions'])->middleware('billing-permission:billing.view');
+                Route::get('users/{user}', [AdminBillingController::class, 'userBilling'])->middleware('billing-permission:billing.view');
+                Route::post('users/{user}/reconcile', [AdminBillingController::class, 'reconcileUser'])->middleware('billing-permission:billing.entitlements.manage');
+                Route::post('users/{user}/grants', [AdminBillingController::class, 'grant'])->middleware('billing-permission:billing.entitlements.manage');
+                Route::post('grants/{grant}/revoke', [AdminBillingController::class, 'revokeGrant'])->middleware('billing-permission:billing.entitlements.manage');
+                Route::delete('users/{user}/grants/{grant}', [AdminBillingController::class, 'revokeUserGrant'])->middleware('billing-permission:billing.entitlements.manage');
+                Route::post('users/{user}/credits', [AdminBillingController::class, 'adjustCredits'])->middleware('billing-permission:billing.credits.adjust');
+                Route::get('events', [AdminBillingController::class, 'events'])->middleware('billing-permission:billing.view');
+                Route::post('events/{event}/reprocess', [AdminBillingController::class, 'reprocessEvent'])->middleware('billing-permission:billing.events.reprocess');
+                Route::get('audit-logs', [AdminBillingController::class, 'auditLogs'])->middleware('billing-permission:billing.audit.view');
+                Route::get('analytics', [AdminBillingController::class, 'analytics'])->middleware('billing-permission:billing.view');
+            });
             Route::get('mechanics', [AdminController::class, 'mechanics']);
             Route::post('mechanics', [AdminController::class, 'storeMechanic']);
             Route::patch('mechanics/{mechanic}', [AdminController::class, 'updateMechanic']);

@@ -16,6 +16,7 @@ use App\Models\DiagnosticSession;
 use App\Models\MediaObservation;
 use App\Models\UserNotification;
 use App\Services\Ai\AiRunRecorder;
+use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticManifestBuilder;
 use App\Services\Diagnostics\DiagnosticReportPersister;
 use App\Services\Diagnostics\DiagnosticReportValidator;
@@ -66,6 +67,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
         PriceResearchService $priceResearch,
         AiRunRecorder $runs,
         UserNotificationService $notifications,
+        ReportEntitlementService $reportEntitlements,
     ): void {
         $lock = Cache::lock("diagnostic:{$this->sessionId}", $this->timeout + 30);
         if (! $lock->get()) {
@@ -150,7 +152,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
                 if ($existingReport->faults()->whereHas('parts')->exists() && ! $existingReport->estimate()->exists()) {
                     RefreshServiceEstimate::dispatch($existingReport->id)->afterCommit();
                 }
-                $this->publish($stateMachine, $session, $existingReport->id, $notifications);
+                $this->publish($stateMachine, $session, $existingReport->id, $notifications, $reportEntitlements);
 
                 return;
             }
@@ -176,7 +178,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
                 $priceResearch->research($report, $reportData, $safetyId);
             }
             $this->assertNotCancelled($session);
-            $this->publish($stateMachine, $session, $report->id, $notifications);
+            $this->publish($stateMachine, $session, $report->id, $notifications, $reportEntitlements);
         } catch (AiProviderException $e) {
             if ($e->transient) {
                 if ($e->retryAfterSeconds) {
@@ -216,14 +218,20 @@ class AnalyzeDiagnosticSession implements ShouldQueue
 
     private function markFailed(string $code, string $message): void
     {
-        DiagnosticSession::query()->whereKey($this->sessionId)->whereNotIn('status', ['completed', 'cancelled'])->update(['status' => 'failed', 'current_step' => DiagnosticStep::Failed->value, 'error_code' => $code, 'safe_error_message' => mb_substr($message, 0, 1000), 'failed_at' => now(), 'updated_at' => now()]);
+        DB::transaction(function () use ($code, $message): void {
+            $updated = DiagnosticSession::query()->whereKey($this->sessionId)->whereNotIn('status', ['completed', 'cancelled'])->update(['status' => 'failed', 'current_step' => DiagnosticStep::Failed->value, 'error_code' => $code, 'safe_error_message' => mb_substr($message, 0, 1000), 'failed_at' => now(), 'updated_at' => now()]);
+            if ($updated === 1) {
+                app(ReportEntitlementService::class)->release($this->sessionId);
+            }
+        });
         Log::warning('Diagnostic analysis failed', ['session_id' => $this->sessionId, 'error_category' => $code]);
     }
 
-    private function publish(DiagnosticStateMachine $stateMachine, DiagnosticSession $session, string $reportId, UserNotificationService $notifications): void
+    private function publish(DiagnosticStateMachine $stateMachine, DiagnosticSession $session, string $reportId, UserNotificationService $notifications, ReportEntitlementService $reportEntitlements): void
     {
-        DB::transaction(function () use ($stateMachine, $session, $reportId, $notifications): void {
+        DB::transaction(function () use ($stateMachine, $session, $reportId, $notifications, $reportEntitlements): void {
             $stateMachine->transition($session->fresh(), DiagnosticStatus::Completed, ['progress_percentage' => 100, 'current_step' => DiagnosticStep::Completed->value, 'analyzed_at' => now(), 'completed_at' => now()]);
+            $reportEntitlements->finalize($session);
             if (! UserNotification::query()->where('user_id', $session->user_id)->where('type', 'diagnosis_completed')->where('data_json->reportId', $reportId)->exists()) {
                 $notifications->send(
                     $session->user()->firstOrFail(),

@@ -20,6 +20,8 @@ class ReferenceDataSeeder extends Seeder
             $this->seedMaintenanceServices();
             $this->seedMechanicSpecialties();
         });
+
+        $this->call(BillingCatalogSeeder::class);
     }
 
     private function seedSymptoms(): void

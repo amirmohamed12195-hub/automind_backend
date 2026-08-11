@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\BillingException;
 use App\Http\Requests\VehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Vehicle;
+use App\Services\Billing\EntitlementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +20,15 @@ class VehicleController
         return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->latest('updated_at')->get())->resolve());
     }
 
-    public function store(VehicleRequest $request)
+    public function store(VehicleRequest $request, EntitlementService $entitlements)
     {
         $this->validateCatalogPair($request);
+        if (config('billing.enabled')) {
+            $limit = $entitlements->snapshot($request->user())['limits']['maxVehicles'];
+            if (is_int($limit) && $request->user()->vehicles()->count() >= $limit) {
+                throw new BillingException('VEHICLE_LIMIT_REACHED', 'Your current plan vehicle limit has been reached.', 402);
+            }
+        }
         if ($request->filled('vin') && Vehicle::query()->where('user_id', $request->user()->id)->where('vin', strtoupper($request->input('vin')))->exists()) {
             return ApiResponse::error('VIN_ALREADY_EXISTS', __('api.validation_failed'), 422, ['vin' => [__('api.vin_exists')]]);
         }
