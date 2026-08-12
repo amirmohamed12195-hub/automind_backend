@@ -66,6 +66,9 @@
         </header>
 
         <main class="admin-content">
+            @unless ($databaseControlsAvailable && $accountStatusAvailable)
+                <div class="admin-alert warning"><span>!</span><div><strong>Database upgrade required</strong><small>The dashboard is running in compatibility mode. Apply pending migrations to enable account status and platform controls.</small></div></div>
+            @endunless
             @if (filled(data_get($platformSettings, 'maintenance_banner.value')))
                 <div class="admin-alert warning"><span>i</span><div><strong>Maintenance notice</strong><small>{{ data_get($platformSettings, 'maintenance_banner.value') }}</small></div></div>
             @endif
@@ -147,7 +150,7 @@
                             <input type="hidden" name="is_admin" value="0"><label class="check-row"><input type="checkbox" name="is_admin" value="1" @checked($user->is_admin)><span><strong>API administrator</strong><small>Allows access to protected admin API endpoints.</small></span></label>
                             <div class="dialog-actions"><button type="button" class="admin-button secondary" data-close-dialog>Cancel</button><button class="admin-button primary" type="submit">Save user</button></div>
                         </form>
-                        <div class="danger-zone"><div><strong>{{ $user->suspended_at ? 'Reactivate account' : 'Suspend account' }}</strong><p>{{ $user->suspended_at ? $user->suspension_reason : 'Immediately revokes active API and push-device sessions.' }}</p></div><form method="POST" action="{{ route('admin.users.suspension', $user) }}">@csrf<input type="hidden" name="suspended" value="{{ $user->suspended_at ? 0 : 1 }}">@unless($user->suspended_at)<input name="reason" placeholder="Reason for suspension" required>@endunless<button type="submit" class="admin-button {{ $user->suspended_at ? 'secondary' : 'danger' }}" data-confirm="{{ $user->suspended_at ? 'Reactivate this user?' : 'Suspend this user and revoke all active sessions?' }}">{{ $user->suspended_at ? 'Reactivate' : 'Suspend' }}</button></form></div>
+                        @if ($accountStatusAvailable)<div class="danger-zone"><div><strong>{{ $user->suspended_at ? 'Reactivate account' : 'Suspend account' }}</strong><p>{{ $user->suspended_at ? $user->suspension_reason : 'Immediately revokes active API and push-device sessions.' }}</p></div><form method="POST" action="{{ route('admin.users.suspension', $user) }}">@csrf<input type="hidden" name="suspended" value="{{ $user->suspended_at ? 0 : 1 }}">@unless($user->suspended_at)<input name="reason" placeholder="Reason for suspension" required>@endunless<button type="submit" class="admin-button {{ $user->suspended_at ? 'secondary' : 'danger' }}" data-confirm="{{ $user->suspended_at ? 'Reactivate this user?' : 'Suspend this user and revoke all active sessions?' }}">{{ $user->suspended_at ? 'Reactivate' : 'Suspend' }}</button></form></div>@endif
                         <div class="danger-zone"><div><strong>Delete account</strong><p>Soft-deletes the user. Their account can be restored from this dashboard.</p></div><form method="POST" action="{{ route('admin.users.destroy', $user) }}">@csrf @method('DELETE')<button type="submit" class="admin-button danger" data-confirm="Move this user to deleted accounts?">Delete account</button></form></div>
                     </dialog>
                 @endforeach
@@ -238,7 +241,7 @@
                             @if($setting['type'] === 'boolean')<label class="setting-row"><span><strong>{{ $setting['label'] }}</strong><small>{{ $setting['description'] }}</small></span><span class="toggle"><input type="hidden" name="settings[{{ $key }}]" value="0"><input type="checkbox" name="settings[{{ $key }}]" value="1" @checked((bool)$setting['value'])><i></i></span></label>
                             @else<label class="setting-row field"><span><strong>{{ $setting['label'] }}</strong><small>{{ $setting['description'] }}</small></span>@if($setting['type'] === 'locale')<select name="settings[{{ $key }}]"><option value="en" @selected($setting['value']==='en')>English</option><option value="ar" @selected($setting['value']==='ar')>Arabic</option></select>@else<input name="settings[{{ $key }}]" type="{{ $setting['type'] === 'email' ? 'email' : 'text' }}" value="{{ $setting['value'] }}" maxlength="{{ $setting['type'] === 'text' ? 500 : ($setting['type'] === 'country' ? 2 : ($setting['type'] === 'currency' ? 3 : 255)) }}" @required($key !== 'maintenance_banner')>@endif</label>@endif
                         @endforeach</div></article>@endforeach
-                        <div class="sticky-save"><div><strong>Platform configuration</strong><small>Changes become active for new API requests immediately.</small></div><button class="admin-button primary" type="submit">Save settings</button></div>
+                        <div class="sticky-save"><div><strong>Platform configuration</strong><small>Changes become active for new API requests immediately.</small></div><button class="admin-button primary" type="submit" @disabled(! $databaseControlsAvailable)>Save settings</button></div>
                     </div>
                     <aside class="admin-panel inventory-panel"><div class="panel-title"><div><strong>Data inventory</strong><span>Live row totals by domain</span></div></div><div class="inventory-list">@foreach($dataInventory as $label => $count)<div><span>{{ $label }}</span><strong>{{ number_format($count) }}</strong></div>@endforeach</div></aside>
                 </form>

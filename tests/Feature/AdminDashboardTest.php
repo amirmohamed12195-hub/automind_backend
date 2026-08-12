@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Models\Vehicle;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -82,6 +84,23 @@ class AdminDashboardTest extends TestCase
         $this->postJson('/api/v1/auth/register', [])
             ->assertStatus(503)
             ->assertJsonPath('error.code', 'FEATURE_UNAVAILABLE');
+    }
+
+    public function test_dashboard_uses_compatibility_mode_when_admin_migration_is_pending(): void
+    {
+        User::factory()->create(['name' => 'Legacy Driver']);
+        Schema::dropIfExists('platform_settings');
+        Schema::table('users', function (Blueprint $table): void {
+            $table->dropIndex('users_suspended_at_index');
+        });
+        Schema::table('users', function (Blueprint $table): void {
+            $table->dropColumn(['last_login_at', 'suspended_at', 'suspension_reason']);
+        });
+
+        $this->asWebAdmin()->get('/admin')
+            ->assertOk()
+            ->assertSee('Database upgrade required')
+            ->assertSee('Legacy Driver');
     }
 
     private function asWebAdmin(): static

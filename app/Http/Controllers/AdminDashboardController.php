@@ -49,6 +49,10 @@ class AdminDashboardController
             return view('admin', $this->emptyDashboard($settings));
         }
 
+        $accountStatusAvailable = Schema::hasColumn('users', 'suspended_at');
+        $databaseControlsAvailable = Schema::hasTable('platform_settings');
+        $loginActivityAvailable = Schema::hasColumn('users', 'last_login_at');
+
         $users = User::query()->withTrashed()->withCount(['vehicles', 'diagnostics', 'appointments'])
             ->latest()->limit(50)->get();
         $vehicles = Vehicle::query()->withTrashed()->with([
@@ -77,7 +81,9 @@ class AdminDashboardController
 
         $overview = [
             'users' => User::query()->count(),
-            'activeUsers' => User::query()->whereNull('suspended_at')->where('last_login_at', '>=', $weekStart)->count(),
+            'activeUsers' => $loginActivityAvailable
+                ? User::query()->when($accountStatusAvailable, fn ($query) => $query->whereNull('suspended_at'))->where('last_login_at', '>=', $weekStart)->count()
+                : 0,
             'vehicles' => Vehicle::query()->count(),
             'diagnostics' => DiagnosticSession::query()->count(),
             'diagnosticsToday' => DiagnosticSession::query()->where('created_at', '>=', $today)->count(),
@@ -85,7 +91,7 @@ class AdminDashboardController
             'verifiedMechanics' => Mechanic::query()->where('verified', true)->where('active', true)->count(),
             'pendingAppointments' => Appointment::query()->whereIn('status', ['requested', 'confirmed'])->count(),
             'failedAiRuns' => AiRun::query()->where('status', 'failed')->count(),
-            'suspendedUsers' => User::query()->whereNotNull('suspended_at')->count(),
+            'suspendedUsers' => $accountStatusAvailable ? User::query()->whereNotNull('suspended_at')->count() : 0,
         ];
 
         return view('admin', [
@@ -107,6 +113,8 @@ class AdminDashboardController
             'laborRates' => LaborRateSource::query()->latest('observed_at')->limit(30)->get(),
             'platformSettings' => $settings->all(),
             'dataInventory' => $this->dataInventory(),
+            'accountStatusAvailable' => $accountStatusAvailable,
+            'databaseControlsAvailable' => $databaseControlsAvailable,
             ...$this->billingData(),
         ]);
     }
@@ -125,13 +133,17 @@ class AdminDashboardController
             'admin_role' => ['nullable', Rule::in(['SUPER_ADMIN', 'BILLING_ADMIN', 'SUPPORT_AGENT', 'ANALYST', 'AUDITOR'])],
         ]);
         $before = $user->toArray();
-        $user->forceFill([
+        $updates = [
             ...$data,
             'email' => mb_strtolower($data['email']),
             'country_code' => isset($data['country_code']) ? strtoupper($data['country_code']) : null,
             'currency' => strtoupper($data['currency']),
             'admin_role' => $data['is_admin'] ? ($data['admin_role'] ?: 'SUPER_ADMIN') : null,
-        ])->save();
+        ];
+        if (! Schema::hasColumn('users', 'admin_role')) {
+            unset($updates['admin_role']);
+        }
+        $user->forceFill($updates)->save();
         $this->audit($request, 'admin.web.user.updated', $user, ['before' => $before, 'after' => $user->fresh()->toArray()]);
 
         return $this->done('users', 'User profile updated.');
@@ -139,6 +151,9 @@ class AdminDashboardController
 
     public function suspendUser(Request $request, User $user): RedirectResponse
     {
+        if (! Schema::hasColumn('users', 'suspended_at')) {
+            throw ValidationException::withMessages(['user' => 'Run the pending database migrations before changing account status.']);
+        }
         $data = $request->validate([
             'suspended' => ['required', 'boolean'],
             'reason' => ['nullable', 'required_if:suspended,1', 'string', 'max:500'],
@@ -290,7 +305,7 @@ class AdminDashboardController
             'title_en' => ['required', 'string', 'max:160'], 'title_ar' => ['required', 'string', 'max:160'],
             'body_en' => ['required', 'string', 'max:1000'], 'body_ar' => ['required', 'string', 'max:1000'],
         ]);
-        $query = User::query()->when($data['audience'] === 'active', fn ($q) => $q->whereNull('suspended_at'))
+        $query = User::query()->when($data['audience'] === 'active' && Schema::hasColumn('users', 'suspended_at'), fn ($q) => $q->whereNull('suspended_at'))
             ->when($data['audience'] === 'user', fn ($q) => $q->whereKey($data['user_id']));
         $recipientCount = (clone $query)->count();
         $query->select(['id', 'locale'])->chunkById(250, function ($users) use ($notifications, $data): void {
@@ -328,6 +343,9 @@ class AdminDashboardController
 
     public function updateSettings(Request $request, PlatformSettings $settings): RedirectResponse
     {
+        if (! Schema::hasTable('platform_settings')) {
+            throw ValidationException::withMessages(['settings' => 'Run the pending database migrations before saving platform settings.']);
+        }
         $data = $request->validate([
             'settings' => ['required', 'array'],
             'settings.registration_enabled' => ['required', 'boolean'],
@@ -494,6 +512,7 @@ class AdminDashboardController
             'mechanics' => collect(), 'appointments' => collect(), 'aiRuns' => collect(), 'notifications' => collect(),
             'auditLogs' => collect(), 'mechanicSpecialties' => collect(), 'vehicleMakes' => collect(), 'vehicleModels' => collect(), 'maintenanceServices' => collect(),
             'currencyRates' => collect(), 'laborRates' => collect(), 'platformSettings' => $settings->all(), 'dataInventory' => [],
+            'accountStatusAvailable' => false, 'databaseControlsAvailable' => false,
             ...$this->billingData(),
         ];
     }
