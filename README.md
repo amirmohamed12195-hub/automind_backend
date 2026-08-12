@@ -37,7 +37,7 @@ The API is served at `http://localhost:8080/api/v1`. Non-production Swagger UI i
 
 `ReferenceDataSeeder` contains 42 makes, 285 common models, symptoms,
 maintenance services, and workshop specialties. It is idempotent and runs as
-part of `composer run deploy:production`; demo users and the sample workshop
+part of `sh scripts/deploy-production.sh`; demo users and the sample workshop
 remain disabled in production.
 
 Pricing JSON keys are model IDs and rates are USD per million tokens: `input`, `cachedInput`, `output`, plus optional per-call `webSearchCall`. Run `php artisan automind:check-provider-config` in deployment; it validates capabilities, endpoint, webhook, and pricing without spending API credit.
@@ -71,5 +71,5 @@ Use HTTPS, immutable images, external MySQL/Redis/S3, at least one worker for ev
 For a first deployment, start from `.env.production.example`. On Apache, point
 the document root to `public/` when the host allows it; the root `.htaccess`
 supports shared hosts that cannot change the document root. After configuring
-production secrets, use `composer run deploy:production` for the repeatable
+production secrets, use `sh scripts/deploy-production.sh` for the repeatable
 release steps.

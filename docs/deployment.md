@@ -12,7 +12,7 @@
 ## First production deployment
 
 The host must provide PHP 8.3 with BCMath, Fileinfo, GD, Mbstring, OpenSSL,
-PDO MySQL, Tokenizer, and XML extensions. Frontend assets are built before
+PDO MySQL, Tokenizer, XML, and Zip extensions. Frontend assets are built before
 release and committed for PHP-only shared hosts. Create the production
 environment file and replace every `CHANGE_ME` value before continuing:
 
@@ -20,7 +20,7 @@ environment file and replace every `CHANGE_ME` value before continuing:
 cp .env.production.example .env
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 php artisan key:generate --force
-composer run deploy:production
+sh scripts/deploy-production.sh
 ```
 
 Generate `APP_KEY` only for the first deployment. Replacing it later invalidates
@@ -31,7 +31,7 @@ For every later deployment, run:
 
 ```bash
 composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
-composer run deploy:production
+sh scripts/deploy-production.sh
 ```
 
 When moving the production origin without replacing other secrets, use the
@@ -60,6 +60,25 @@ git add public/build
 
 The Docker image performs this frontend build in its own Node.js stage; do not
 run the frontend build again on a PHP-only production host.
+
+### Hosts where `proc_open` is disabled
+
+The Composer `post-autoload-dump` hook generates Laravel's package manifest
+inside the Composer process, so deployment does not require `proc_open` merely
+to run `artisan package:discover`. Keep PHP's Zip extension enabled so Composer
+can extract dist archives without calling an external `unzip` process. The
+following command is supported on a restricted PHP installation:
+
+```bash
+composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+sh scripts/deploy-production.sh
+```
+
+If it still reports `Process class relies on proc_open`, first confirm that the
+deployed commit includes `App\Support\ComposerScripts::discoverPackages`,
+then check `php -m | grep -i '^zip$'`. Enable Zip in the deployment PHP version
+or ask the hosting provider to enable it; do not enable broad shell functions
+for the web-facing PHP runtime solely to complete dependency extraction.
 
 Verify the release before directing traffic to it:
 
@@ -110,7 +129,7 @@ php scripts/install-hostinger-env.php
 unset AUTOMIND_NEW_OPENAI_KEY
 unset AUTOMIND_NEW_DB_PASSWORD
 php artisan config:clear
-composer run deploy:production
+sh scripts/deploy-production.sh
 ```
 
 The installer creates a timestamped backup, preserves the existing `APP_KEY`,

@@ -86,7 +86,7 @@ still empty; the new reference seeder must be deployed and run.
 
 | Priority | Owner action |
 |---|---|
-| Blocker | Deploy this backend revision and run `composer run deploy:production` so migrations and `ReferenceDataSeeder` reach the live database. |
+| Blocker | Deploy this backend revision and run `sh scripts/deploy-production.sh` so migrations and `ReferenceDataSeeder` reach the live database. |
 | Blocker | Create/restrict Google Android, iOS, and web/server OAuth clients. Add Android signing SHA-1/SHA-256 fingerprints, download new Firebase config files, add the iOS reversed-client URL scheme, and set `GOOGLE_CLIENT_IDS` plus Flutter Google Dart defines. |
 | Blocker | Enable Sign in with Apple for `com.automind.ai`, create an Apple Service ID for Android, register `https://automind-ai.net/callbacks/sign_in_with_apple`, set `APPLE_CLIENT_IDS`, and create distribution provisioning profiles. |
 | Blocker | Supply a newly generated OpenAI API key and webhook secret, then run the production/provider preflight and one approved low-cost live-provider test. No provider secret was added to source control. |
