@@ -5,7 +5,7 @@ info:
   description: Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
   license: {name: Proprietary, url: https://automind.example/terms}
 servers:
-  - url: https://automind.rafeequae.com/api/v1
+  - url: https://automind-ai.net/api/v1
   - url: http://localhost:8080/api/v1
 security:
   - bearerAuth: []

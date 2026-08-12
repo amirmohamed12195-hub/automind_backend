@@ -19,9 +19,9 @@ class BillingConfigurationValidatorTest extends TestCase
         config([
             'billing.enabled' => true,
             'billing.environment' => 'sandbox',
-            'billing.webhook_base_url' => 'https://automind.rafeequae.com/api/v1/webhooks',
-            'billing.terms_url' => 'https://automind.rafeequae.com/terms',
-            'billing.privacy_url' => 'https://automind.rafeequae.com/privacy',
+            'billing.webhook_base_url' => 'https://automind-ai.net/api/v1/webhooks',
+            'billing.terms_url' => 'https://automind-ai.net/terms',
+            'billing.privacy_url' => 'https://automind-ai.net/privacy',
             'billing.account_obfuscation_secret' => '',
             'billing.apple.app_id' => null,
             'billing.apple.issuer_id' => null,

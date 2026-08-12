@@ -34,6 +34,17 @@ composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 composer run deploy:production
 ```
 
+When moving the production origin without replacing other secrets, use the
+domain-only migration helper. It backs up `.env`, preserves `APP_KEY` and every
+credential, and prints only the names of changed variables:
+
+```bash
+php scripts/migrate-production-domain.php \
+  --from=automind.rafeequae.com \
+  --to=automind-ai.net
+php artisan config:clear
+```
+
 The production deployment script clears stale caches, validates provider
 configuration without making a paid request, applies migrations, refreshes
 the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
@@ -85,7 +96,7 @@ readiness endpoint reports `checks.mediaTools=optional` when unavailable. On
 hosts that support compressed uploads but do not add the tools to `PATH`, set
 `FFMPEG_PATH` and `FFPROBE_PATH` to their executable absolute paths.
 
-For the `automind.rafeequae.com` Hostinger deployment, install the dedicated
+For the `automind-ai.net` Hostinger deployment, install the dedicated
 environment template with:
 
 ```bash

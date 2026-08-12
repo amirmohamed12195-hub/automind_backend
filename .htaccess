@@ -10,6 +10,7 @@ DirectoryIndex index.php
     # Never expose application internals when the repository root is the
     # Apache document root (for example, on shared hosting).
     RewriteRule "^\.well-known/acme-challenge(?:/|$)" - [L,NC]
+    RewriteRule "^\.well-known/(?:assetlinks\.json|apple-app-site-association)$" "public/index.php" [L,NC]
     RewriteRule "(^|/)\." - [F,L]
     RewriteRule "^(?:app|bootstrap|config|database|docker|docs|node_modules|resources|routes|scripts|storage|tests|vendor)(?:/|$)" - [F,L,NC]
     RewriteRule "^(?:artisan|composer\.(?:json|lock)|package(?:-lock)?\.json|phpunit\.xml|redocly\.yaml|vite\.config\.js)$" - [F,L,NC]

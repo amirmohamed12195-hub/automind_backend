@@ -19,7 +19,7 @@ still empty; the new reference seeder must be deployed and run.
 ## Completed in this readiness pass
 
 - Set the Flutter default API to
-  `https://automind.rafeequae.com/api/v1`, while retaining a build-time
+  `https://automind-ai.net/api/v1`, while retaining a build-time
   `API_BASE_URL` override.
 - Added an idempotent production reference catalog containing 42 vehicle makes,
   285 common models, 9 diagnostic symptoms, 15 maintenance services, and 10
@@ -88,7 +88,7 @@ still empty; the new reference seeder must be deployed and run.
 |---|---|
 | Blocker | Deploy this backend revision and run `composer run deploy:production` so migrations and `ReferenceDataSeeder` reach the live database. |
 | Blocker | Create/restrict Google Android, iOS, and web/server OAuth clients. Add Android signing SHA-1/SHA-256 fingerprints, download new Firebase config files, add the iOS reversed-client URL scheme, and set `GOOGLE_CLIENT_IDS` plus Flutter Google Dart defines. |
-| Blocker | Enable Sign in with Apple for `com.automind.ai`, create an Apple Service ID for Android, register `https://automind.rafeequae.com/callbacks/sign_in_with_apple`, set `APPLE_CLIENT_IDS`, and create distribution provisioning profiles. |
+| Blocker | Enable Sign in with Apple for `com.automind.ai`, create an Apple Service ID for Android, register `https://automind-ai.net/callbacks/sign_in_with_apple`, set `APPLE_CLIENT_IDS`, and create distribution provisioning profiles. |
 | Blocker | Supply a newly generated OpenAI API key and webhook secret, then run the production/provider preflight and one approved low-cost live-provider test. No provider secret was added to source control. |
 | Blocker | Supply MySQL, SMTP, administrator password hash, and Firebase service-account credentials in the production secret store. Upload an APNs `.p8` key to Firebase for iOS push. |
 | Blocker | Create the Android upload keystore and ignored `android/key.properties`; configure Apple distribution certificates/profiles. |

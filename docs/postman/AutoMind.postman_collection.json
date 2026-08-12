@@ -17233,7 +17233,7 @@
     "variable": [
         {
             "type": "any",
-            "value": "https://automind.rafeequae.com/api/v1",
+            "value": "https://automind-ai.net/api/v1",
             "key": "baseUrl"
         }
     ],

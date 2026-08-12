@@ -4,7 +4,7 @@ The sibling Flutter application at `../autoMind` is connected to the remote
 Laravel API. Its production default is:
 
 ```text
-https://automind.rafeequae.com/api/v1
+https://automind-ai.net/api/v1
 ```
 
 Override the API for development with
@@ -68,7 +68,7 @@ Android/web to `APPLE_CLIENT_IDS`.
 For Android, create an Apple Service ID and configure this HTTPS return URL:
 
 ```text
-https://automind.rafeequae.com/callbacks/sign_in_with_apple
+https://automind-ai.net/callbacks/sign_in_with_apple
 ```
 
 Build Android with:
@@ -76,7 +76,7 @@ Build Android with:
 ```bash
 flutter build appbundle \
   --dart-define=APPLE_SERVICE_ID=YOUR_APPLE_SERVICE_ID \
-  --dart-define=APPLE_REDIRECT_URI=https://automind.rafeequae.com/callbacks/sign_in_with_apple
+  --dart-define=APPLE_REDIRECT_URI=https://automind-ai.net/callbacks/sign_in_with_apple
 ```
 
 The app creates a cryptographically random raw nonce, supplies its SHA-256 hash
