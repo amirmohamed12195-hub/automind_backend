@@ -14,6 +14,7 @@ use App\Models\SymptomDefinition;
 use App\Models\Vehicle;
 use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticStateMachine;
+use App\Services\PlatformSettings;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,7 @@ class DiagnosisController
 
     public function store(CreateDiagnosisRequest $request)
     {
+        $settings = app(PlatformSettings::class);
         $vehicle = Vehicle::query()->where('user_id', $request->user()->id)->findOrFail($request->input('vehicleId'));
         $description = trim((string) $request->input('description'));
         if ($description === '' && $request->input('selectedSymptoms', []) === []) {
@@ -50,12 +52,12 @@ class DiagnosisController
         if ($idempotencyKey && $existing = DiagnosticSession::query()->where('user_id', $request->user()->id)->where('idempotency_key', $idempotencyKey)->first()) {
             return ApiResponse::success((new DiagnosticSessionResource($existing->load('symptoms')->loadCount(['media', 'obdSnapshots'])))->resolve());
         }
-        $session = DB::transaction(function () use ($request, $vehicle, $idempotencyKey, $description) {
+        $session = DB::transaction(function () use ($request, $vehicle, $idempotencyKey, $description, $settings) {
             $session = DiagnosticSession::query()->create([
                 'user_id' => $request->user()->id, 'vehicle_id' => $vehicle->id, 'status' => DiagnosticStatus::Draft->value,
                 'description' => $description ?: null, 'input_locale' => $request->input('inputLocale'), 'report_locale' => $request->input('reportLocale'),
-                'market_country_code' => strtoupper((string) $request->input('market.countryCode', $request->user()->country_code ?: 'US')),
-                'market_city' => $request->input('market.city', $request->user()->city), 'market_currency' => strtoupper((string) $request->input('market.currency', $request->user()->currency ?: 'USD')),
+                'market_country_code' => strtoupper((string) $request->input('market.countryCode', $request->user()->country_code ?: $settings->get('default_country'))),
+                'market_city' => $request->input('market.city', $request->user()->city), 'market_currency' => strtoupper((string) $request->input('market.currency', $request->user()->currency ?: $settings->get('default_currency'))),
                 'client_reference' => $request->input('clientReference'), 'idempotency_key' => $idempotencyKey,
                 'current_step' => DiagnosticStep::PreparingData->value, 'prompt_version' => config('automind.diagnostic_prompt_version'),
                 'consent_version' => $request->input('consentVersion'), 'consented_at' => now(),

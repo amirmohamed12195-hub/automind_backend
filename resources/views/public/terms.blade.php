@@ -19,7 +19,7 @@
         <section><h2>7. الميكانيكيون والأسعار</h2><p>ملفات الميكانيكيين ومواعيدهم والأسعار التقديرية هي معلومات مساعدة وليست ضمانًا للتوفر أو الجودة أو السعر النهائي. أي اتفاق إصلاح يكون بينك وبين مقدم الخدمة، مع بقاء حقوق المستهلك الإلزامية.</p></section>
         <section><h2>8. حدود المسؤولية</h2><p>إلى الحد الذي يسمح به القانون، لا نتحمل أضرارًا ناتجة عن تجاهل تحذيرات السلامة أو معلومات ناقصة أو استخدام غير صحيح. لا تستبعد هذه الشروط أي مسؤولية أو حق لا يسمح القانون باستبعاده.</p></section>
         <section><h2>9. التعليق والتغييرات</h2><p>يمكنك التوقف وحذف حسابك في أي وقت. قد نعلق الخدمة لأسباب أمنية أو قانونية أو صيانة. سننشر التعديلات المهمة ونطلب قبولًا جديدًا عندما يلزم.</p></section>
-        <section><h2>10. التواصل والقانون</h2><p>تطبق قواعد حماية المستهلك والخصوصية الإلزامية في بلدك. للاستفسارات أو الشكاوى تواصل مع <a href="mailto:{{ config('public.support_email') }}">{{ config('public.support_email') }}</a>.</p></section>
+        <section><h2>10. التواصل والقانون</h2><p>تطبق قواعد حماية المستهلك والخصوصية الإلزامية في بلدك. للاستفسارات أو الشكاوى تواصل مع <a href="mailto:{{ $supportEmail ?? config('public.support_email') }}">{{ $supportEmail ?? config('public.support_email') }}</a>.</p></section>
     @else
         <section><h2>1. Accepting these terms</h2><p>By using AutoMind, you agree to these terms and the Privacy Policy. You must be at least {{ config('public.minimum_age') }}, or use the service with guardian supervision where law permits.</p></section>
         <section><h2>2. What the service provides</h2><p>AutoMind provides estimated AI-assisted guidance based on the information you submit. It is not a certified mechanical inspection and does not guarantee a fault diagnosis or repair price.</p></section>
@@ -31,7 +31,7 @@
         <section><h2>7. Mechanics and estimates</h2><p>Mechanic profiles, availability, and price estimates are informational and do not guarantee availability, quality, or final price. Any repair agreement is between you and the provider, subject to mandatory consumer rights.</p></section>
         <section><h2>8. Limits of responsibility</h2><p>To the extent law allows, we are not responsible for harm caused by ignoring safety warnings, incomplete inputs, or misuse. These terms do not exclude any right or liability that law does not allow us to exclude.</p></section>
         <section><h2>9. Suspension and changes</h2><p>You can stop using the service and delete your account at any time. We may suspend service for security, legal, or maintenance reasons. Material updates will be published and renewed acceptance requested where required.</p></section>
-        <section><h2>10. Contact and applicable rights</h2><p>Mandatory privacy and consumer rules in your country continue to apply. Questions or complaints can be sent to <a href="mailto:{{ config('public.support_email') }}">{{ config('public.support_email') }}</a>.</p></section>
+        <section><h2>10. Contact and applicable rights</h2><p>Mandatory privacy and consumer rules in your country continue to apply. Questions or complaints can be sent to <a href="mailto:{{ $supportEmail ?? config('public.support_email') }}">{{ $supportEmail ?? config('public.support_email') }}</a>.</p></section>
     @endif
 </article>
 @endsection

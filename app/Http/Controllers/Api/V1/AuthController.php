@@ -9,6 +9,7 @@ use App\Models\DeviceToken;
 use App\Models\SocialIdentity;
 use App\Models\User;
 use App\Services\Auth\SocialIdentityVerifier;
+use App\Services\PlatformSettings;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,11 +23,14 @@ class AuthController
     public function register(RegisterRequest $request)
     {
         $acceptedAt = now();
+        $settings = app(PlatformSettings::class);
         $user = User::query()->create([
             'name' => $request->string('name'),
             'email' => $request->string('email'),
             'password' => $request->string('password'),
-            'locale' => $request->input('locale', 'en'),
+            'locale' => $request->input('locale', $settings->get('default_locale')),
+            'country_code' => $settings->get('default_country'),
+            'currency' => $settings->get('default_currency'),
             'terms_accepted_at' => $acceptedAt,
             'terms_version' => $request->string('legalVersion'),
             'privacy_accepted_at' => $acceptedAt,
@@ -41,6 +45,9 @@ class AuthController
         $user = User::query()->where('email', $request->string('email'))->first();
         if (! $user || ! $user->password || ! Hash::check($request->string('password'), $user->password)) {
             return ApiResponse::error('INVALID_CREDENTIALS', __('api.invalid_credentials'), 401);
+        }
+        if ($user->suspended_at !== null) {
+            return ApiResponse::error('ACCOUNT_SUSPENDED', 'This account has been suspended. Contact support for help.', 403);
         }
         $user->forceFill(['last_login_at' => now()])->save();
 
@@ -64,6 +71,9 @@ class AuthController
             return ApiResponse::error('SOCIAL_IDENTITY_INVALID', __('api.social_invalid'), 401);
         }
         $knownIdentity = SocialIdentity::query()->where('provider', $provider)->where('provider_subject', $identity['subject'])->exists();
+        if (! $knownIdentity && app(PlatformSettings::class)->get('registration_enabled') !== true) {
+            return ApiResponse::error('REGISTRATION_DISABLED', 'New account registration is temporarily unavailable.', 503);
+        }
         $legalAccepted = ($data['termsAccepted'] ?? false) === true
             && ($data['privacyAccepted'] ?? false) === true
             && ($data['legalVersion'] ?? null) === config('public.effective_date');
@@ -88,6 +98,8 @@ class AuthController
                 [
                     'name' => $identity['name'] ?: ($data['name'] ?? null) ?: Str::before($identity['email'], '@'),
                     'locale' => app()->getLocale(),
+                    'country_code' => app(PlatformSettings::class)->get('default_country'),
+                    'currency' => app(PlatformSettings::class)->get('default_currency'),
                     'email_verified_at' => now(),
                     'terms_accepted_at' => $legalAccepted ? now() : null,
                     'terms_version' => $legalAccepted ? $data['legalVersion'] : null,
@@ -115,6 +127,9 @@ class AuthController
                 ? $user
                 : User::query()->findOrFail($social->user_id);
         });
+        if ($user->suspended_at !== null) {
+            return ApiResponse::error('ACCOUNT_SUSPENDED', 'This account has been suspended. Contact support for help.', 403);
+        }
         $user->forceFill(['last_login_at' => now()])->save();
 
         return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($data['deviceName'] ?? 'AutoMind mobile')->plainTextToken, 'tokenType' => 'Bearer']);

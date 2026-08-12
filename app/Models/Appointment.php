@@ -18,6 +18,12 @@ class Appointment extends UlidModel
         return $this->belongsTo(Mechanic::class);
     }
 
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     /** @return BelongsTo<Vehicle, $this> */
     public function vehicle(): BelongsTo
     {

@@ -1,3 +1,5 @@
+import './admin-dashboard.js';
+
 const LANDING_DRAFT_KEY = 'automindLandingDraft';
 const LANDING_PUBLISHED_KEY = 'automindLandingContent';
 
@@ -480,4 +482,4 @@ const initializeAdmin = () => {
 };
 
 if (document.body.classList.contains('landing-page')) initializeLanding();
-if (document.body.classList.contains('admin-page')) initializeAdmin();
+if (document.body.classList.contains('admin-page') && !document.body.classList.contains('admin-v2')) initializeAdmin();

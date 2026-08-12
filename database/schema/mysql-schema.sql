@@ -269,6 +269,11 @@ alter table `users` add `terms_accepted_at` timestamp null after `deletion_reque
 alter table `users` add `terms_version` varchar(32) null after `terms_accepted_at`;
 alter table `users` add `privacy_accepted_at` timestamp null after `terms_version`;
 alter table `users` add `privacy_version` varchar(32) null after `privacy_accepted_at`;
+alter table `users` add `suspended_at` timestamp null after `deletion_requested_at`;
+alter table `users` add `suspension_reason` varchar(500) null after `suspended_at`;
+alter table `users` add index `users_suspended_at_index`(`suspended_at`);
+create table `platform_settings` (`key` varchar(100) not null, `group` varchar(50) not null, `label` varchar(160) not null, `type` varchar(24) not null, `value` json not null, `description` varchar(500) null, `updated_by_admin` varchar(64) null, `created_at` timestamp null, `updated_at` timestamp null, primary key (`key`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `platform_settings` add index `platform_settings_group_index`(`group`);
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -280,4 +285,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000400_creat
 insert into `migrations` (`migration`, `batch`) values ('2026_08_08_000100_add_last_login_at_to_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_10_000100_create_billing_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_11_000000_add_legal_acceptance_to_users_table', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_08_13_000000_create_platform_settings_and_add_user_status', 1);
 SET FOREIGN_KEY_CHECKS=1;

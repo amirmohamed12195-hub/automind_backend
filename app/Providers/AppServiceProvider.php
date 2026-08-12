@@ -27,6 +27,7 @@ use App\Services\Billing\GooglePlayDeveloperProvider;
 use App\Services\Geocoding\HttpGeocodingProvider;
 use App\Services\Notifications\FcmPushNotificationProvider;
 use App\Services\Notifications\GoogleFcmAccessTokenProvider;
+use App\Services\PlatformSettings;
 use App\Services\Pricing\DatabaseCurrencyRateProvider;
 use App\Services\Storage\LaravelObjectStorageProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -34,6 +35,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -56,6 +58,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        View::composer('public.*', function ($view): void {
+            $view->with('supportEmail', app(PlatformSettings::class)->get('support_email'));
+        });
+
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
             return URL::route('password.reset.show', [
                 'token' => $token,

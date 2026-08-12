@@ -42,7 +42,7 @@
 
     <footer class="public-footer">
         <span>© {{ date('Y') }} {{ config('public.operator_name') }}.</span>
-        <a href="mailto:{{ config('public.support_email') }}">{{ config('public.support_email') }}</a>
+        <a href="mailto:{{ $supportEmail ?? config('public.support_email') }}">{{ $supportEmail ?? config('public.support_email') }}</a>
     </footer>
 </body>
 </html>

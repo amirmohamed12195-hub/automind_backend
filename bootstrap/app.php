@@ -2,9 +2,11 @@
 
 use App\Exceptions\BillingException;
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RecordRequestMetrics;
 use App\Http\Middleware\RequireAdmin;
 use App\Http\Middleware\RequireBillingPermission;
+use App\Http\Middleware\RequirePlatformFeature;
 use App\Http\Middleware\RequireWebAdmin;
 use App\Http\Middleware\SetApiLocale;
 use App\Support\ApiResponse;
@@ -31,6 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => RequireAdmin::class,
             'billing-permission' => RequireBillingPermission::class,
+            'account-active' => EnsureAccountIsActive::class,
+            'platform-feature' => RequirePlatformFeature::class,
             'web-admin' => RequireWebAdmin::class,
         ]);
     })

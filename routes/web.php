@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminBillingDashboardController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Controllers\AppleSignInCallbackController;
 use App\Http\Controllers\AssociationFileController;
@@ -37,7 +38,30 @@ Route::post('/admin/login', [AdminSessionController::class, 'store'])
     ->middleware('throttle:admin-login')
     ->name('admin.login.store');
 Route::middleware('web-admin')->group(function (): void {
-    Route::get('/admin', [AdminBillingDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/admin', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::patch('/admin/users/{user}', [AdminDashboardController::class, 'updateUser'])->name('admin.users.update');
+    Route::post('/admin/users/{user}/suspension', [AdminDashboardController::class, 'suspendUser'])->name('admin.users.suspension');
+    Route::delete('/admin/users/{user}', [AdminDashboardController::class, 'destroyUser'])->name('admin.users.destroy');
+    Route::post('/admin/users/{user}/restore', [AdminDashboardController::class, 'restoreUser'])->name('admin.users.restore');
+    Route::patch('/admin/vehicles/{vehicle}', [AdminDashboardController::class, 'updateVehicle'])->name('admin.vehicles.update');
+    Route::delete('/admin/vehicles/{vehicle}', [AdminDashboardController::class, 'destroyVehicle'])->name('admin.vehicles.destroy');
+    Route::post('/admin/diagnostics/{diagnosis}/retry', [AdminDashboardController::class, 'retryDiagnostic'])->name('admin.diagnostics.retry');
+    Route::post('/admin/diagnostics/{diagnosis}/cancel', [AdminDashboardController::class, 'cancelDiagnostic'])->name('admin.diagnostics.cancel');
+    Route::delete('/admin/diagnostics/{diagnosis}', [AdminDashboardController::class, 'destroyDiagnostic'])->name('admin.diagnostics.destroy');
+    Route::post('/admin/mechanics', [AdminDashboardController::class, 'storeMechanic'])->name('admin.mechanics.store');
+    Route::patch('/admin/mechanics/{mechanic}', [AdminDashboardController::class, 'updateMechanic'])->name('admin.mechanics.update');
+    Route::patch('/admin/appointments/{appointment}', [AdminDashboardController::class, 'updateAppointment'])->name('admin.appointments.update');
+    Route::post('/admin/notifications/broadcast', [AdminDashboardController::class, 'broadcast'])->name('admin.notifications.broadcast');
+    Route::post('/admin/ai-runs/{run}/retry', [AdminDashboardController::class, 'retryAiRun'])->name('admin.ai-runs.retry');
+    Route::patch('/admin/settings', [AdminDashboardController::class, 'updateSettings'])->name('admin.settings.update');
+    Route::post('/admin/catalog/vehicle-makes', [AdminDashboardController::class, 'storeMake'])->name('admin.catalog.makes.store');
+    Route::patch('/admin/catalog/vehicle-makes/{make}', [AdminDashboardController::class, 'updateMake'])->name('admin.catalog.makes.update');
+    Route::post('/admin/catalog/vehicle-models', [AdminDashboardController::class, 'storeModel'])->name('admin.catalog.models.store');
+    Route::patch('/admin/catalog/vehicle-models/{model}', [AdminDashboardController::class, 'updateModel'])->name('admin.catalog.models.update');
+    Route::post('/admin/catalog/maintenance-services', [AdminDashboardController::class, 'storeMaintenanceService'])->name('admin.catalog.services.store');
+    Route::patch('/admin/catalog/maintenance-services/{service}', [AdminDashboardController::class, 'updateMaintenanceService'])->name('admin.catalog.services.update');
+    Route::post('/admin/catalog/currency-rates', [AdminDashboardController::class, 'storeCurrencyRate'])->name('admin.catalog.currency-rates.store');
+    Route::post('/admin/catalog/labor-rates', [AdminDashboardController::class, 'storeLaborRate'])->name('admin.catalog.labor-rates.store');
     Route::patch('/admin/billing/plans/{plan}', [AdminBillingDashboardController::class, 'updatePlan'])->name('admin.billing.plans.update');
     Route::patch('/admin/billing/products/{product}', [AdminBillingDashboardController::class, 'updateProduct'])->name('admin.billing.products.update');
     Route::post('/admin/billing/events/{event}/reprocess', [AdminBillingDashboardController::class, 'reprocessEvent'])->name('admin.billing.events.reprocess');

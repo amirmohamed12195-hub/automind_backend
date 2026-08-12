@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AiRun extends UlidModel
@@ -15,5 +16,11 @@ class AiRun extends UlidModel
     public function mediaObservations(): HasMany
     {
         return $this->hasMany(MediaObservation::class);
+    }
+
+    /** @return BelongsTo<DiagnosticSession, $this> */
+    public function session(): BelongsTo
+    {
+        return $this->belongsTo(DiagnosticSession::class, 'diagnostic_session_id');
     }
 }

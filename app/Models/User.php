@@ -20,8 +20,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'phone', 'password', 'avatar_path', 'locale', 'theme_mode',
         'units', 'country_code', 'city', 'latitude', 'longitude', 'currency',
-        'maintenance_reminders_enabled', 'last_login_at', 'deletion_requested_at',
-        'terms_accepted_at', 'terms_version', 'privacy_accepted_at', 'privacy_version',
+        'maintenance_reminders_enabled', 'last_login_at', 'deletion_requested_at', 'suspended_at', 'suspension_reason',
+        'terms_accepted_at', 'terms_version', 'privacy_accepted_at', 'privacy_version', 'is_admin', 'admin_role',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -32,6 +32,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'terms_accepted_at' => 'datetime',
             'privacy_accepted_at' => 'datetime',
             'maintenance_reminders_enabled' => 'boolean',
@@ -62,5 +63,23 @@ class User extends Authenticatable
     public function creditLedgerEntries(): HasMany
     {
         return $this->hasMany(CreditLedgerEntry::class);
+    }
+
+    /** @return HasMany<DiagnosticSession, $this> */
+    public function diagnostics(): HasMany
+    {
+        return $this->hasMany(DiagnosticSession::class);
+    }
+
+    /** @return HasMany<Appointment, $this> */
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    /** @return HasMany<UserNotification, $this> */
+    public function userNotifications(): HasMany
+    {
+        return $this->hasMany(UserNotification::class);
     }
 }

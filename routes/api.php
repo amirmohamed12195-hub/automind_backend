@@ -36,7 +36,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('shared/reports/{report}', [ReportController::class, 'shared'])->middleware('signed')->name('reports.shared');
 
     Route::prefix('auth')->group(function (): void {
-        Route::post('register', [AuthController::class, 'register'])->middleware('throttle:login');
+        Route::post('register', [AuthController::class, 'register'])->middleware(['throttle:login', 'platform-feature:registration']);
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
         Route::post('social/google', fn (Request $request, SocialIdentityVerifier $verifier) => app(AuthController::class)->social($request, 'google', $verifier))->middleware('throttle:login');
         Route::post('social/apple', fn (Request $request, SocialIdentityVerifier $verifier) => app(AuthController::class)->social($request, 'apple', $verifier))->middleware('throttle:login');
@@ -52,7 +52,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('mechanics/{mechanic}', [MechanicController::class, 'show']);
     Route::get('mechanics/{mechanic}/availability', [MechanicController::class, 'availability']);
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', 'account-active'])->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/logout-all', [AuthController::class, 'logoutAll']);
         Route::get('me', [AccountController::class, 'show']);
@@ -91,16 +91,16 @@ Route::prefix('v1')->group(function (): void {
         Route::get('vehicles/{vehicle}/health', [VehicleController::class, 'health']);
 
         Route::get('diagnoses', [DiagnosisController::class, 'index']);
-        Route::post('diagnoses', [DiagnosisController::class, 'store'])->middleware('throttle:analysis');
+        Route::post('diagnoses', [DiagnosisController::class, 'store'])->middleware(['throttle:analysis', 'platform-feature:diagnostics']);
         Route::get('diagnoses/{diagnosis}', [DiagnosisController::class, 'show']);
         Route::patch('diagnoses/{diagnosis}', [DiagnosisController::class, 'update']);
         Route::delete('diagnoses/{diagnosis}', [DiagnosisController::class, 'destroy']);
         Route::post('diagnoses/{diagnosis}/media', [DiagnosticMediaController::class, 'store'])->middleware('throttle:uploads');
         Route::delete('diagnoses/{diagnosis}/media/{media}', [DiagnosticMediaController::class, 'destroy']);
         Route::post('diagnoses/{diagnosis}/obd-snapshots', [ObdController::class, 'store']);
-        Route::post('diagnoses/{diagnosis}/analyze', [DiagnosisController::class, 'analyze'])->middleware('throttle:analysis');
+        Route::post('diagnoses/{diagnosis}/analyze', [DiagnosisController::class, 'analyze'])->middleware(['throttle:analysis', 'platform-feature:diagnostics']);
         Route::post('diagnoses/{diagnosis}/cancel', [DiagnosisController::class, 'cancel']);
-        Route::post('diagnoses/{diagnosis}/retry', [DiagnosisController::class, 'retry'])->middleware('throttle:analysis');
+        Route::post('diagnoses/{diagnosis}/retry', [DiagnosisController::class, 'retry'])->middleware(['throttle:analysis', 'platform-feature:diagnostics']);
         Route::get('diagnoses/{diagnosis}/status', [DiagnosisController::class, 'status']);
         Route::get('diagnoses/{diagnosis}/report', [DiagnosisController::class, 'report']);
         Route::get('reports/{report}', [ReportController::class, 'show']);
@@ -119,7 +119,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('vehicles/{vehicle}/maintenance-reminders/{reminder}/complete', [MaintenanceReminderController::class, 'complete']);
         Route::post('vehicles/{vehicle}/maintenance-reminders/{reminder}/snooze', [MaintenanceReminderController::class, 'snooze']);
 
-        Route::post('appointments', [AppointmentController::class, 'store'])->middleware('throttle:appointments');
+        Route::post('appointments', [AppointmentController::class, 'store'])->middleware(['throttle:appointments', 'platform-feature:appointments']);
         Route::get('appointments', [AppointmentController::class, 'index']);
         Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
         Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
