@@ -121,12 +121,21 @@ environment template with:
 ```bash
 read -rsp "New OpenAI API key: " AUTOMIND_NEW_OPENAI_KEY
 echo
+read -rp "Hostinger MySQL host: " AUTOMIND_NEW_DB_HOST
+read -rp "Hostinger MySQL database: " AUTOMIND_NEW_DB_DATABASE
+read -rp "Hostinger MySQL username: " AUTOMIND_NEW_DB_USERNAME
 read -rsp "New MySQL password: " AUTOMIND_NEW_DB_PASSWORD
 echo
 AUTOMIND_OPENAI_API_KEY="$AUTOMIND_NEW_OPENAI_KEY" \
+AUTOMIND_DB_HOST="$AUTOMIND_NEW_DB_HOST" \
+AUTOMIND_DB_DATABASE="$AUTOMIND_NEW_DB_DATABASE" \
+AUTOMIND_DB_USERNAME="$AUTOMIND_NEW_DB_USERNAME" \
 AUTOMIND_DB_PASSWORD="$AUTOMIND_NEW_DB_PASSWORD" \
 php scripts/install-hostinger-env.php
 unset AUTOMIND_NEW_OPENAI_KEY
+unset AUTOMIND_NEW_DB_HOST
+unset AUTOMIND_NEW_DB_DATABASE
+unset AUTOMIND_NEW_DB_USERNAME
 unset AUTOMIND_NEW_DB_PASSWORD
 php artisan config:clear
 sh scripts/deploy-production.sh

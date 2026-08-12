@@ -52,6 +52,9 @@ if (! is_string($environment)) {
 }
 
 $openAiApiKey = getenv('AUTOMIND_OPENAI_API_KEY');
+$databaseHost = getenv('AUTOMIND_DB_HOST');
+$databaseName = getenv('AUTOMIND_DB_DATABASE');
+$databaseUsername = getenv('AUTOMIND_DB_USERNAME');
 $databasePassword = getenv('AUTOMIND_DB_PASSWORD');
 
 if (! is_string($openAiApiKey) || trim($openAiApiKey) === '') {
@@ -59,9 +62,16 @@ if (! is_string($openAiApiKey) || trim($openAiApiKey) === '') {
     exit(1);
 }
 
-if (! is_string($databasePassword) || $databasePassword === '') {
-    fwrite(STDERR, "AUTOMIND_DB_PASSWORD is required.\n");
-    exit(1);
+foreach ([
+    'AUTOMIND_DB_HOST' => $databaseHost,
+    'AUTOMIND_DB_DATABASE' => $databaseName,
+    'AUTOMIND_DB_USERNAME' => $databaseUsername,
+    'AUTOMIND_DB_PASSWORD' => $databasePassword,
+] as $name => $value) {
+    if (! is_string($value) || trim($value) === '') {
+        fwrite(STDERR, "{$name} is required.\n");
+        exit(1);
+    }
 }
 
 $openAiApiKey = trim($openAiApiKey);
@@ -74,21 +84,53 @@ if (
     exit(1);
 }
 
-if (preg_match('/[\r\n]/', $databasePassword) === 1) {
-    fwrite(STDERR, "The supplied database password contains an invalid newline.\n");
-    exit(1);
+foreach ([$databaseHost, $databaseName, $databaseUsername, $databasePassword] as $databaseValue) {
+    if (preg_match('/[\r\n]/', $databaseValue) === 1) {
+        fwrite(STDERR, "A supplied database value contains an invalid newline.\n");
+        exit(1);
+    }
 }
+
+$databaseHost = trim($databaseHost);
+$databaseName = trim($databaseName);
+$databaseUsername = trim($databaseUsername);
+$encodeEnvironmentValue = static fn (string $value): string => '"'.strtr($value, [
+    '\\' => '\\\\',
+    '"' => '\\"',
+    '$' => '\\$',
+]).'"';
 
 $environment = preg_replace_callback(
     '/^OPENAI_API_KEY=.*$/m',
-    static fn (): string => 'OPENAI_API_KEY='.$openAiApiKey,
+    static fn (): string => 'OPENAI_API_KEY='.$encodeEnvironmentValue($openAiApiKey),
+    $environment,
+    1,
+);
+
+$environment = preg_replace_callback(
+    '/^DB_HOST=.*$/m',
+    static fn (): string => 'DB_HOST='.$encodeEnvironmentValue($databaseHost),
+    $environment,
+    1,
+);
+
+$environment = preg_replace_callback(
+    '/^DB_DATABASE=.*$/m',
+    static fn (): string => 'DB_DATABASE='.$encodeEnvironmentValue($databaseName),
+    $environment,
+    1,
+);
+
+$environment = preg_replace_callback(
+    '/^DB_USERNAME=.*$/m',
+    static fn (): string => 'DB_USERNAME='.$encodeEnvironmentValue($databaseUsername),
     $environment,
     1,
 );
 
 $environment = preg_replace_callback(
     '/^DB_PASSWORD=.*$/m',
-    static fn (): string => 'DB_PASSWORD='.$databasePassword,
+    static fn (): string => 'DB_PASSWORD='.$encodeEnvironmentValue($databasePassword),
     $environment,
     1,
 );
@@ -128,6 +170,6 @@ if (! rename($temporaryPath, $environmentPath)) {
 fwrite(
     STDOUT,
     "Hostinger .env installed and the existing APP_KEY preserved.\n".
-    "The supplied MySQL and OpenAI credentials were installed.\n".
+    "The supplied MySQL connection and OpenAI credentials were installed.\n".
     "Next, run: php artisan automind:configure-admin --username=admin\n",
 );
