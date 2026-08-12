@@ -6,9 +6,9 @@ use App\Contracts\ObjectStorageProvider;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\DeviceToken;
+use App\Services\AccountDeletionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AccountController
 {
@@ -59,15 +59,9 @@ class AccountController
         return response()->noContent();
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request, AccountDeletionService $deletion)
     {
-        DB::transaction(function () use ($request): void {
-            $request->user()->tokens()->delete();
-            DeviceToken::query()->where('user_id', $request->user()->id)->update(['enabled' => false, 'updated_at' => now()]);
-            DB::table('diagnostic_sessions')->where('user_id', $request->user()->id)->whereIn('status', ['queued', 'analyzing'])->update(['status' => 'cancelled', 'cancelled_at' => now(), 'updated_at' => now()]);
-            $request->user()->forceFill(['deletion_requested_at' => now()])->save();
-            $request->user()->delete();
-        });
+        $deletion->request($request->user());
 
         return response()->noContent();
     }

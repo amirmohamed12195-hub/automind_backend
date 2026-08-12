@@ -7,8 +7,8 @@ const landingDefaults = {
     subheadline: 'Understand warning lights, strange sounds, and performance issues in minutes—with clear next steps before you reach the workshop.',
     ctaTitle: 'Drive with answers, not assumptions.',
     ctaText: 'Download AutoMind and put AI-powered vehicle clarity in your pocket.',
-    appleUrl: 'https://apps.apple.com/',
-    androidUrl: 'https://play.google.com/store',
+    appleUrl: '',
+    androidUrl: '',
     accentColor: '#087cff',
     accentHex: '#087cff',
     theme: 'midnight',
@@ -16,11 +16,11 @@ const landingDefaults = {
     seoDescription: 'Understand car problems in minutes with AI-powered diagnostics, repair estimates, maintenance tracking, and trusted mechanic recommendations.',
     heroEnabled: true,
     ctaEnabled: true,
-    proofEnabled: true,
+    proofEnabled: false,
     stepsEnabled: true,
     featuresEnabled: true,
     safetyEnabled: true,
-    testimonialEnabled: true,
+    testimonialEnabled: false,
 };
 
 const safeStorageRead = (key) => {
@@ -86,13 +86,23 @@ const applyLandingContent = (content) => {
     });
     document.querySelectorAll('[data-store-link="apple"]').forEach((link) => {
         link.href = state.appleUrl || '#';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
+        link.toggleAttribute('aria-disabled', !state.appleUrl);
+        const status = link.querySelector('[data-store-status]');
+        if (status) status.textContent = state.appleUrl ? 'View on the' : 'Coming soon on';
+        if (state.appleUrl) {
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+        }
     });
     document.querySelectorAll('[data-store-link="android"]').forEach((link) => {
         link.href = state.androidUrl || '#';
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
+        link.toggleAttribute('aria-disabled', !state.androidUrl);
+        const status = link.querySelector('[data-store-status]');
+        if (status) status.textContent = state.androidUrl ? 'Get it on' : 'Coming soon on';
+        if (state.androidUrl) {
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+        }
     });
 
     const visibility = [
@@ -293,11 +303,18 @@ const buildGenericResource = (section, name) => {
 };
 
 const initializeAdmin = () => {
-    populateDiagnostics();
-    document.querySelectorAll('[data-resource-view]').forEach((section) => {
-        const name = section.dataset.resourceName;
-        if (name !== 'Diagnostics') buildGenericResource(section, name);
-    });
+    const demoSectionsEnabled = document.body.dataset.demoSectionsEnabled === 'true';
+    if (demoSectionsEnabled) {
+        populateDiagnostics();
+        document.querySelectorAll('[data-resource-view]').forEach((section) => {
+            const name = section.dataset.resourceName;
+            if (name !== 'Diagnostics') buildGenericResource(section, name);
+        });
+    } else {
+        document.querySelectorAll('.admin-nav-item:not([data-admin-view="billing"])').forEach((item) => item.remove());
+        document.querySelectorAll('.admin-view:not([data-view="billing"])').forEach((section) => section.remove());
+        document.querySelectorAll('[data-demo-action], .admin-search').forEach((item) => item.remove());
+    }
 
     const sidebar = document.querySelector('[data-admin-sidebar]');
     const overlay = document.querySelector('[data-admin-overlay]');
@@ -355,7 +372,7 @@ const initializeAdmin = () => {
         }
     });
 
-    const initialView = location.hash.replace('#', '');
+    const initialView = demoSectionsEnabled ? location.hash.replace('#', '') : 'billing';
     if (initialView && document.querySelector(`.admin-view[data-view="${initialView}"]`)) switchView(initialView);
 
     const search = document.querySelector('.admin-search input');

@@ -19,6 +19,15 @@ class RegisterRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['name' => ['required', 'string', 'max:120'], 'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'], 'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()], 'deviceName' => ['nullable', 'string', 'max:120'], 'locale' => ['nullable', 'in:en,ar']];
+        return [
+            'name' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'deviceName' => ['nullable', 'string', 'max:120'],
+            'locale' => ['nullable', 'in:en,ar'],
+            'termsAccepted' => ['required', 'accepted'],
+            'privacyAccepted' => ['required', 'accepted'],
+            'legalVersion' => ['required', 'string', 'max:32', 'in:'.config('public.effective_date')],
+        ];
     }
 }

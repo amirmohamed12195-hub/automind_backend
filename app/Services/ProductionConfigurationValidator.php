@@ -43,6 +43,20 @@ class ProductionConfigurationValidator
         if (! str_starts_with($appUrl, 'https://')) {
             $errors[] = 'APP_URL must use HTTPS in production.';
         }
+        if (! filter_var(config('public.support_email'), FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'SUPPORT_EMAIL must contain a valid public support address.';
+        }
+        if (! filter_var(config('public.privacy_email'), FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'PRIVACY_EMAIL must contain a valid privacy contact address.';
+        }
+        $teamId = trim((string) config('public.app_links.apple_team_id'));
+        if ($teamId === '' || $this->isPlaceholder($teamId)) {
+            $errors[] = 'APPLE_TEAM_ID is required for iOS Universal Links.';
+        }
+        $fingerprints = config('public.app_links.android_sha256_fingerprints');
+        if (! is_array($fingerprints) || $fingerprints === [] || collect($fingerprints)->contains(fn ($value) => ! is_string($value) || ! preg_match('/^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/i', $value))) {
+            $errors[] = 'ANDROID_APP_LINK_SHA256_CERT_FINGERPRINTS must contain valid Play signing SHA-256 fingerprints.';
+        }
 
         if ((bool) config('automind.social_login_enabled')) {
             foreach (['google' => 'GOOGLE_CLIENT_IDS', 'apple' => 'APPLE_CLIENT_IDS'] as $provider => $environmentName) {

@@ -15,7 +15,7 @@ class AuthAccountApiTest extends ApiTestCase
 {
     public function test_registration_login_me_settings_and_logout_contract(): void
     {
-        $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en']);
+        $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en', 'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11']);
         $register->assertCreated()
             ->assertJsonPath('data.user.email', 'driver@example.com')
             ->assertJsonPath('data.user.locale', 'en')
@@ -25,6 +25,12 @@ class AuthAccountApiTest extends ApiTestCase
             ->assertJsonStructure(['data' => ['user' => ['id', 'name', 'email'], 'accessToken', 'tokenType'], 'meta' => ['requestId']])
             ->assertHeader('X-Request-Id');
         $this->assertTrue(Hash::check('Secret123', User::query()->firstOrFail()->password));
+        $this->assertSame('2026-08-11', User::query()->firstOrFail()->terms_version);
+        $this->assertNotNull(User::query()->firstOrFail()->privacy_accepted_at);
+
+        $this->postJson('/api/v1/auth/register', ['name' => 'No consent', 'email' => 'no-consent@example.com', 'password' => 'Secret123', 'password_confirmation' => 'Secret123'])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['error' => ['details' => ['termsAccepted', 'privacyAccepted', 'legalVersion']]]);
 
         $login = $this->postJson('/api/v1/auth/login', ['email' => 'DRIVER@example.com', 'password' => 'Secret123']);
         $token = $login->assertOk()->json('data.accessToken');
@@ -132,7 +138,7 @@ class AuthAccountApiTest extends ApiTestCase
         ]);
         $this->app->instance(SocialIdentityVerifier::class, $verifier);
 
-        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'new-token', 'nonce' => 'raw-nonce'])
+        $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'new-token', 'nonce' => 'raw-nonce', 'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11'])
             ->assertUnprocessable()->assertJsonPath('error.code', 'SOCIAL_EMAIL_REQUIRED');
         $this->postJson('/api/v1/auth/social/apple', ['identityToken' => 'known-token', 'nonce' => 'raw-nonce'])
             ->assertOk()->assertJsonPath('data.user.id', $existingUser->id)->assertJsonStructure(['data' => ['accessToken']]);
@@ -153,6 +159,9 @@ class AuthAccountApiTest extends ApiTestCase
             'nonce' => 'raw-nonce',
             'name' => 'Apple Driver',
             'deviceName' => 'iPhone',
+            'termsAccepted' => true,
+            'privacyAccepted' => true,
+            'legalVersion' => '2026-08-11',
         ])->assertOk()
             ->assertJsonPath('data.user.name', 'Apple Driver')
             ->assertJsonPath('data.user.email', 'private-relay@example.com');
@@ -160,6 +169,7 @@ class AuthAccountApiTest extends ApiTestCase
         $user = User::query()->where('email', 'private-relay@example.com')->sole();
         $this->assertNotNull($user->email_verified_at);
         $this->assertNotNull($user->last_login_at);
+        $this->assertSame('2026-08-11', $user->terms_version);
         $this->assertDatabaseHas('social_identities', [
             'user_id' => $user->id,
             'provider' => 'apple',

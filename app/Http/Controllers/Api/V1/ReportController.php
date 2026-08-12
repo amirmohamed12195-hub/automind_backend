@@ -62,7 +62,16 @@ class ReportController
             app()->setLocale($request->query('locale'));
         }
 
-        return ApiResponse::success((new DiagnosticReportResource($report->load($this->relations())))->resolve(), 200, ['locale' => app()->getLocale()]);
+        $payload = (new DiagnosticReportResource($report->load($this->relations())))->resolve($request);
+
+        if (! str_contains(strtolower((string) $request->header('Accept')), 'text/html')) {
+            return ApiResponse::success($payload, 200, ['locale' => app()->getLocale()]);
+        }
+
+        return response()
+            ->view('public.shared-report', ['report' => $payload, 'locale' => app()->getLocale()])
+            ->header('X-Robots-Tag', 'noindex, nofollow, noarchive')
+            ->header('Cache-Control', 'private, no-store');
     }
 
     private function relations(): array

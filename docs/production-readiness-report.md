@@ -1,5 +1,7 @@
 # AutoMind production-readiness report
 
+> Historical audit. The 2026-08-11 implementation adds public legal/support/deletion/reset/report pages, association endpoints, explicit legal/diagnostic consent, Firebase setup, and billing fail-closed validation. The current launch handoff is in `autoMind/docs/LAUNCH_HANDOFF_AR_2026-08-11.md`.
+
 Date: 2026-07-24
 
 ## Executive status

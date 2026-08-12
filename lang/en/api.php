@@ -11,6 +11,7 @@ return [
     'invalid_credentials' => 'The email or password is incorrect.',
     'social_invalid' => 'The social identity token is invalid.',
     'social_email_required' => 'A verified email is required the first time this social account signs in.',
+    'legal_acceptance_required' => 'Accept the Terms of Use and Privacy Policy before creating an account.',
     'diagnosis_immutable' => 'This diagnostic session can no longer be changed.',
     'invalid_transition' => 'This diagnostic status transition is not allowed.',
     'media_limit' => 'The media limit for this diagnostic session has been reached.',

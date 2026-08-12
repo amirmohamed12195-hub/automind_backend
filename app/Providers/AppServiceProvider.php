@@ -22,15 +22,18 @@ use App\Services\Ai\OpenAiSpeechTranscriptionProvider;
 use App\Services\Ai\OpenAiVisionUnderstandingProvider;
 use App\Services\Ai\OpenAiWebPriceSearchProvider;
 use App\Services\Billing\AppleAppStoreProvider;
+use App\Services\Billing\BillingConfigurationValidator;
 use App\Services\Billing\GooglePlayDeveloperProvider;
 use App\Services\Geocoding\HttpGeocodingProvider;
 use App\Services\Notifications\FcmPushNotificationProvider;
 use App\Services\Notifications\GoogleFcmAccessTokenProvider;
 use App\Services\Pricing\DatabaseCurrencyRateProvider;
 use App\Services\Storage\LaravelObjectStorageProvider;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -53,10 +56,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        ResetPassword::createUrlUsing(function (User $user, string $token): string {
+            return URL::route('password.reset.show', [
+                'token' => $token,
+                'email' => $user->getEmailForPasswordReset(),
+                'lang' => in_array($user->locale, ['en', 'ar'], true) ? $user->locale : 'en',
+            ]);
+        });
+
         $consoleCommand = $this->app->runningInConsole() ? ($_SERVER['argv'][1] ?? null) : null;
         $providerRuntime = ! $this->app->runningInConsole() || in_array($consoleCommand, ['queue:work', 'queue:listen', 'horizon', 'octane:start'], true);
         if ($this->app->environment('production') && $providerRuntime) {
             $this->app->make(OpenAiConfigurationValidator::class)->validate();
+            $this->app->make(BillingConfigurationValidator::class)->validate();
         }
         foreach (['login' => 8, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($perMinute) {

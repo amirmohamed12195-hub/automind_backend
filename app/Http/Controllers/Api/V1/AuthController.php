@@ -21,7 +21,17 @@ class AuthController
 {
     public function register(RegisterRequest $request)
     {
-        $user = User::query()->create(['name' => $request->string('name'), 'email' => $request->string('email'), 'password' => $request->string('password'), 'locale' => $request->input('locale', 'en')]);
+        $acceptedAt = now();
+        $user = User::query()->create([
+            'name' => $request->string('name'),
+            'email' => $request->string('email'),
+            'password' => $request->string('password'),
+            'locale' => $request->input('locale', 'en'),
+            'terms_accepted_at' => $acceptedAt,
+            'terms_version' => $request->string('legalVersion'),
+            'privacy_accepted_at' => $acceptedAt,
+            'privacy_version' => $request->string('legalVersion'),
+        ]);
 
         return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($request->input('deviceName', 'AutoMind mobile'))->plainTextToken, 'tokenType' => 'Bearer'], 201);
     }
@@ -44,6 +54,9 @@ class AuthController
             'nonce' => [$provider === 'apple' ? 'required' : 'nullable', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:120'],
             'deviceName' => ['nullable', 'string', 'max:120'],
+            'termsAccepted' => ['sometimes', 'accepted'],
+            'privacyAccepted' => ['sometimes', 'accepted'],
+            'legalVersion' => ['sometimes', 'string', 'max:32', 'in:'.config('public.effective_date')],
         ]);
         try {
             $identity = $verifier->verify($provider, $data['identityToken'], $data['nonce'] ?? null);
@@ -51,10 +64,16 @@ class AuthController
             return ApiResponse::error('SOCIAL_IDENTITY_INVALID', __('api.social_invalid'), 401);
         }
         $knownIdentity = SocialIdentity::query()->where('provider', $provider)->where('provider_subject', $identity['subject'])->exists();
+        $legalAccepted = ($data['termsAccepted'] ?? false) === true
+            && ($data['privacyAccepted'] ?? false) === true
+            && ($data['legalVersion'] ?? null) === config('public.effective_date');
+        if (! $knownIdentity && ! $legalAccepted) {
+            return ApiResponse::error('LEGAL_ACCEPTANCE_REQUIRED', __('api.legal_acceptance_required'), 422);
+        }
         if (! $knownIdentity && ! $identity['email']) {
             return ApiResponse::error('SOCIAL_EMAIL_REQUIRED', __('api.social_email_required'), 422);
         }
-        $user = DB::transaction(function () use ($data, $identity, $provider) {
+        $user = DB::transaction(function () use ($data, $identity, $provider, $legalAccepted) {
             $social = SocialIdentity::query()
                 ->where('provider', $provider)
                 ->where('provider_subject', $identity['subject'])
@@ -70,8 +89,20 @@ class AuthController
                     'name' => $identity['name'] ?: ($data['name'] ?? null) ?: Str::before($identity['email'], '@'),
                     'locale' => app()->getLocale(),
                     'email_verified_at' => now(),
+                    'terms_accepted_at' => $legalAccepted ? now() : null,
+                    'terms_version' => $legalAccepted ? $data['legalVersion'] : null,
+                    'privacy_accepted_at' => $legalAccepted ? now() : null,
+                    'privacy_version' => $legalAccepted ? $data['legalVersion'] : null,
                 ],
             );
+            if ($legalAccepted && ($user->terms_accepted_at === null || $user->privacy_accepted_at === null)) {
+                $user->forceFill([
+                    'terms_accepted_at' => $user->terms_accepted_at ?? now(),
+                    'terms_version' => $user->terms_version ?? $data['legalVersion'],
+                    'privacy_accepted_at' => $user->privacy_accepted_at ?? now(),
+                    'privacy_version' => $user->privacy_version ?? $data['legalVersion'],
+                ])->save();
+            }
             if ($user->email_verified_at === null) {
                 $user->forceFill(['email_verified_at' => now()])->save();
             }

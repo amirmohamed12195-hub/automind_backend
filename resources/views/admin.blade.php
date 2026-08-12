@@ -8,7 +8,7 @@
     <title>AutoMind Admin — Command Center</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="admin-page">
+<body class="admin-page" data-demo-sections-enabled="{{ config('admin.demo_sections_enabled') ? 'true' : 'false' }}">
     <aside class="admin-sidebar" data-admin-sidebar>
         <div class="sidebar-brand-wrap">
             <a class="brand" href="/" aria-label="Go to AutoMind website">

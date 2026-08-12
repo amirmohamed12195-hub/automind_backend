@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # App/Universal Link association files are dot-prefixed paths. Route them
+    # explicitly before generic file/directory checks used by shared hosts.
+    RewriteRule ^\.well-known/(assetlinks\.json|apple-app-site-association)$ index.php [L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

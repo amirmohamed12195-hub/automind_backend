@@ -265,6 +265,10 @@ create table `billing_admin_audit_logs` (`id` char(26) not null, `admin_id` char
 alter table `billing_admin_audit_logs` add constraint `billing_admin_audit_logs_admin_id_foreign` foreign key (`admin_id`) references `users` (`id`) on delete set null;
 alter table `billing_admin_audit_logs` add index `billing_admin_audit_logs_resource_type_resource_id_index`(`resource_type`, `resource_id`);
 alter table `billing_admin_audit_logs` add index `billing_admin_audit_logs_action_index`(`action`);
+alter table `users` add `terms_accepted_at` timestamp null after `deletion_requested_at`;
+alter table `users` add `terms_version` varchar(32) null after `terms_accepted_at`;
+alter table `users` add `privacy_accepted_at` timestamp null after `terms_version`;
+alter table `users` add `privacy_version` varchar(32) null after `privacy_accepted_at`;
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -275,4 +279,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000300_creat
 insert into `migrations` (`migration`, `batch`) values ('2026_07_19_000400_create_mechanic_notification_admin_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_08_000100_add_last_login_at_to_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_10_000100_create_billing_tables', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_08_11_000000_add_legal_acceptance_to_users_table', 1);
 SET FOREIGN_KEY_CHECKS=1;

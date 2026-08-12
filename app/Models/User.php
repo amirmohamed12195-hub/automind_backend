@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name', 'email', 'phone', 'password', 'avatar_path', 'locale', 'theme_mode',
         'units', 'country_code', 'city', 'latitude', 'longitude', 'currency',
         'maintenance_reminders_enabled', 'last_login_at', 'deletion_requested_at',
+        'terms_accepted_at', 'terms_version', 'privacy_accepted_at', 'privacy_version',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -31,6 +32,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'privacy_accepted_at' => 'datetime',
             'maintenance_reminders_enabled' => 'boolean',
             'is_admin' => 'boolean',
             'password' => 'hashed',

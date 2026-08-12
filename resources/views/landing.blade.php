@@ -51,18 +51,18 @@
                 <div class="hero-actions" id="download">
                     <a class="store-button" href="#" data-store-link="apple" aria-label="Download AutoMind on the App Store">
                         <span class="apple-symbol" aria-hidden="true">●</span>
-                        <span><small>Download on the</small><strong>App Store</strong></span>
+                        <span><small data-store-status>Coming soon on</small><strong>App Store</strong></span>
                     </a>
-                    <a class="store-button" href="#" data-store-link="android" aria-label="Use AutoMind with Android Auto">
+                    <a class="store-button" href="#" data-store-link="android" aria-label="Download AutoMind on Google Play">
                         <span class="android-auto-symbol" aria-hidden="true">A</span>
-                        <span><small>Available on</small><strong>Android Auto</strong></span>
+                        <span><small data-store-status>Coming soon on</small><strong>Google Play</strong></span>
                     </a>
                 </div>
                 <div class="trust-row">
                     <div class="trust-avatars" aria-hidden="true">
-                        <span>MK</span><span>SA</span><span>LN</span><span>+2k</span>
+                        <span>✓</span>
                     </div>
-                    <div><strong>Trusted by everyday drivers</strong><span>Fast answers. Safer decisions.</span></div>
+                    <div><strong>Private by design</strong><span>Safety-aware guidance with clear limitations.</span></div>
                 </div>
             </div>
 
@@ -104,11 +104,11 @@
             </div>
         </section>
 
-        <section class="proof section-shell reveal" aria-label="AutoMind results">
-            <div class="proof-item"><strong>2 min</strong><span>Average diagnosis</span></div>
-            <div class="proof-item"><strong>94%</strong><span>AI confidence rate</span></div>
-            <div class="proof-item"><strong>24/7</strong><span>Vehicle guidance</span></div>
-            <div class="proof-item"><strong>4.9</strong><span>Driver satisfaction</span></div>
+        <section class="proof section-shell reveal" aria-label="AutoMind product facts" data-section-hidden="true">
+            <div class="proof-item"><strong>4</strong><span>Input types</span></div>
+            <div class="proof-item"><strong>Clear</strong><span>Urgency levels</span></div>
+            <div class="proof-item"><strong>EN + AR</strong><span>Bilingual experience</span></div>
+            <div class="proof-item"><strong>Built-in</strong><span>Privacy controls</span></div>
         </section>
 
         <section class="how-section section-shell" id="how-it-works">
@@ -194,14 +194,6 @@
             </div>
         </section>
 
-        <section class="testimonial-section">
-            <div class="section-shell testimonial-inner reveal">
-                <span class="quote-mark">“</span>
-                <blockquote>AutoMind turned a dashboard warning I didn’t understand into a clear plan in two minutes. I knew the urgency and a fair price before calling the garage.</blockquote>
-                <div class="testimonial-person"><span>YK</span><div><strong>Youssef K.</strong><small>AutoMind driver · Cairo</small></div><b>★★★★★</b></div>
-            </div>
-        </section>
-
         <section class="cta-section section-shell reveal">
             <div class="cta-card">
                 <div class="cta-grid" aria-hidden="true"></div>
@@ -209,8 +201,8 @@
                 <h2 data-landing-html="ctaTitle">Drive with answers,<br><em>not assumptions.</em></h2>
                 <p data-landing="ctaText">Download AutoMind and put AI-powered vehicle clarity in your pocket.</p>
                 <div class="hero-actions centered-actions">
-                    <a class="store-button light" href="#" data-store-link="apple"><span class="apple-symbol">●</span><span><small>Download on the</small><strong>App Store</strong></span></a>
-                    <a class="store-button light" href="#" data-store-link="android"><span class="android-auto-symbol">A</span><span><small>Available on</small><strong>Android Auto</strong></span></a>
+                    <a class="store-button light" href="#" data-store-link="apple" aria-label="Download AutoMind on the App Store"><span class="apple-symbol">●</span><span><small data-store-status>Coming soon on</small><strong>App Store</strong></span></a>
+                    <a class="store-button light" href="#" data-store-link="android" aria-label="Download AutoMind on Google Play"><span class="android-auto-symbol">A</span><span><small data-store-status>Coming soon on</small><strong>Google Play</strong></span></a>
                 </div>
             </div>
         </section>
@@ -220,12 +212,11 @@
         <div class="footer-top">
             <a class="brand" href="#top"><span class="brand-mark"><img src="{{ asset('images/automind-logo.png') }}" alt=""></span><span class="brand-name">AUTO<span>MIND</span></span></a>
             <p>AI-powered car diagnostics for clearer, safer decisions.</p>
-            <div class="footer-socials"><a href="#" aria-label="Instagram">ig</a><a href="#" aria-label="X">x</a><a href="#" aria-label="LinkedIn">in</a></div>
         </div>
         <div class="footer-links">
             <div><strong>Product</strong><a href="#how-it-works">How it works</a><a href="#features">Features</a><a href="#download">Download</a></div>
-            <div><strong>Company</strong><a href="#safety">About AutoMind</a><a href="#">Contact</a><a href="#">Careers</a></div>
-            <div><strong>Support</strong><a href="#">Help center</a><a href="#">Privacy</a><a href="#">Terms</a></div>
+            <div><strong>Company</strong><a href="#safety">About AutoMind</a><a href="{{ route('support') }}">Contact</a></div>
+            <div><strong>Support</strong><a href="{{ route('support') }}">Help center</a><a href="{{ route('privacy') }}">Privacy</a><a href="{{ route('terms') }}">Terms</a><a href="{{ route('account-deletion.show') }}">Delete account</a></div>
             <div><strong>For teams</strong><a href="/admin">Admin portal</a><a href="/docs/api">API docs</a><a href="#">Partners</a></div>
         </div>
         <div class="footer-bottom"><span>© {{ date('Y') }} AutoMind. All rights reserved.</span><span>Made for drivers who want to know.</span></div>
