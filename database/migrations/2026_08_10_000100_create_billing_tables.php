@@ -183,7 +183,10 @@ return new class extends Migration
             $table->foreignUlid('user_id')->constrained()->cascadeOnDelete();
             $table->foreignUlid('diagnostic_session_id')->unique()->constrained()->cascadeOnDelete();
             $table->foreignUlid('user_entitlement_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignUlid('entitlement_period_usage_id')->nullable()->constrained('entitlement_period_usage')->nullOnDelete();
+            $table->foreignUlid('entitlement_period_usage_id')->nullable()->constrained(
+                'entitlement_period_usage',
+                indexName: 'report_reservation_period_usage_fk',
+            )->nullOnDelete();
             $table->string('source', 24);
             $table->string('status', 24)->default('reserved')->index();
             $table->timestamp('reserved_at');
