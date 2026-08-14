@@ -4,7 +4,6 @@ return [
     'enabled' => (bool) env('BILLING_ENABLED', false),
     'environment' => env('BILLING_ENVIRONMENT', 'sandbox'),
     'webhook_base_url' => env('BILLING_WEBHOOK_BASE_URL'),
-    'account_obfuscation_secret' => env('ACCOUNT_OBFUSCATION_SECRET'),
     'terms_url' => env('BILLING_TERMS_URL', rtrim((string) env('APP_URL', ''), '/').'/terms'),
     'privacy_url' => env('BILLING_PRIVACY_URL', rtrim((string) env('APP_URL', ''), '/').'/privacy'),
     'reconciliation' => [

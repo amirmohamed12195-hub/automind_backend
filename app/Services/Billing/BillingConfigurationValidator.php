@@ -23,11 +23,6 @@ class BillingConfigurationValidator
                 $errors[] = "$name must contain a production HTTPS URL when billing is enabled.";
             }
         }
-        $secret = trim((string) config('billing.account_obfuscation_secret'));
-        if (strlen($secret) < 32 || $this->placeholder($secret)) {
-            $errors[] = 'ACCOUNT_OBFUSCATION_SECRET must be a stable random secret of at least 32 characters.';
-        }
-
         $bundleId = trim((string) config('billing.apple.bundle_id'));
         if ($bundleId === '' || $bundleId !== config('public.app_links.apple_bundle_id')) {
             $errors[] = 'APPLE_BUNDLE_ID must match the mobile application bundle identifier.';

@@ -18,17 +18,12 @@ class BillingConfigurationValidatorTest extends TestCase
     {
         config([
             'billing.enabled' => false,
-            'billing.account_obfuscation_secret' => '',
             'billing.apple.app_id' => null,
             'billing.google.project_id' => null,
         ]);
 
         $errors = app(BillingConfigurationValidator::class)->errors(requireEnabled: true);
 
-        $this->assertContains(
-            'ACCOUNT_OBFUSCATION_SECRET must be a stable random secret of at least 32 characters.',
-            $errors,
-        );
         $this->assertContains('APPLE_APP_ID must contain the numeric App Store application ID.', $errors);
         $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.', $errors);
     }
@@ -41,7 +36,6 @@ class BillingConfigurationValidatorTest extends TestCase
             'billing.webhook_base_url' => 'https://automind-ai.net/api/v1/webhooks',
             'billing.terms_url' => 'https://automind-ai.net/terms',
             'billing.privacy_url' => 'https://automind-ai.net/privacy',
-            'billing.account_obfuscation_secret' => '',
             'billing.apple.app_id' => null,
             'billing.apple.issuer_id' => null,
             'billing.apple.key_id' => null,
@@ -58,7 +52,6 @@ class BillingConfigurationValidatorTest extends TestCase
 
         $errors = app(BillingConfigurationValidator::class)->errors();
 
-        $this->assertContains('ACCOUNT_OBFUSCATION_SECRET must be a stable random secret of at least 32 characters.', $errors);
         $this->assertContains('APPLE_APP_ID must contain the numeric App Store application ID.', $errors);
         $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.', $errors);
     }

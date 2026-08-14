@@ -46,6 +46,19 @@ class BillingApiTest extends ApiTestCase
         $this->assertSame($user->id, $user->billingAccount()->firstOrFail()->user_id);
     }
 
+    public function test_store_account_identifier_needs_no_deployment_secret(): void
+    {
+        config(['app.env' => 'production']);
+        $this->actingAsUser();
+
+        $response = $this->getJson('/api/v1/billing/account')->assertOk();
+
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{64}$/',
+            $response->json('data.googleObfuscatedAccountId'),
+        );
+    }
+
     public function test_disabled_feature_flag_hides_active_store_products(): void
     {
         $this->actingAsUser(['country_code' => 'EG']);

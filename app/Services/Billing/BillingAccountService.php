@@ -2,7 +2,6 @@
 
 namespace App\Services\Billing;
 
-use App\Exceptions\BillingException;
 use App\Models\BillingAccount;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +20,10 @@ class BillingAccountService
             return BillingAccount::query()->create([
                 'user_id' => $user->id,
                 'apple_app_account_token' => (string) Str::uuid(),
-                'google_obfuscated_account_id' => hash_hmac('sha256', 'automind-billing-user:'.$user->id, $this->secret()),
+                // Google accepts an opaque value of up to 64 characters. A
+                // cryptographically random stored identifier is already
+                // stable, non-reversible, and independent of key rotation.
+                'google_obfuscated_account_id' => bin2hex(random_bytes(32)),
             ]);
         }, 3);
     }
@@ -36,18 +38,5 @@ class BillingAccountService
             ->where('apple_app_account_token', trim($identifier))
             ->orWhere('google_obfuscated_account_id', trim($identifier))
             ->first();
-    }
-
-    private function secret(): string
-    {
-        $secret = trim((string) config('billing.account_obfuscation_secret'));
-        if ($secret === '' && ! app()->environment('production')) {
-            $secret = (string) config('app.key');
-        }
-        if ($secret === '') {
-            throw new BillingException('BILLING_CONFIGURATION_INVALID', 'The billing account secret is not configured.', 503);
-        }
-
-        return $secret;
     }
 }
