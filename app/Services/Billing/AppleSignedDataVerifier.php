@@ -6,6 +6,10 @@ use App\Exceptions\BillingException;
 
 class AppleSignedDataVerifier
 {
+    public function __construct(
+        private readonly AppleCertificateRevocationChecker $revocationChecker,
+    ) {}
+
     /** @return array<string, mixed> */
     public function verify(string $jws): array
     {
@@ -27,7 +31,8 @@ class AppleSignedDataVerifier
 
             return "-----BEGIN CERTIFICATE-----\n".chunk_split($certificate, 64, "\n")."-----END CERTIFICATE-----\n";
         }, $header['x5c']);
-        $this->verifyCertificateChain($certificates);
+        $trustedRoots = $this->verifyCertificateChain($certificates);
+        $this->revocationChecker->assertNotRevoked($certificates, $trustedRoots);
 
         $publicKey = openssl_pkey_get_public($certificates[0]);
         $signature = $this->joseSignatureToDer($this->base64UrlDecode($encodedSignature));
@@ -38,8 +43,11 @@ class AppleSignedDataVerifier
         return $payload;
     }
 
-    /** @param array<int, string> $certificates */
-    private function verifyCertificateChain(array $certificates): void
+    /**
+     * @param  array<int, string>  $certificates
+     * @return array<int, string>
+     */
+    private function verifyCertificateChain(array $certificates): array
     {
         foreach ($certificates as $certificate) {
             $parsed = openssl_x509_parse($certificate);
@@ -60,10 +68,10 @@ class AppleSignedDataVerifier
         foreach ($trustedRoots as $root) {
             $rootKey = openssl_pkey_get_public($root);
             if ($rootKey !== false && openssl_x509_verify($last, $rootKey) === 1) {
-                return;
+                return $trustedRoots;
             }
             if (hash_equals(hash('sha256', $this->certificateDer($last)), hash('sha256', $this->certificateDer($root)))) {
-                return;
+                return $trustedRoots;
             }
         }
 

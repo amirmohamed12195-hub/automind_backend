@@ -11,6 +11,7 @@ use App\Models\StoreProduct;
 use App\Models\StorePurchase;
 use App\Models\User;
 use App\Models\UserEntitlement;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -33,6 +34,56 @@ class PurchaseVerificationService
         };
 
         return $this->record($user, $verified, $source, true);
+    }
+
+    /**
+     * Reconcile a Google Real-time Developer Notification for a voided
+     * purchase without trusting product or account data from the webhook.
+     * The original verified purchase remains the source of truth.
+     *
+     * @param  array<string, mixed>  $notification
+     */
+    public function recordGoogleVoidedPurchase(string $purchaseToken, array $notification = []): ?StorePurchase
+    {
+        if (trim($purchaseToken) === '') {
+            return null;
+        }
+
+        $purchase = StorePurchase::query()
+            ->with(['user', 'storeProduct'])
+            ->where('platform', 'google')
+            ->where('purchase_token_hash', hash('sha256', $purchaseToken))
+            ->first();
+        if (! $purchase?->user || ! $purchase->storeProduct) {
+            return null;
+        }
+
+        $account = $this->accounts->forUser($purchase->user);
+        $rawReference = is_array($purchase->raw_reference) ? $purchase->raw_reference : [];
+        $verified = new VerifiedStorePurchase(
+            platform: 'google',
+            environment: $purchase->environment,
+            productId: $purchase->product_id,
+            productType: $purchase->storeProduct->product_type,
+            state: 'refunded',
+            basePlanId: $purchase->base_plan_id,
+            offerId: $purchase->offer_id,
+            transactionId: $purchase->transaction_id,
+            originalTransactionId: $purchase->original_transaction_id,
+            purchaseToken: $purchase->purchase_token,
+            orderId: $purchase->order_id,
+            accountIdentifier: $account->google_obfuscated_account_id,
+            purchasedAt: $purchase->purchased_at ? CarbonImmutable::instance($purchase->purchased_at) : null,
+            periodStart: $purchase->purchased_at ? CarbonImmutable::instance($purchase->purchased_at) : null,
+            expiresAt: $purchase->expires_at ? CarbonImmutable::instance($purchase->expires_at) : null,
+            gracePeriodEnd: null,
+            autoRenewEnabled: false,
+            acknowledged: (bool) $purchase->acknowledged,
+            consumed: (bool) $purchase->consumed,
+            rawReference: [...$rawReference, 'voidedPurchaseNotification' => $notification],
+        );
+
+        return $this->record($purchase->user, $verified, 'voided_notification');
     }
 
     public function record(User $user, VerifiedStorePurchase $verified, string $source = 'server', bool $requireAccountLink = false): StorePurchase
@@ -174,6 +225,9 @@ class PurchaseVerificationService
             ->where('product_type', $verified->productType);
         if ($verified->platform === 'google' && $verified->productType === 'subscription') {
             $query->where('base_plan_id', $verified->basePlanId);
+        }
+        if ($verified->platform === 'google') {
+            $query->where('offer_id', $verified->offerId);
         }
         $mapping = $query->first();
         if (! $mapping) {

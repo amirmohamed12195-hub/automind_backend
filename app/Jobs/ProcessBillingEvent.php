@@ -57,6 +57,44 @@ class ProcessBillingEvent implements ShouldQueue
                 $verified = $notification->purchase;
             } else {
                 $payload = $event->encrypted_payload_reference;
+                $voided = $payload['voidedPurchaseNotification'] ?? null;
+                if (is_array($voided)) {
+                    $purchase = $purchases->recordGoogleVoidedPurchase(
+                        (string) ($voided['purchaseToken'] ?? ''),
+                        $voided,
+                    );
+                    if (! $purchase) {
+                        $event->update([
+                            'processing_status' => 'needs_review',
+                            'processed_at' => now(),
+                            'error_message' => 'The voided purchase token does not match a verified purchase.',
+                        ]);
+
+                        return;
+                    }
+                    if ((bool) data_get($purchase->raw_reference, 'refundNeedsReview', false)) {
+                        $event->update([
+                            'processing_status' => 'needs_review',
+                            'processed_at' => now(),
+                            'error_message' => 'The refunded report credit was already used and requires manual review.',
+                        ]);
+                        Log::warning('billing_voided_purchase_requires_review', [
+                            'platform' => 'google',
+                            'event_id' => $event->id,
+                            'purchase_id' => $purchase->id,
+                        ]);
+
+                        return;
+                    }
+                    $event->update(['processing_status' => 'processed', 'processed_at' => now()]);
+                    Log::info('billing_voided_purchase_reconciled', [
+                        'platform' => 'google',
+                        'event_id' => $event->id,
+                        'purchase_id' => $purchase->id,
+                    ]);
+
+                    return;
+                }
                 $subscription = $payload['subscriptionNotification'] ?? null;
                 $oneTime = $payload['oneTimeProductNotification'] ?? null;
                 if (! is_array($subscription) && ! is_array($oneTime)) {

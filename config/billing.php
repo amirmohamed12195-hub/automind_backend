@@ -21,8 +21,9 @@ return [
         'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
         'root_certificates_path' => env('APPLE_ROOT_CERTIFICATES_PATH'),
         'online_certificate_checks' => (bool) env('APPLE_ONLINE_CERTIFICATE_CHECKS', true),
-        'production_api_url' => 'https://api.storekit.itunes.apple.com',
-        'sandbox_api_url' => 'https://api.storekit-sandbox.itunes.apple.com',
+        'openssl_binary' => env('APPLE_OPENSSL_BINARY', 'openssl'),
+        'production_api_url' => 'https://api.storekit.apple.com',
+        'sandbox_api_url' => 'https://api.storekit-sandbox.apple.com',
         'manage_url' => 'https://apps.apple.com/account/subscriptions',
     ],
     'google' => [

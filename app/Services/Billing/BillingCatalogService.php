@@ -40,7 +40,9 @@ class BillingCatalogService
                         'productType' => $product->product_type,
                         'basePlanId' => $product->base_plan_id,
                         'offerId' => $product->offer_id,
-                        'availableForSale' => (bool) $product->active_for_sale && $product->store_status === 'active',
+                        'availableForSale' => (bool) config('billing.enabled')
+                            && (bool) $product->active_for_sale
+                            && $product->store_status === 'active',
                         'storeStatus' => $product->store_status,
                         'referencePrice' => $price ? [
                             'formatted' => $price->formatted_price,

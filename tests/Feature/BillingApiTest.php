@@ -6,11 +6,14 @@ use App\Contracts\GooglePlayProvider;
 use App\DTO\VerifiedStorePurchase;
 use App\Jobs\ProcessBillingEvent;
 use App\Jobs\ReconcileUserBilling;
+use App\Models\BillingEvent;
 use App\Models\BillingPlan;
 use App\Models\DiagnosticSession;
+use App\Models\StoreProduct;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\Billing\BillingAccountService;
+use App\Services\Billing\EntitlementService;
 use App\Services\Billing\PurchaseVerificationService;
 use App\Services\Billing\ReportEntitlementService;
 use Carbon\CarbonImmutable;
@@ -41,6 +44,26 @@ class BillingApiTest extends ApiTestCase
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $response->json('data.appleAppAccountToken'));
         $this->assertSame(64, strlen($response->json('data.googleObfuscatedAccountId')));
         $this->assertSame($user->id, $user->billingAccount()->firstOrFail()->user_id);
+    }
+
+    public function test_disabled_feature_flag_hides_active_store_products(): void
+    {
+        $this->actingAsUser(['country_code' => 'EG']);
+        StoreProduct::query()
+            ->where('platform', 'google')
+            ->where('environment', 'sandbox')
+            ->update(['active_for_sale' => true, 'store_status' => 'active']);
+        config(['billing.enabled' => false]);
+
+        $response = $this->getJson('/api/v1/billing/catalog?platform=google')
+            ->assertOk()
+            ->assertJsonPath('data.enabled', false);
+
+        foreach ($response->json('data.plans') as $plan) {
+            foreach ($plan['products'] as $product) {
+                $this->assertFalse($product['availableForSale']);
+            }
+        }
     }
 
     public function test_duplicate_verified_consumable_grants_exactly_one_credit(): void
@@ -85,6 +108,110 @@ class BillingApiTest extends ApiTestCase
         $reports->finalize($session);
         $this->assertDatabaseHas('entitlement_period_usage', ['reports_used' => 1, 'reports_reserved' => 0]);
         $this->assertDatabaseHas('report_entitlement_reservations', ['diagnostic_session_id' => $session->id, 'status' => 'finalized']);
+    }
+
+    public function test_billing_retry_does_not_grant_subscription_access(): void
+    {
+        $user = $this->actingAsUser();
+        $account = app(BillingAccountService::class)->forUser($user);
+        $verified = new VerifiedStorePurchase(
+            'google', 'sandbox', 'automind_plus_v1', 'subscription', 'billingRetry', 'monthly-v1', null,
+            null, null, 'subscription-on-hold-token', 'GPA.on-hold', $account->google_obfuscated_account_id,
+            CarbonImmutable::now()->subMonth(), CarbonImmutable::now()->subMonth(), CarbonImmutable::now()->addMonth(),
+            null, false, true, false,
+        );
+        app(PurchaseVerificationService::class)->record($user, $verified, 'test', true);
+
+        $snapshot = app(EntitlementService::class)->snapshot($user);
+
+        $this->assertFalse($snapshot['access']['hasSubscription']);
+        $this->assertSame('FREE', $snapshot['access']['planCode']);
+    }
+
+    public function test_google_voided_purchase_revokes_an_unused_credit_idempotently(): void
+    {
+        $user = $this->actingAsUser();
+        $account = app(BillingAccountService::class)->forUser($user);
+        $google = Mockery::mock(GooglePlayProvider::class);
+        $google->shouldReceive('consumeProduct')->once();
+        $this->app->instance(GooglePlayProvider::class, $google);
+        $purchases = app(PurchaseVerificationService::class);
+        $purchase = $purchases->record(
+            $user,
+            $this->googleConsumable($account->google_obfuscated_account_id),
+            'test',
+            true,
+        );
+        $event = BillingEvent::query()->create([
+            'platform' => 'google',
+            'external_event_id' => 'voided-event-1',
+            'event_type' => 'VOIDED_PURCHASE_NOTIFICATION',
+            'environment' => 'sandbox',
+            'processing_status' => 'received',
+            'received_at' => now(),
+            'encrypted_payload_reference' => [
+                'packageName' => config('billing.google.package_name'),
+                'voidedPurchaseNotification' => [
+                    'purchaseToken' => 'google-token-one',
+                    'orderId' => 'GPA.2',
+                    'productType' => 1,
+                    'refundType' => 1,
+                ],
+            ],
+        ]);
+
+        app()->call([new ProcessBillingEvent($event->id), 'handle']);
+        app()->call([new ProcessBillingEvent($event->id), 'handle']);
+
+        $this->assertSame('refunded', $purchase->fresh()->state);
+        $this->assertSame('processed', $event->fresh()->processing_status);
+        $this->assertDatabaseHas('credit_ledger_entries', [
+            'store_purchase_id' => $purchase->id,
+            'entry_type' => 'PURCHASE_REVOKED',
+            'quantity' => -1,
+            'balance_after' => 0,
+        ]);
+        $this->assertDatabaseCount('credit_ledger_entries', 2);
+    }
+
+    public function test_google_voided_purchase_requires_review_when_credit_was_used(): void
+    {
+        $user = $this->actingAsUser();
+        $account = app(BillingAccountService::class)->forUser($user);
+        $google = Mockery::mock(GooglePlayProvider::class);
+        $google->shouldReceive('consumeProduct')->once();
+        $this->app->instance(GooglePlayProvider::class, $google);
+        $purchase = app(PurchaseVerificationService::class)->record(
+            $user,
+            $this->googleConsumable($account->google_obfuscated_account_id),
+            'test',
+            true,
+        );
+        $session = $this->diagnosticSession($user);
+        app(ReportEntitlementService::class)->reserve($session);
+        app(ReportEntitlementService::class)->finalize($session);
+        $event = BillingEvent::query()->create([
+            'platform' => 'google',
+            'external_event_id' => 'voided-used-credit-event',
+            'event_type' => 'VOIDED_PURCHASE_NOTIFICATION',
+            'environment' => 'sandbox',
+            'processing_status' => 'received',
+            'received_at' => now(),
+            'encrypted_payload_reference' => [
+                'packageName' => config('billing.google.package_name'),
+                'voidedPurchaseNotification' => ['purchaseToken' => 'google-token-one'],
+            ],
+        ]);
+
+        app()->call([new ProcessBillingEvent($event->id), 'handle']);
+
+        $this->assertSame('refunded', $purchase->fresh()->state);
+        $this->assertTrue((bool) data_get($purchase->fresh()->raw_reference, 'refundNeedsReview'));
+        $this->assertSame('needs_review', $event->fresh()->processing_status);
+        $this->assertDatabaseMissing('credit_ledger_entries', [
+            'store_purchase_id' => $purchase->id,
+            'entry_type' => 'PURCHASE_REVOKED',
+        ]);
     }
 
     public function test_failed_credit_report_returns_credit_and_can_be_reserved_on_retry(): void

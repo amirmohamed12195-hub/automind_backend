@@ -2,14 +2,15 @@
 
 namespace App\Services\Billing;
 
+use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 class BillingConfigurationValidator
 {
     /** @return array<int, string> */
-    public function errors(): array
+    public function errors(bool $requireEnabled = false): array
     {
-        if (! (bool) config('billing.enabled')) {
+        if (! $requireEnabled && ! (bool) config('billing.enabled')) {
             return [];
         }
 
@@ -46,6 +47,9 @@ class BillingConfigurationValidator
         if (! $this->appleRootsAvailable()) {
             $errors[] = 'APPLE_ROOT_CERTIFICATES_PATH must contain at least one readable Apple root certificate.';
         }
+        if ((bool) config('billing.apple.online_certificate_checks') && ! $this->opensslAvailable()) {
+            $errors[] = 'APPLE_OPENSSL_BINARY must point to an executable OpenSSL binary for online certificate checks.';
+        }
 
         if (trim((string) config('billing.google.package_name')) !== config('public.app_links.android_package')) {
             $errors[] = 'GOOGLE_PLAY_PACKAGE_NAME must match the Android application ID.';
@@ -71,9 +75,9 @@ class BillingConfigurationValidator
         return $errors;
     }
 
-    public function validate(): void
+    public function validate(bool $requireEnabled = false): void
     {
-        $errors = $this->errors();
+        $errors = $this->errors($requireEnabled);
         if ($errors !== []) {
             throw new RuntimeException('Billing configuration is invalid: '.implode(' ', $errors));
         }
@@ -115,6 +119,20 @@ class BillingConfigurationValidator
             && filter_var($credentials['client_email'], FILTER_VALIDATE_EMAIL)
             && is_string($credentials['private_key'] ?? null)
             && str_contains($credentials['private_key'], 'BEGIN PRIVATE KEY');
+    }
+
+    private function opensslAvailable(): bool
+    {
+        $binary = trim((string) config('billing.apple.openssl_binary', 'openssl'));
+        if ($binary === '') {
+            return false;
+        }
+
+        try {
+            return Process::timeout(3)->run([$binary, 'version'])->successful();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function httpsUrl(mixed $value): bool

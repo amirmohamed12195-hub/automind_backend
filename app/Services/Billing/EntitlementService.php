@@ -15,7 +15,9 @@ class EntitlementService
     {
         $query = UserEntitlement::query()
             ->where('user_id', $user->id)
-            ->whereIn('status', ['active', 'gracePeriod', 'canceledActiveUntilExpiry', 'billingRetry'])
+            // A store billing-retry/on-hold state is not paid access. Only an
+            // explicit grace period remains entitled until its grace deadline.
+            ->whereIn('status', ['active', 'gracePeriod', 'canceledActiveUntilExpiry'])
             ->where(function ($q): void {
                 $q->where(function ($normal): void {
                     $normal->where('status', '!=', 'gracePeriod')
@@ -52,7 +54,7 @@ class EntitlementService
                 'source' => $subscription->source ?? ($manual ? 'manual' : 'free'),
                 'status' => $subscription->status ?? ($manual ? 'active' : 'free'),
                 'planCode' => $plan->code ?? 'FREE',
-                'periodEnd' => ($subscription->period_end ?? $manual->ends_at)?->toIso8601String(),
+                'periodEnd' => ($subscription->period_end ?? $manual?->ends_at)?->toIso8601String(),
                 'autoRenewEnabled' => (bool) ($subscription->auto_renew_enabled ?? false),
                 'gracePeriodEnd' => $subscription?->grace_period_end?->toIso8601String(),
             ],

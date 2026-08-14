@@ -14,6 +14,25 @@ class BillingConfigurationValidatorTest extends TestCase
         $this->assertSame([], app(BillingConfigurationValidator::class)->errors());
     }
 
+    public function test_credentials_can_be_preflighted_before_feature_flag_is_enabled(): void
+    {
+        config([
+            'billing.enabled' => false,
+            'billing.account_obfuscation_secret' => '',
+            'billing.apple.app_id' => null,
+            'billing.google.project_id' => null,
+        ]);
+
+        $errors = app(BillingConfigurationValidator::class)->errors(requireEnabled: true);
+
+        $this->assertContains(
+            'ACCOUNT_OBFUSCATION_SECRET must be a stable random secret of at least 32 characters.',
+            $errors,
+        );
+        $this->assertContains('APPLE_APP_ID must contain the numeric App Store application ID.', $errors);
+        $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.', $errors);
+    }
+
     public function test_enabled_billing_fails_closed_when_store_credentials_are_missing(): void
     {
         config([
