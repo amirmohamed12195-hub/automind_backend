@@ -37,7 +37,7 @@ class AuthController
             'privacy_version' => $request->string('legalVersion'),
         ]);
 
-        return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($request->input('deviceName', 'AutoMind mobile'))->plainTextToken, 'tokenType' => 'Bearer'], 201);
+        return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($this->deviceName($request))->plainTextToken, 'tokenType' => 'Bearer'], 201);
     }
 
     public function login(LoginRequest $request)
@@ -51,7 +51,7 @@ class AuthController
         }
         $user->forceFill(['last_login_at' => now()])->save();
 
-        return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($request->input('deviceName', 'AutoMind mobile'))->plainTextToken, 'tokenType' => 'Bearer']);
+        return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($this->deviceName($request))->plainTextToken, 'tokenType' => 'Bearer']);
     }
 
     public function social(Request $request, string $provider, SocialIdentityVerifier $verifier)
@@ -176,5 +176,12 @@ class AuthController
         });
 
         return response()->noContent();
+    }
+
+    private function deviceName(Request $request): string
+    {
+        return $request->filled('deviceName')
+            ? (string) $request->string('deviceName')
+            : 'AutoMind mobile';
     }
 }

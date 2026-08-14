@@ -48,6 +48,32 @@ class AuthAccountApiTest extends ApiTestCase
         $this->getJson('/api/v1/me')->assertUnauthorized()->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
 
+    public function test_registration_and_login_default_device_name_when_client_sends_null(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Driver',
+            'email' => 'driver@example.com',
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
+            'deviceName' => null,
+            'termsAccepted' => true,
+            'privacyAccepted' => true,
+            'legalVersion' => '2026-08-11',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'driver@example.com')->firstOrFail();
+        $this->assertSame('AutoMind mobile', $user->tokens()->sole()->name);
+        $user->tokens()->delete();
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'driver@example.com',
+            'password' => 'Secret123',
+            'deviceName' => null,
+        ])->assertOk();
+
+        $this->assertSame('AutoMind mobile', $user->tokens()->sole()->name);
+    }
+
     public function test_login_rate_limit_uses_stable_localized_error(): void
     {
         for ($attempt = 0; $attempt < 8; $attempt++) {
