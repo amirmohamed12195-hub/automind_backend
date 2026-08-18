@@ -50,6 +50,11 @@ configuration without making a paid request, applies migrations, refreshes
 the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
 Laravel's caches, and restarts queue workers.
 
+The repository contains Apple's public root certificates under
+`resources/certificates/apple`. Keep `APPLE_ROOT_CERTIFICATES_PATH` pointed at
+that deployed directory; private App Store Connect keys still belong in the
+host secret store and must never be committed.
+
 After changing frontend source files, build and commit the generated assets on
 a development machine with Node.js 20.19+ or 22.12+:
 
@@ -166,11 +171,12 @@ now makes readiness return HTTP 503.
 
 If the Hostinger plan has no persistent worker feature, configure a separate
 cron task every minute to drain the database queues. In hPanel, set the
-schedule to once per minute and use the following command with the real project
-path and PHP binary:
+schedule to once per minute and invoke the repository-owned wrapper with
+`/bin/sh`. Calling the shell explicitly keeps the job working even when an
+uploaded script does not retain its executable bit:
 
 ```bash
-/usr/bin/php /home/HOSTINGER_USER/domains/DOMAIN/public_html/automind/artisan queue:work database --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders --sleep=1 --tries=4 --timeout=240 --stop-when-empty
+/usr/bin/flock -n /tmp/automind-queue.lock /bin/sh /home/HOSTINGER_USER/domains/DOMAIN/public_html/scripts/run-queue-cron.sh >> /dev/null 2>&1
 ```
 
 This queue cron is required in addition to the scheduler cron below. Monitor
