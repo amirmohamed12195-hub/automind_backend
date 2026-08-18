@@ -12,6 +12,11 @@ Twilio's shared Sandbox sender is `+14155238886`. Activate the WhatsApp Sandbox 
 
 The configured Content Template must contain the verification code as variable `{{1}}`. The supplied template SID starts with `HX` and matches this integration.
 
+The production account currently contains the authentication template
+`automind_whatsapp_otp` with Content SID
+`HX8e191724c380d3fdc20dca7ecd7b756a`. It is saved but not submitted because
+Twilio requires a registered production WhatsApp sender before submission.
+
 ### Production
 
 1. Register and approve a production WhatsApp sender in Twilio instead of using the shared Sandbox number.
@@ -19,14 +24,19 @@ The configured Content Template must contain the verification code as variable `
 3. Set `TWILIO_WHATSAPP_FROM` to the approved sender and `TWILIO_WHATSAPP_CONTENT_SID` to its `HX...` Content SID.
 4. Create a Twilio API key for the backend. Twilio recommends an API key and secret for production; Account SID/Auth Token authentication is intended for local testing.
 
+Keep `TWILIO_WHATSAPP_ENABLED=false` until the sender and template are approved
+and a real register/resend/verify/login-redirect cycle has passed. Do not reuse
+an Auth Token that has appeared in chat, logs, or documentation; rotate it and
+prefer a new API key/secret for the deployed backend.
+
 ## Backend credentials
 
 For local development, put these values in `/Users/tajawal/Documents/automind_backend/.env`. In production, put them in the hosting provider's encrypted secret/environment-variable settings:
 
 ```dotenv
-TWILIO_WHATSAPP_ENABLED=true
+TWILIO_WHATSAPP_ENABLED=false
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_WHATSAPP_FROM=+14155238886
+TWILIO_WHATSAPP_FROM=+15551234567
 TWILIO_WHATSAPP_CONTENT_SID=HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Recommended in production
@@ -42,6 +52,11 @@ TWILIO_OTP_CHALLENGE_TTL_SECONDS=1800
 TWILIO_OTP_RESEND_COOLDOWN_SECONDS=30
 TWILIO_OTP_MAX_ATTEMPTS=5
 ```
+
+For Sandbox-only testing, the sender is `+14155238886`. For production, replace
+the example sender above with the dedicated number approved in the Twilio
+WhatsApp Senders console. Change `TWILIO_WHATSAPP_ENABLED` to `true` only after
+the approved sender, template, credentials, and full OTP cycle have passed.
 
 `TWILIO_WHATSAPP_FROM` is written as bare E.164 in the environment; the backend adds the required `whatsapp:` prefix to both sender and recipient. The outbound request uses `ContentSid` and `ContentVariables` without `Body`, as required by Twilio's Content Template API.
 
