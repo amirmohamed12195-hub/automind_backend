@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name', 'email', 'phone', 'password', 'avatar_path', 'locale', 'theme_mode',
         'units', 'country_code', 'city', 'latitude', 'longitude', 'currency',
         'maintenance_reminders_enabled', 'last_login_at', 'deletion_requested_at', 'suspended_at', 'suspension_reason',
+        'phone_verified_at',
         'terms_accepted_at', 'terms_version', 'privacy_accepted_at', 'privacy_version', 'is_admin', 'admin_role',
     ];
 
@@ -30,6 +31,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'deletion_requested_at' => 'datetime',
             'suspended_at' => 'datetime',

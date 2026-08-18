@@ -15,18 +15,26 @@ class AuthAccountApiTest extends ApiTestCase
 {
     public function test_registration_login_me_settings_and_logout_contract(): void
     {
-        $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en', 'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11']);
+        $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'phone' => '+201001234567', 'countryCode' => 'eg', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en', 'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11']);
         $register->assertCreated()
-            ->assertJsonPath('data.user.email', 'driver@example.com')
-            ->assertJsonPath('data.user.locale', 'en')
-            ->assertJsonPath('data.user.themeMode', 'system')
-            ->assertJsonPath('data.user.units', 'metric')
-            ->assertJsonPath('data.user.maintenanceRemindersEnabled', true)
-            ->assertJsonStructure(['data' => ['user' => ['id', 'name', 'email'], 'accessToken', 'tokenType'], 'meta' => ['requestId']])
+            ->assertJsonPath('data.verificationRequired', true)
+            ->assertJsonPath('data.purpose', 'registration')
+            ->assertJsonPath('data.maskedPhone', '+20••••••4567')
+            ->assertJsonStructure(['data' => ['verificationToken', 'expiresInSeconds', 'resendAfterSeconds'], 'meta' => ['requestId']])
             ->assertHeader('X-Request-Id');
         $this->assertTrue(Hash::check('Secret123', User::query()->firstOrFail()->password));
         $this->assertSame('2026-08-11', User::query()->firstOrFail()->terms_version);
         $this->assertNotNull(User::query()->firstOrFail()->privacy_accepted_at);
+        $this->assertSame('EG', User::query()->firstOrFail()->country_code);
+        $this->assertNull(User::query()->firstOrFail()->phone_verified_at);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        $verified = $this->postJson('/api/v1/auth/otp/verify', [
+            'verificationToken' => $register->json('data.verificationToken'),
+            'code' => '123456',
+            'deviceName' => 'iPhone',
+        ])->assertOk()->assertJsonPath('data.user.phoneVerified', true);
+        $this->assertNotNull($verified->json('data.accessToken'));
 
         $this->postJson('/api/v1/auth/register', ['name' => 'No consent', 'email' => 'no-consent@example.com', 'password' => 'Secret123', 'password_confirmation' => 'Secret123'])
             ->assertUnprocessable()
@@ -53,6 +61,8 @@ class AuthAccountApiTest extends ApiTestCase
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Driver',
             'email' => 'driver@example.com',
+            'phone' => '+201009876543',
+            'countryCode' => 'EG',
             'password' => 'Secret123',
             'password_confirmation' => 'Secret123',
             'deviceName' => null,
@@ -60,6 +70,17 @@ class AuthAccountApiTest extends ApiTestCase
             'privacyAccepted' => true,
             'legalVersion' => '2026-08-11',
         ])->assertCreated();
+
+        $registration = $this->postJson('/api/v1/auth/login', [
+            'email' => 'driver@example.com',
+            'password' => 'Secret123',
+        ])->assertForbidden()->assertJsonPath('error.code', 'OTP_REQUIRED');
+
+        $this->postJson('/api/v1/auth/otp/verify', [
+            'verificationToken' => $registration->json('error.details.verificationToken.0'),
+            'code' => '123456',
+            'deviceName' => null,
+        ])->assertOk();
 
         $user = User::query()->where('email', 'driver@example.com')->firstOrFail();
         $this->assertSame('AutoMind mobile', $user->tokens()->sole()->name);
@@ -72,6 +93,31 @@ class AuthAccountApiTest extends ApiTestCase
         ])->assertOk();
 
         $this->assertSame('AutoMind mobile', $user->tokens()->sole()->name);
+    }
+
+    public function test_unverified_login_routes_to_otp_and_rejects_an_invalid_code(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'pending@example.com',
+            'phone' => '+201112223333',
+            'phone_verified_at' => null,
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertForbidden()
+            ->assertJsonPath('error.code', 'OTP_REQUIRED')
+            ->assertJsonPath('error.details.purpose.0', 'login')
+            ->assertJsonStructure(['error' => ['details' => ['verificationToken', 'maskedPhone']]]);
+
+        $this->postJson('/api/v1/auth/otp/verify', [
+            'verificationToken' => $login->json('error.details.verificationToken.0'),
+            'code' => '000000',
+        ])->assertUnprocessable()->assertJsonPath('error.code', 'OTP_INVALID');
+
+        $this->assertNull($user->fresh()->phone_verified_at);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
     public function test_login_rate_limit_uses_stable_localized_error(): void

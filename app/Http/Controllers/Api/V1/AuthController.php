@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Models\DeviceToken;
 use App\Models\SocialIdentity;
 use App\Models\User;
+use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SocialIdentityVerifier;
 use App\Services\PlatformSettings;
 use App\Support\ApiResponse;
@@ -20,24 +21,29 @@ use Throwable;
 
 class AuthController
 {
-    public function register(RegisterRequest $request)
+    public function register(RegisterRequest $request, PhoneVerificationService $verification)
     {
         $acceptedAt = now();
         $settings = app(PlatformSettings::class);
-        $user = User::query()->create([
-            'name' => $request->string('name'),
-            'email' => $request->string('email'),
-            'password' => $request->string('password'),
-            'locale' => $request->input('locale', $settings->get('default_locale')),
-            'country_code' => $settings->get('default_country'),
-            'currency' => $settings->get('default_currency'),
-            'terms_accepted_at' => $acceptedAt,
-            'terms_version' => $request->string('legalVersion'),
-            'privacy_accepted_at' => $acceptedAt,
-            'privacy_version' => $request->string('legalVersion'),
-        ]);
+        $challenge = DB::transaction(function () use ($acceptedAt, $request, $settings, $verification): array {
+            $user = User::query()->create([
+                'name' => $request->string('name'),
+                'email' => $request->string('email'),
+                'phone' => (string) $request->string('phone'),
+                'password' => $request->string('password'),
+                'locale' => $request->input('locale', $settings->get('default_locale')),
+                'country_code' => (string) $request->string('countryCode'),
+                'currency' => $settings->get('default_currency'),
+                'terms_accepted_at' => $acceptedAt,
+                'terms_version' => $request->string('legalVersion'),
+                'privacy_accepted_at' => $acceptedAt,
+                'privacy_version' => $request->string('legalVersion'),
+            ]);
 
-        return ApiResponse::success(['user' => (new UserResource($user))->resolve(), 'accessToken' => $user->createToken($this->deviceName($request))->plainTextToken, 'tokenType' => 'Bearer'], 201);
+            return $verification->begin($user, 'registration');
+        });
+
+        return ApiResponse::success($challenge, 201);
     }
 
     public function login(LoginRequest $request)
@@ -48,6 +54,11 @@ class AuthController
         }
         if ($user->suspended_at !== null) {
             return ApiResponse::error('ACCOUNT_SUSPENDED', 'This account has been suspended. Contact support for help.', 403);
+        }
+        if ($user->phone !== null && $user->phone_verified_at === null) {
+            $challenge = app(PhoneVerificationService::class)->begin($user, 'login');
+
+            return ApiResponse::error('OTP_REQUIRED', __('api.otp_required'), 403, $this->challengeDetails($challenge));
         }
         $user->forceFill(['last_login_at' => now()])->save();
 
@@ -157,6 +168,33 @@ class AuthController
         return ApiResponse::success(['message' => __($status)]);
     }
 
+    public function resendOtp(Request $request, PhoneVerificationService $verification)
+    {
+        $data = $request->validate(['verificationToken' => ['required', 'string', 'max:4096']]);
+
+        return ApiResponse::success($verification->resend($data['verificationToken']));
+    }
+
+    public function verifyOtp(Request $request, PhoneVerificationService $verification)
+    {
+        $data = $request->validate([
+            'verificationToken' => ['required', 'string', 'max:4096'],
+            'code' => ['required', 'string', 'regex:/^\d{4,10}$/'],
+            'deviceName' => ['nullable', 'string', 'max:120'],
+        ]);
+        $user = $verification->verify($data['verificationToken'], $data['code']);
+        if ($user->suspended_at !== null) {
+            return ApiResponse::error('ACCOUNT_SUSPENDED', 'This account has been suspended. Contact support for help.', 403);
+        }
+        $user->forceFill(['last_login_at' => now()])->save();
+
+        return ApiResponse::success([
+            'user' => (new UserResource($user))->resolve(),
+            'accessToken' => $user->createToken($this->deviceName($request))->plainTextToken,
+            'tokenType' => 'Bearer',
+        ]);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()?->delete();
@@ -183,5 +221,13 @@ class AuthController
         return $request->filled('deviceName')
             ? (string) $request->string('deviceName')
             : 'AutoMind mobile';
+    }
+
+    private function challengeDetails(array $challenge): array
+    {
+        return collect($challenge)
+            ->except('verificationRequired')
+            ->map(fn ($value) => [(string) $value])
+            ->all();
     }
 }

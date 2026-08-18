@@ -67,6 +67,34 @@ class ProductionConfigurationValidator
             }
         }
 
+        if (! (bool) config('services.twilio.whatsapp.enabled')) {
+            $errors[] = 'TWILIO_WHATSAPP_ENABLED must be true because password registration requires phone verification.';
+        }
+        $twilioAccountSid = trim((string) config('services.twilio.account_sid'));
+        if (! preg_match('/^AC[0-9a-f]{32}$/i', $twilioAccountSid) || $this->isPlaceholder($twilioAccountSid)) {
+            $errors[] = 'TWILIO_ACCOUNT_SID must contain a valid Twilio Account SID.';
+        }
+        $twilioFrom = trim((string) config('services.twilio.whatsapp.from'));
+        $twilioFrom = str_starts_with($twilioFrom, 'whatsapp:') ? substr($twilioFrom, 9) : $twilioFrom;
+        if (! preg_match('/^\+[1-9]\d{7,14}$/', $twilioFrom) || $this->isPlaceholder($twilioFrom)) {
+            $errors[] = 'TWILIO_WHATSAPP_FROM must contain a valid WhatsApp sender in E.164 format.';
+        }
+        $twilioContentSid = trim((string) config('services.twilio.whatsapp.content_sid'));
+        if (! preg_match('/^HX[0-9a-f]{32}$/i', $twilioContentSid) || $this->isPlaceholder($twilioContentSid)) {
+            $errors[] = 'TWILIO_WHATSAPP_CONTENT_SID must contain a valid Content Template SID.';
+        }
+        $twilioApiKey = trim((string) config('services.twilio.api_key'));
+        $twilioApiSecret = trim((string) config('services.twilio.api_secret'));
+        $twilioAuthToken = trim((string) config('services.twilio.auth_token'));
+        $hasApiCredentials = preg_match('/^SK[0-9a-f]{32}$/i', $twilioApiKey)
+            && $twilioApiSecret !== ''
+            && ! $this->isPlaceholder($twilioApiSecret);
+        $hasAccountCredentials = $twilioAuthToken !== ''
+            && ! $this->isPlaceholder($twilioAuthToken);
+        if (! $hasApiCredentials && ! $hasAccountCredentials) {
+            $errors[] = 'Configure TWILIO_API_KEY and TWILIO_API_SECRET (recommended), or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.';
+        }
+
         if (in_array(config('queue.default'), ['sync', 'null'], true)) {
             $errors[] = 'QUEUE_CONNECTION must use a durable asynchronous driver in production.';
         }
@@ -142,6 +170,9 @@ class ProductionConfigurationValidator
     {
         $normalized = strtoupper($value);
 
-        return str_contains($normalized, 'CHANGE_ME') || str_contains($normalized, 'REPLACE_WITH');
+        return str_contains($normalized, 'CHANGE_ME')
+            || str_contains($normalized, 'REPLACE_WITH')
+            || str_contains($normalized, 'YOUR_')
+            || (bool) preg_match('/^\[[^]]+]$/', $value);
     }
 }

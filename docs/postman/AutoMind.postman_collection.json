@@ -846,6 +846,34 @@
                     }
                 },
                 {
+                    "id": "0a11c690-7470-4b9b-a4fb-e78bb229abe3",
+                    "name": "resendOtp",
+                    "request": {
+                        "name": "resendOtp",
+                        "url": {"path": ["auth", "otp", "resend"], "host": ["{{baseUrl}}"], "query": [], "variable": []},
+                        "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Accept", "value": "application/json"}],
+                        "method": "POST",
+                        "body": {"mode": "raw", "raw": "{\n  \"verificationToken\": \"{{verificationToken}}\"\n}", "options": {"raw": {"headerFamily": "json", "language": "json"}}}
+                    },
+                    "response": [],
+                    "event": [],
+                    "protocolProfileBehavior": {"disableBodyPruning": true}
+                },
+                {
+                    "id": "1f933428-2c00-4cc5-af42-7f88a98e925a",
+                    "name": "verifyOtp",
+                    "request": {
+                        "name": "verifyOtp",
+                        "url": {"path": ["auth", "otp", "verify"], "host": ["{{baseUrl}}"], "query": [], "variable": []},
+                        "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Accept", "value": "application/json"}],
+                        "method": "POST",
+                        "body": {"mode": "raw", "raw": "{\n  \"verificationToken\": \"{{verificationToken}}\",\n  \"code\": \"123456\",\n  \"deviceName\": \"AutoMind mobile\"\n}", "options": {"raw": {"headerFamily": "json", "language": "json"}}}
+                    },
+                    "response": [],
+                    "event": [],
+                    "protocolProfileBehavior": {"disableBodyPruning": true}
+                },
+                {
                     "id": "eec34da0-ae89-468e-be40-6cb3caa065e4",
                     "name": "googleLogin",
                     "request": {

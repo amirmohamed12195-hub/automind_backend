@@ -23,6 +23,7 @@ class UserResource extends JsonResource
 
         return [
             'id' => (string) $this->id, 'name' => $this->name, 'email' => $this->email, 'phone' => $this->phone,
+            'phoneVerified' => $this->phone_verified_at !== null,
             'avatarUrl' => $avatarUrl, 'locale' => $this->locale ?: 'en', 'themeMode' => $this->theme_mode ?: 'system', 'units' => $this->units ?: 'metric',
             'countryCode' => $this->country_code, 'city' => $this->city, 'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
             'longitude' => $this->longitude !== null ? (float) $this->longitude : null, 'currency' => $this->currency,

@@ -38,6 +38,8 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('auth')->group(function (): void {
         Route::post('register', [AuthController::class, 'register'])->middleware(['throttle:login', 'platform-feature:registration']);
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+        Route::post('otp/resend', [AuthController::class, 'resendOtp'])->middleware('throttle:otp');
+        Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp');
         Route::post('social/google', fn (Request $request, SocialIdentityVerifier $verifier) => app(AuthController::class)->social($request, 'google', $verifier))->middleware('throttle:login');
         Route::post('social/apple', fn (Request $request, SocialIdentityVerifier $verifier) => app(AuthController::class)->social($request, 'apple', $verifier))->middleware('throttle:login');
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');

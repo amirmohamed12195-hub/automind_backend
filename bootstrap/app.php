@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\BillingException;
+use App\Exceptions\PhoneVerificationException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RecordRequestMetrics;
@@ -43,6 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (BillingException $e, Request $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error($e->errorCode, $e->getMessage(), $e->httpStatus, ['retryable' => $e->retryable]);
+            }
+        });
+        $exceptions->render(function (PhoneVerificationException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error($e->errorCode, $e->getMessage(), $e->httpStatus, $e->details);
             }
         });
         $exceptions->render(function (ValidationException $e, Request $request) {

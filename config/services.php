@@ -55,6 +55,25 @@ return [
         'stale_token_days' => (int) env('FCM_STALE_TOKEN_DAYS', 90),
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'api_key' => env('TWILIO_API_KEY'),
+        'api_secret' => env('TWILIO_API_SECRET'),
+        'whatsapp' => [
+            'enabled' => (bool) env('TWILIO_WHATSAPP_ENABLED', false),
+            'from' => env('TWILIO_WHATSAPP_FROM'),
+            'content_sid' => env('TWILIO_WHATSAPP_CONTENT_SID'),
+            'timeout_seconds' => (int) env('TWILIO_TIMEOUT_SECONDS', 10),
+        ],
+        'otp' => [
+            'code_ttl_seconds' => (int) env('TWILIO_OTP_CODE_TTL_SECONDS', 600),
+            'challenge_ttl_seconds' => (int) env('TWILIO_OTP_CHALLENGE_TTL_SECONDS', 1800),
+            'resend_cooldown_seconds' => (int) env('TWILIO_OTP_RESEND_COOLDOWN_SECONDS', 30),
+            'max_attempts' => (int) env('TWILIO_OTP_MAX_ATTEMPTS', 5),
+        ],
+    ],
+
     'geocoding' => [
         'endpoint' => env('GEOCODING_ENDPOINT'),
         'key' => env('GEOCODING_API_KEY'),
