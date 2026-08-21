@@ -32,7 +32,7 @@ class ReferenceDataSeederTest extends ApiTestCase
             MaintenanceServiceDefinition::query()->count(),
             MechanicSpecialty::query()->count(),
         ]);
-        $this->assertGreaterThanOrEqual(40, $firstCounts[0]);
+        $this->assertSame(184, $firstCounts[0]);
         $this->assertGreaterThanOrEqual(200, $firstCounts[1]);
         $this->assertSame(9, $firstCounts[2]);
         $this->assertSame(15, $firstCounts[3]);
@@ -40,7 +40,21 @@ class ReferenceDataSeederTest extends ApiTestCase
 
         $this->getJson('/api/v1/vehicle-catalog/makes')
             ->assertOk()
-            ->assertJsonFragment(['code' => 'toyota', 'name' => 'Toyota']);
+            ->assertJsonCount(184, 'data')
+            ->assertJsonFragment([
+                'code' => 'toyota',
+                'name' => 'Toyota',
+                'logoUrl' => 'http://localhost/images/vehicle-makes/toyota-logo.svg',
+                'hasModels' => true,
+            ])
+            ->assertJsonFragment([
+                'code' => 'rivian',
+                'name' => 'Rivian',
+                'logoUrl' => 'http://localhost/images/vehicle-makes/rivian-logo.svg',
+                'hasModels' => false,
+            ]);
+        $this->assertFileExists(public_path('images/vehicle-makes/toyota-logo.svg'));
+        $this->assertFileExists(public_path('images/vehicle-makes/rivian-logo.svg'));
         $this->getJson('/api/v1/vehicle-catalog/makes/toyota/models')
             ->assertOk()
             ->assertJsonFragment(['code' => 'corolla', 'name' => 'Corolla']);

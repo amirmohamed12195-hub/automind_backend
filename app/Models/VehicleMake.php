@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VehicleMake extends UlidModel
 {
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path ? asset($this->logo_path) : null;
+    }
+
     /** @return HasMany<VehicleModel, $this> */
     public function models(): HasMany
     {

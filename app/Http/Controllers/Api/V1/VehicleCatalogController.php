@@ -12,7 +12,18 @@ class VehicleCatalogController
     {
         $locale = app()->getLocale();
 
-        return ApiResponse::success(VehicleMake::query()->where('active', true)->orderBy("name_$locale")->get()->map(fn ($make) => ['id' => (string) $make->id, 'code' => $make->code, 'name' => $make->{"name_$locale"}])->all());
+        return ApiResponse::success(VehicleMake::query()
+            ->where('active', true)
+            ->withCount(['models' => fn ($query) => $query->where('active', true)])
+            ->orderBy("name_$locale")
+            ->get()
+            ->map(fn (VehicleMake $make) => [
+                'id' => (string) $make->id,
+                'code' => $make->code,
+                'name' => $make->{"name_$locale"},
+                'logoUrl' => $make->logoUrl(),
+                'hasModels' => $make->models_count > 0,
+            ])->all());
     }
 
     public function models(Request $request, string $makeCode)

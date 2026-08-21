@@ -6,17 +6,21 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use Database\Seeders\ReferenceDataSeeder;
 use Laravel\Sanctum\Sanctum;
 
 class VehicleApiTest extends ApiTestCase
 {
     public function test_vehicle_crud_selected_and_health_payload_matches_flutter_contract(): void
     {
+        $this->seed(ReferenceDataSeeder::class);
         $user = $this->actingAsUser();
         $payload = ['brand' => 'Toyota', 'model' => 'Corolla', 'year' => 2018, 'engine' => '1.6L', 'fuelType' => 'Petrol', 'transmission' => 'Automatic', 'mileage' => 145000];
-        $created = $this->postJson('/api/v1/vehicles', $payload)->assertCreated()->assertJsonStructure(['data' => ['id', 'userId', 'brand', 'model', 'year', 'engine', 'fuelType', 'transmission', 'mileage', 'vin', 'imagePath', 'healthScore', 'isSelected', 'createdAt', 'updatedAt']]);
+        $created = $this->postJson('/api/v1/vehicles', $payload)->assertCreated()->assertJsonStructure(['data' => ['id', 'userId', 'brand', 'model', 'year', 'engine', 'fuelType', 'transmission', 'mileage', 'vin', 'imagePath', 'brandLogoUrl', 'catalogMakeId', 'catalogModelId', 'healthScore', 'isSelected', 'createdAt', 'updatedAt']]);
         $id = $created->json('data.id');
         $this->assertSame($user->id, $created->json('data.userId'));
+        $this->assertNotNull($created->json('data.catalogMakeId'));
+        $this->assertSame('http://localhost/images/vehicle-makes/toyota-logo.svg', $created->json('data.brandLogoUrl'));
         $this->putJson("/api/v1/vehicles/$id/selected")->assertOk()->assertJsonPath('data.isSelected', true);
         $this->patchJson("/api/v1/vehicles/$id", ['mileage' => 150000])->assertOk()->assertJsonPath('data.mileage', 150000);
         $this->getJson("/api/v1/vehicles/$id/health")->assertOk()->assertJsonPath('data.healthScore', 100);

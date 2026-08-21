@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Vehicle;
+use App\Models\VehicleMake;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
@@ -21,12 +22,27 @@ class VehicleResource extends JsonResource
             } catch (Throwable) {
             }
         }
+        $catalogMake = $this->catalogMake;
+        $catalogMakeMatchesBrand = $catalogMake && (
+            strcasecmp($catalogMake->name_en, $this->brand) === 0
+            || $catalogMake->name_ar === $this->brand
+            || $catalogMake->code === str($this->brand)->slug()->toString()
+        );
+        if (! $catalogMakeMatchesBrand) {
+            $catalogMake = VehicleMake::query()
+                ->where('name_en', $this->brand)
+                ->orWhere('name_ar', $this->brand)
+                ->orWhere('code', str($this->brand)->slug()->toString())
+                ->first() ?? $catalogMake;
+        }
         $selected = DB::table('user_selected_vehicles')->where('user_id', $this->user_id)->where('vehicle_id', $this->id)->exists();
 
         return [
             'id' => (string) $this->id, 'userId' => (string) $this->user_id, 'brand' => $this->brand, 'model' => $this->model,
             'year' => (int) $this->year, 'engine' => $this->engine, 'fuelType' => $this->fuel_type, 'transmission' => $this->transmission,
-            'mileage' => (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'healthScore' => (int) $this->health_score,
+            'mileage' => (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'brandLogoUrl' => $catalogMake?->logoUrl(),
+            'catalogMakeId' => $this->catalog_make_id ? (string) $this->catalog_make_id : null, 'catalogModelId' => $this->catalog_model_id ? (string) $this->catalog_model_id : null,
+            'healthScore' => (int) $this->health_score,
             'plateNumber' => $this->plate_number, 'nickname' => $this->nickname, 'isSelected' => $selected,
             'createdAt' => $this->created_at?->utc()->toIso8601ZuluString(), 'updatedAt' => $this->updated_at?->utc()->toIso8601ZuluString(),
         ];

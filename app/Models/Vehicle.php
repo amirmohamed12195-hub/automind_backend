@@ -21,6 +21,18 @@ class Vehicle extends UlidModel
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<VehicleMake, $this> */
+    public function catalogMake(): BelongsTo
+    {
+        return $this->belongsTo(VehicleMake::class, 'catalog_make_id');
+    }
+
+    /** @return BelongsTo<VehicleModel, $this> */
+    public function catalogModel(): BelongsTo
+    {
+        return $this->belongsTo(VehicleModel::class, 'catalog_model_id');
+    }
+
     /** @return HasMany<DiagnosticSession, $this> */
     public function diagnostics(): HasMany
     {

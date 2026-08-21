@@ -6,6 +6,7 @@ use App\Exceptions\BillingException;
 use App\Http\Requests\VehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Vehicle;
+use App\Models\VehicleMake;
 use App\Services\Billing\EntitlementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class VehicleController
 {
     public function index(Request $request)
     {
-        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->latest('updated_at')->get())->resolve());
+        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->with('catalogMake')->latest('updated_at')->get())->resolve());
     }
 
     public function store(VehicleRequest $request, EntitlementService $entitlements)
@@ -92,6 +93,16 @@ class VehicleController
         foreach ($map as $external => $column) {
             if ($request->exists($external)) {
                 $result[$column] = $external === 'vin' && $request->input($external) ? strtoupper($request->input($external)) : $request->input($external);
+            }
+        }
+
+        if ($request->isMethod('post') && ! array_key_exists('catalog_make_id', $result) && array_key_exists('brand', $result)) {
+            $make = VehicleMake::query()
+                ->where('name_en', $result['brand'])
+                ->orWhere('code', str($result['brand'])->slug()->toString())
+                ->first();
+            if ($make) {
+                $result['catalog_make_id'] = $make->id;
             }
         }
 

@@ -51,6 +51,26 @@ class ReferenceDataSeeder extends Seeder
 
     private function seedVehicleCatalog(): void
     {
+        /** @var array<string, string> $makeLogos */
+        $makeLogos = json_decode(
+            file_get_contents(database_path('data/vehicle_makes.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        foreach ($makeLogos as $english => $filename) {
+            $code = preg_replace('/-logo\.(?:svg|png)$/', '', $filename);
+            VehicleMake::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name_en' => $english,
+                    'name_ar' => $english,
+                    'logo_path' => 'images/vehicle-makes/'.$filename,
+                    'active' => true,
+                ],
+            );
+        }
+
         /** @var array<int, array{code: string, name_en: string, name_ar: string, models: array<int, array{0: string, 1: string, 2: string}>}> $catalog */
         $catalog = require database_path('data/vehicle_catalog.php');
 
