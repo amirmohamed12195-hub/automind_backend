@@ -9,6 +9,7 @@ use App\Models\VehicleMake;
 use App\Models\VehicleModel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ReferenceDataSeeder extends Seeder
 {
@@ -75,7 +76,7 @@ class ReferenceDataSeeder extends Seeder
         $catalog = require database_path('data/vehicle_catalog.php');
 
         foreach ($catalog as $makeData) {
-            $make = VehicleMake::query()->updateOrCreate(
+            VehicleMake::query()->updateOrCreate(
                 ['code' => $makeData['code']],
                 [
                     'name_en' => $makeData['name_en'],
@@ -83,17 +84,39 @@ class ReferenceDataSeeder extends Seeder
                     'active' => true,
                 ],
             );
+        }
 
-            foreach ($makeData['models'] as [$code, $english, $arabic]) {
-                VehicleModel::query()->updateOrCreate(
-                    ['make_id' => $make->id, 'code' => $code],
-                    [
-                        'name_en' => $english,
-                        'name_ar' => $arabic,
-                        'active' => true,
-                    ],
-                );
+        /** @var array{makes: array<string, array<int, array{code: string, name_en: string, name_ar: string, start_year: int|null, end_year: int|null}>>} $modelCatalog */
+        $modelCatalog = json_decode(
+            file_get_contents(database_path('data/vehicle_models.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $makeIds = VehicleMake::query()->pluck('id', 'code');
+        $timestamp = now();
+
+        foreach ($modelCatalog['makes'] as $makeCode => $models) {
+            $makeId = $makeIds->get($makeCode);
+            if (! $makeId) {
+                throw new \RuntimeException("Vehicle model catalog references unknown make [$makeCode].");
             }
+
+            VehicleModel::query()->upsert(
+                array_map(fn (array $model): array => [
+                    'id' => (string) Str::ulid(),
+                    'make_id' => $makeId,
+                    'code' => $model['code'],
+                    'name_en' => $model['name_en'],
+                    'name_ar' => $model['name_ar'],
+                    'start_year' => $model['start_year'],
+                    'end_year' => $model['end_year'],
+                    'active' => true,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ], $models),
+                ['make_id', 'code'],
+                ['name_en', 'name_ar', 'start_year', 'end_year', 'active', 'updated_at'],
+            );
         }
     }
 

@@ -51,4 +51,21 @@ class VehicleApiTest extends ApiTestCase
             'transmission' => 'Automatic', 'mileage' => 100, 'catalogMakeId' => $make->id, 'catalogModelId' => $model->id,
         ])->assertUnprocessable()->assertJsonPath('error.details.catalogModelId.0', __('api.catalog_model_make_mismatch'));
     }
+
+    public function test_custom_model_is_accepted_for_a_catalog_make(): void
+    {
+        $this->seed(ReferenceDataSeeder::class);
+        $this->actingAsUser();
+        $make = VehicleMake::query()->where('code', 'aito')->sole();
+
+        $this->postJson('/api/v1/vehicles', [
+            'brand' => 'AITO', 'model' => 'Regional Special Edition', 'year' => 2026, 'engine' => 'Electric',
+            'fuelType' => 'Electric', 'transmission' => 'Automatic', 'mileage' => 0, 'catalogMakeId' => $make->id,
+            'catalogModelId' => null,
+        ])->assertCreated()
+            ->assertJsonPath('data.model', 'Regional Special Edition')
+            ->assertJsonPath('data.catalogMakeId', (string) $make->id)
+            ->assertJsonPath('data.catalogModelId', null)
+            ->assertJsonPath('data.brandLogoUrl', 'http://localhost/images/vehicle-makes/aito-logo.svg');
+    }
 }

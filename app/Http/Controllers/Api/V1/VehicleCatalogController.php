@@ -23,6 +23,8 @@ class VehicleCatalogController
                 'name' => $make->{"name_$locale"},
                 'logoUrl' => $make->logoUrl(),
                 'hasModels' => $make->models_count > 0,
+                'modelCount' => (int) $make->models_count,
+                'allowsCustomModel' => true,
             ])->all());
     }
 
@@ -36,6 +38,9 @@ class VehicleCatalogController
             $query->where(fn ($q) => $q->whereNull('start_year')->orWhere('start_year', '<=', $request->integer('year')))->where(fn ($q) => $q->whereNull('end_year')->orWhere('end_year', '>=', $request->integer('year')));
         }
 
-        return ApiResponse::success($query->orderBy("name_$locale")->get()->map(fn ($model) => ['id' => (string) $model->id, 'code' => $model->code, 'name' => $model->{"name_$locale"}, 'startYear' => $model->start_year, 'endYear' => $model->end_year])->all());
+        return ApiResponse::success(
+            $query->orderBy("name_$locale")->get()->map(fn ($model) => ['id' => (string) $model->id, 'code' => $model->code, 'name' => $model->{"name_$locale"}, 'startYear' => $model->start_year, 'endYear' => $model->end_year])->all(),
+            meta: ['customModelAllowed' => true],
+        );
     }
 }
