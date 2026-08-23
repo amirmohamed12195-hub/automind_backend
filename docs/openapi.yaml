@@ -19,6 +19,7 @@ tags:
   - {name: Maintenance, description: Service history and reminders.}
   - {name: Mechanics, description: Public verified mechanic discovery.}
   - {name: Appointments, description: Conflict-safe bookings and reviews.}
+  - {name: Service Requests, description: Multi-workshop quotes, repair chat, and status tracking.}
   - {name: Notifications, description: User notification inbox.}
   - {name: Webhooks, description: Signature-verified provider callbacks.}
   - {name: Billing, description: Store catalog, verified purchases, entitlements, credits, and subscription lifecycle.}
@@ -119,12 +120,21 @@ paths:
   /diagnoses/{sessionId}/report:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get: {tags: [Reports], operationId: getDiagnosisReport, summary: "getDiagnosisReport", responses: {'200': {$ref: '#/components/responses/Report'}, '409': {$ref: '#/components/responses/Error'}}}
+  /reports:
+    get: {tags: [Reports], operationId: listReports, summary: "Paginated report summaries", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
   /reports/{reportId}:
     parameters: [{$ref: '#/components/parameters/ReportId'}]
     get: {tags: [Reports], operationId: getReport, summary: "getReport", responses: {'200': {$ref: '#/components/responses/Report'}, '403': {$ref: '#/components/responses/Error'}}}
   /reports/{reportId}/feedback:
     parameters: [{$ref: '#/components/parameters/ReportId'}]
     post: {tags: [Reports], operationId: reportFeedback, summary: "reportFeedback", requestBody: {$ref: '#/components/requestBodies/ReportFeedback'}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}/follow-ups:
+    parameters: [{$ref: '#/components/parameters/ReportId'}]
+    get: {tags: [Reports], operationId: listReportFollowUps, summary: "List report follow-up questions and answers", responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+    post: {tags: [Reports], operationId: createReportFollowUp, summary: "Ask a report follow-up with optional new photos", requestBody: {required: true, content: {multipart/form-data: {schema: {type: object, properties: {question: {type: [string, 'null'], maxLength: 2000}, photos: {type: array, maxItems: 3, items: {type: string, format: binary}}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+  /reports/{reportId}/maintenance-reminders:
+    parameters: [{$ref: '#/components/parameters/ReportId'}]
+    post: {tags: [Maintenance], operationId: createReportMaintenanceReminders, summary: "Convert report actions into idempotent maintenance reminders", requestBody: {required: true, content: {application/json: {schema: {type: object, required: [actionIds], properties: {actionIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/Ulid'}}, dueDate: {type: [string, 'null'], format: date}, dueKm: {type: [integer, 'null'], minimum: 0}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
   /reports/{reportId}/refresh-estimate:
     parameters: [{$ref: '#/components/parameters/ReportId'}, {$ref: '#/components/parameters/IdempotencyKey'}]
     post: {tags: [Reports], operationId: refreshEstimate, summary: "refreshEstimate", responses: {'202': {$ref: '#/components/responses/Success'}, '429': {$ref: '#/components/responses/Error'}}}
@@ -163,7 +173,27 @@ paths:
     get: {tags: [Mechanics], operationId: getMechanic, summary: "getMechanic", security: [], responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}}}
   /mechanics/{mechanicId}/availability:
     parameters: [{$ref: '#/components/parameters/MechanicId'}]
-    get: {tags: [Mechanics], operationId: getMechanicAvailability, summary: "getMechanicAvailability", security: [], parameters: [{name: from, in: query, required: true, schema: {type: string, format: date-time}}, {name: to, in: query, required: true, schema: {type: string, format: date-time}}], responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+    get: {tags: [Mechanics], operationId: getMechanicAvailability, summary: "Availability generated from the mechanic's timezone and working hours", security: [], parameters: [{name: date, in: query, description: "Mechanic-local calendar date; preferred by booking clients.", schema: {type: string, format: date}}, {name: from, in: query, schema: {type: string, format: date-time}}, {name: to, in: query, schema: {type: string, format: date-time}}, {name: slotMinutes, in: query, schema: {type: integer, enum: [30, 60, 90, 120], default: 60}}], responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /service-requests:
+    get: {tags: [Service Requests], operationId: listServiceRequests, summary: "List the current user's workshop requests", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+    post: {tags: [Service Requests], operationId: createServiceRequest, summary: "Request itemized quotes from one to three verified workshops", parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceRequestInput'}}}}, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /service-requests/{serviceRequestId}:
+    parameters: [{$ref: '#/components/parameters/ServiceRequestId'}]
+    get: {tags: [Service Requests], operationId: getServiceRequest, summary: "Get quotes, messages, and repair status", responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+  /service-requests/{serviceRequestId}/messages:
+    parameters: [{$ref: '#/components/parameters/ServiceRequestId'}]
+    post: {tags: [Service Requests], operationId: sendServiceRequestMessage, summary: "Send a participant message", requestBody: {required: true, content: {application/json: {schema: {type: object, required: [body], properties: {body: {type: string, maxLength: 3000}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
+  /service-requests/{serviceRequestId}/quotes/{quoteId}/accept:
+    parameters: [{$ref: '#/components/parameters/ServiceRequestId'}, {$ref: '#/components/parameters/QuoteId'}]
+    post: {tags: [Service Requests], operationId: acceptServiceQuote, summary: "Accept one available workshop quote", responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
+  /mechanic/service-requests:
+    get: {tags: [Service Requests], operationId: listMechanicServiceRequests, summary: "List requests sent to workshops owned by the current user", responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /mechanic/service-requests/{serviceRequestId}/quote:
+    parameters: [{$ref: '#/components/parameters/ServiceRequestId'}]
+    post: {tags: [Service Requests], operationId: submitServiceQuote, summary: "Submit or replace an itemized quote", requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ServiceQuoteInput'}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
+  /mechanic/service-requests/{serviceRequestId}/status:
+    parameters: [{$ref: '#/components/parameters/ServiceRequestId'}]
+    patch: {tags: [Service Requests], operationId: updateServiceRequestStatus, summary: "Advance an accepted repair to in-service or completed", requestBody: {required: true, content: {application/json: {schema: {type: object, required: [status], properties: {status: {type: string, enum: [in_service, completed]}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
   /appointments:
     post: {tags: [Appointments], operationId: createAppointment, summary: "createAppointment", parameters: [{$ref: '#/components/parameters/IdempotencyKey'}], requestBody: {$ref: '#/components/requestBodies/Appointment'}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}}}
     get: {tags: [Appointments], operationId: listAppointments, summary: "listAppointments", parameters: [{$ref: '#/components/parameters/Cursor'}], responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
@@ -371,6 +401,8 @@ components:
     ReminderId: {name: reminderId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     MechanicId: {name: mechanicId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     AppointmentId: {name: appointmentId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    ServiceRequestId: {name: serviceRequestId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    QuoteId: {name: quoteId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     NotificationId: {name: notificationId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     DeviceTokenId: {name: deviceTokenId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     MakeId: {name: makeId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
@@ -432,6 +464,8 @@ components:
     Report: {description: Completed diagnostic report, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/DiagnosticReport'}}}]}}}}
   schemas:
     Ulid: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$', example: 01J00000000000000000000000}
+    ServiceRequestInput: {type: object, required: [vehicleId, mechanicIds], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, reportId: {anyOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}, mechanicIds: {type: array, minItems: 1, maxItems: 3, uniqueItems: true, items: {$ref: '#/components/schemas/Ulid'}}, description: {type: [string, 'null'], maxLength: 3000}, currency: {type: [string, 'null'], minLength: 3, maxLength: 3}}}
+    ServiceQuoteInput: {type: object, required: [currency, laborAmount, partsAmount], properties: {currency: {type: string, minLength: 3, maxLength: 3}, laborAmount: {type: string, pattern: '^\d+(\.\d{1,2})?$'}, partsAmount: {type: string, pattern: '^\d+(\.\d{1,2})?$'}, feesAmount: {type: [string, 'null'], pattern: '^\d+(\.\d{1,2})?$'}, estimatedDurationMinutes: {type: [integer, 'null'], minimum: 15}, warrantyText: {type: [string, 'null'], maxLength: 2000}, notes: {type: [string, 'null'], maxLength: 3000}, lineItems: {type: array, maxItems: 50, items: {type: object, required: [label, category, amount], properties: {label: {type: string}, category: {type: string, enum: [labor, part, fee, other]}, amount: {type: string}}}}, expiresAt: {type: [string, 'null'], format: date-time}}}
     Meta: {type: object, required: [requestId], properties: {requestId: {type: string, pattern: '^[A-Za-z0-9._-]{8,64}$'}, locale: {type: string, enum: [en, ar]}, nextCursor: {type: [string, 'null']}, customModelAllowed: {type: boolean}}}
     SuccessEnvelope: {type: object, required: [data, meta], properties: {data: {}, meta: {$ref: '#/components/schemas/Meta'}}}
     ErrorEnvelope: {type: object, required: [error], properties: {error: {type: object, required: [code, message, requestId], properties: {code: {type: string}, message: {type: string}, details: {type: object, additionalProperties: {type: array, items: {type: string}}}, requestId: {type: string}}}}}

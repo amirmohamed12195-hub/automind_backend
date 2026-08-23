@@ -44,7 +44,7 @@ class DiagnosticReportResource extends JsonResource
         $actions = $this->actions->where('action_type', 'recommended_action')->map(function ($a) use ($locale) {
             $t = $a->translations->firstWhere('locale', $locale) ?? $a->translations->firstWhere('locale', 'en');
 
-            return ['code' => $a->canonical_code, 'text' => $t?->text, 'priority' => (int) $a->priority, 'professionalRequired' => (bool) $a->professional_required];
+            return ['id' => (string) $a->id, 'code' => $a->canonical_code, 'text' => $t?->text, 'priority' => (int) $a->priority, 'professionalRequired' => (bool) $a->professional_required];
         })->all();
         $estimate = $this->estimate;
         $sources = $this->priceSearches->whereIn('status', ['available', 'partial'])->sortByDesc('searched_at')->take(1)->flatMap->sources->sortByDesc('retrieved_at')->unique('url')->map(fn ($s) => ['id' => (string) $s->id, 'url' => $s->url, 'title' => $s->title, 'domain' => $s->domain, 'retrievedAt' => $s->retrieved_at?->utc()->toIso8601ZuluString(), 'sourceDate' => $s->source_date?->utc()->toIso8601ZuluString(), 'qualityScore' => $s->quality_score !== null ? (float) $s->quality_score : null])->values()->all();

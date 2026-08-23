@@ -16,4 +16,16 @@ class MaintenanceReminder extends UlidModel
     {
         return $this->belongsTo(Vehicle::class);
     }
+
+    /** @return BelongsTo<DiagnosticReport, $this> */
+    public function sourceReport(): BelongsTo
+    {
+        return $this->belongsTo(DiagnosticReport::class, 'source_report_id');
+    }
+
+    /** @return BelongsTo<ReportAction, $this> */
+    public function sourceAction(): BelongsTo
+    {
+        return $this->belongsTo(ReportAction::class, 'source_report_action_id');
+    }
 }

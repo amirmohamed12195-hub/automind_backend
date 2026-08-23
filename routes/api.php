@@ -18,6 +18,9 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ObdController;
 use App\Http\Controllers\Api\V1\OpenAiWebhookController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ReportFollowUpController;
+use App\Http\Controllers\Api\V1\ReportMaintenanceController;
+use App\Http\Controllers\Api\V1\ServiceRequestController;
 use App\Http\Controllers\Api\V1\SystemController;
 use App\Http\Controllers\Api\V1\VehicleCatalogController;
 use App\Http\Controllers\Api\V1\VehicleController;
@@ -106,9 +109,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('diagnoses/{diagnosis}/status', [DiagnosisController::class, 'status']);
         Route::get('diagnoses/{diagnosis}/report', [DiagnosisController::class, 'report']);
         Route::get('reports/{report}', [ReportController::class, 'show']);
+        Route::get('reports', [ReportController::class, 'index']);
         Route::post('reports/{report}/feedback', [ReportController::class, 'feedback'])->middleware('throttle:feedback');
         Route::post('reports/{report}/refresh-estimate', [ReportController::class, 'refreshEstimate'])->middleware('throttle:web-search');
         Route::get('reports/{report}/share', [ReportController::class, 'share']);
+        Route::get('reports/{report}/follow-ups', [ReportFollowUpController::class, 'index']);
+        Route::post('reports/{report}/follow-ups', [ReportFollowUpController::class, 'store'])->middleware(['throttle:follow-ups', 'throttle:uploads']);
+        Route::post('reports/{report}/maintenance-reminders', [ReportMaintenanceController::class, 'store']);
 
         Route::get('vehicles/{vehicle}/maintenance', [MaintenanceController::class, 'index']);
         Route::post('vehicles/{vehicle}/maintenance', [MaintenanceController::class, 'store']);
@@ -126,6 +133,15 @@ Route::prefix('v1')->group(function (): void {
         Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
         Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
         Route::post('appointments/{appointment}/reviews', [AppointmentController::class, 'review']);
+
+        Route::get('service-requests', [ServiceRequestController::class, 'index']);
+        Route::post('service-requests', [ServiceRequestController::class, 'store'])->middleware('throttle:appointments');
+        Route::get('service-requests/{serviceRequest}', [ServiceRequestController::class, 'show']);
+        Route::post('service-requests/{serviceRequest}/messages', [ServiceRequestController::class, 'message'])->middleware('throttle:feedback');
+        Route::post('service-requests/{serviceRequest}/quotes/{quote}/accept', [ServiceRequestController::class, 'accept']);
+        Route::get('mechanic/service-requests', [ServiceRequestController::class, 'mechanicIndex']);
+        Route::post('mechanic/service-requests/{serviceRequest}/quote', [ServiceRequestController::class, 'quote']);
+        Route::patch('mechanic/service-requests/{serviceRequest}/status', [ServiceRequestController::class, 'updateStatus']);
 
         Route::get('notifications', [NotificationController::class, 'index']);
         Route::post('notifications/read-all', [NotificationController::class, 'readAll']);

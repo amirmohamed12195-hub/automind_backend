@@ -9,6 +9,7 @@ use App\Models\DiagnosticReport;
 use App\Models\Mechanic;
 use App\Models\MechanicReview;
 use App\Models\Vehicle;
+use App\Services\Mechanics\MechanicAvailabilityService;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Gate;
 
 class AppointmentController
 {
+    public function __construct(private readonly MechanicAvailabilityService $availability) {}
+
     public function index(Request $request)
     {
         $data = $request->validate([
@@ -39,6 +42,9 @@ class AppointmentController
         $key = $key === '' ? null : mb_substr($key, 0, 128);
         $start = CarbonImmutable::parse($request->input('requestedStart'))->utc();
         $end = CarbonImmutable::parse($request->input('requestedEnd'))->utc();
+        if (! $this->availability->withinWorkingHours($mechanic, $start, $end)) {
+            return ApiResponse::error('APPOINTMENT_OUTSIDE_WORKING_HOURS', __('api.appointment_outside_working_hours'), 409);
+        }
         if ($key && $existing = Appointment::query()->where('user_id', $request->user()->id)->where('idempotency_key', $key)->first()) {
             return ApiResponse::success((new AppointmentResource($existing))->resolve());
         }

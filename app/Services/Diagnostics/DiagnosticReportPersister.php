@@ -4,12 +4,15 @@ namespace App\Services\Diagnostics;
 
 use App\Models\DiagnosticReport;
 use App\Models\DiagnosticSession;
+use App\Services\Maintenance\ReportMaintenanceService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DiagnosticReportPersister
 {
     private const CANONICAL_CODE_MAX_LENGTH = 120;
+
+    public function __construct(private readonly ReportMaintenanceService $maintenance) {}
 
     public function persist(DiagnosticSession $session, array $data): DiagnosticReport
     {
@@ -59,6 +62,8 @@ class DiagnosticReportPersister
             foreach ($data['emergencyWarnings'] as $index => $warning) {
                 $this->action($report, ['code' => 'emergency_warning_'.($index + 1), 'text' => $warning, 'priority' => 1, 'professionalRequired' => true], 'emergency_warning', $index);
             }
+
+            $this->maintenance->syncRecommendations($report);
 
             return $report;
         });

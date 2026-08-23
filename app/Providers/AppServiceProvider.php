@@ -12,6 +12,7 @@ use App\Contracts\GooglePlayProvider;
 use App\Contracts\ObjectStorageProvider;
 use App\Contracts\PhoneVerificationProvider;
 use App\Contracts\PushNotificationProvider;
+use App\Contracts\ReportAssistantProvider;
 use App\Contracts\SpeechTranscriptionProvider;
 use App\Contracts\VisionUnderstandingProvider;
 use App\Contracts\WebPriceSearchProvider;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Services\Ai\OpenAiAudioUnderstandingProvider;
 use App\Services\Ai\OpenAiConfigurationValidator;
 use App\Services\Ai\OpenAiDiagnosticProvider;
+use App\Services\Ai\OpenAiReportAssistantProvider;
 use App\Services\Ai\OpenAiSpeechTranscriptionProvider;
 use App\Services\Ai\OpenAiVisionUnderstandingProvider;
 use App\Services\Ai\OpenAiWebPriceSearchProvider;
@@ -45,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(AiDiagnosticProvider::class, OpenAiDiagnosticProvider::class);
+        $this->app->bind(ReportAssistantProvider::class, OpenAiReportAssistantProvider::class);
         $this->app->bind(AudioUnderstandingProvider::class, OpenAiAudioUnderstandingProvider::class);
         $this->app->bind(SpeechTranscriptionProvider::class, OpenAiSpeechTranscriptionProvider::class);
         $this->app->bind(VisionUnderstandingProvider::class, OpenAiVisionUnderstandingProvider::class);
@@ -79,7 +82,7 @@ class AppServiceProvider extends ServiceProvider
             $this->app->make(OpenAiConfigurationValidator::class)->validate();
             $this->app->make(BillingConfigurationValidator::class)->validate();
         }
-        foreach (['login' => 8, 'otp' => 6, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
+        foreach (['login' => 8, 'otp' => 6, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'follow-ups' => 12, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($perMinute) {
                 $user = $request->user();
 

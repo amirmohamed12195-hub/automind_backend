@@ -60,4 +60,10 @@ class DiagnosticReport extends UlidModel
     {
         return $this->hasMany(PriceSearch::class);
     }
+
+    /** @return HasMany<ReportFollowUp, $this> */
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(ReportFollowUp::class)->orderBy('created_at');
+    }
 }

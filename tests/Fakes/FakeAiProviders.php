@@ -4,12 +4,13 @@ namespace Tests\Fakes;
 
 use App\Contracts\AiDiagnosticProvider;
 use App\Contracts\AudioUnderstandingProvider;
+use App\Contracts\ReportAssistantProvider;
 use App\Contracts\SpeechTranscriptionProvider;
 use App\Contracts\VisionUnderstandingProvider;
 use App\Contracts\WebPriceSearchProvider;
 use App\DTO\AiProviderResult;
 
-class FakeAiProviders implements AiDiagnosticProvider, AudioUnderstandingProvider, SpeechTranscriptionProvider, VisionUnderstandingProvider, WebPriceSearchProvider
+class FakeAiProviders implements AiDiagnosticProvider, AudioUnderstandingProvider, ReportAssistantProvider, SpeechTranscriptionProvider, VisionUnderstandingProvider, WebPriceSearchProvider
 {
     public array $calls = [];
 
@@ -46,6 +47,24 @@ class FakeAiProviders implements AiDiagnosticProvider, AudioUnderstandingProvide
         $this->calls[] = ['prices'];
 
         return new AiProviderResult(['status' => 'unavailable', 'reason' => 'No current attributable price.', 'quotes' => []], 'resp_prices', 'fake-price', '/v1/responses', [], ['sources' => []]);
+    }
+
+    public function answer(array $reportContext, ?string $question, array $images, string $safetyIdentifier): AiProviderResult
+    {
+        $this->calls[] = ['follow-up', $question, count($images)];
+
+        return new AiProviderResult([
+            'answer' => [
+                'en' => 'The added evidence is consistent with the report, but a professional inspection is still required.',
+                'ar' => 'تتوافق الأدلة الإضافية مع التقرير، لكن لا يزال الفحص المتخصص مطلوباً.',
+            ],
+            'confidence' => 0.78,
+            'professionalInspectionRequired' => true,
+            'suggestedEvidence' => [[
+                'en' => 'Add an OBD snapshot while the engine is idling.',
+                'ar' => 'أضف لقطة OBD أثناء دوران المحرك في وضع الخمول.',
+            ]],
+        ], 'resp_follow_up', 'fake-follow-up', '/v1/responses');
     }
 
     public static function report(): array

@@ -27,6 +27,10 @@ class DiagnosisApiTest extends ApiTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Diagnosis contract tests exercise the pipeline itself. Billing behavior
+        // has dedicated coverage in BillingApiTest and must not depend on a
+        // developer's local BILLING_ENABLED value.
+        config(['billing.enabled' => false]);
         foreach ([['engine', 'Engine', 'المحرك'], ['performance', 'Performance', 'الأداء']] as $i => [$code, $en, $ar]) {
             SymptomDefinition::query()->create(['code' => $code, 'label_en' => $en, 'label_ar' => $ar, 'sort_order' => $i]);
         }
@@ -130,6 +134,12 @@ class DiagnosisApiTest extends ApiTestCase
         $report = $session->fresh()->report;
         $this->assertNotNull($report);
         $this->assertCount(2, $report->translations);
+        $recommendedAction = $report->actions()->where('action_type', 'recommended_action')->firstOrFail();
+        $this->assertDatabaseHas('maintenance_reminders', [
+            'vehicle_id' => $vehicle->id,
+            'source_report_id' => $report->id,
+            'source_report_action_id' => $recommendedAction->id,
+        ]);
         $this->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonStructure(['data' => ['id', 'sessionId', 'vehicleId', 'vehicleName', 'title', 'summary', 'confidence', 'severity', 'drivingRecommendation', 'suspectedFaults', 'safeChecks', 'recommendedActions', 'createdAt']])->assertJsonPath('data.severity', 'high');
         $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonPath('data.title', 'احتمال اختلال احتراق إحدى الأسطوانات')->assertJsonPath('data.severity', 'high');
 

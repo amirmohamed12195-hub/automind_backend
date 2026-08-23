@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Resources\DiagnosticReportResource;
+use App\Http\Resources\DiagnosticReportSummaryResource;
 use App\Jobs\RefreshServiceEstimate;
 use App\Models\DiagnosticReport;
 use App\Models\ReportFeedback;
@@ -13,6 +14,26 @@ use Illuminate\Support\Facades\URL;
 
 class ReportController
 {
+    public function index(Request $request)
+    {
+        $data = $request->validate([
+            'cursor' => ['sometimes', 'nullable', 'string', 'max:512'],
+            'limit' => ['sometimes', 'integer', 'between:1,50'],
+        ]);
+        $query = DiagnosticReport::query()
+            ->where('user_id', $request->user()->id)
+            ->with(['vehicle', 'translations'])
+            ->latest('id');
+        $total = (clone $query)->count();
+        $page = $query->cursorPaginate($data['limit'] ?? 20, ['*'], 'cursor', $data['cursor'] ?? null);
+
+        return ApiResponse::success(
+            DiagnosticReportSummaryResource::collection($page->items())->resolve(),
+            200,
+            ['nextCursor' => $page->nextCursor()?->encode(), 'total' => $total],
+        );
+    }
+
     public function show(DiagnosticReport $report)
     {
         Gate::authorize('view', $report);

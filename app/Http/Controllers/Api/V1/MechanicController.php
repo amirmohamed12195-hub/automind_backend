@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Resources\MechanicResource;
 use App\Models\Mechanic;
+use App\Services\Mechanics\MechanicAvailabilityService;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -40,18 +41,36 @@ class MechanicController
         return ApiResponse::success((new MechanicResource($mechanic->load('specialties')))->resolve());
     }
 
-    public function availability(Request $request, Mechanic $mechanic)
+    public function availability(Request $request, Mechanic $mechanic, MechanicAvailabilityService $availability)
     {
         abort_unless($mechanic->active && $mechanic->verified, 404);
-        $data = $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date', 'after:from']]);
-        $from = CarbonImmutable::parse($data['from']);
-        $to = CarbonImmutable::parse($data['to']);
+        $data = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'from' => ['required_without:date', 'date'],
+            'to' => ['required_without:date', 'date', 'after:from'],
+            'slotMinutes' => ['nullable', 'integer', 'in:30,60,90,120'],
+        ]);
+        if (isset($data['date'])) {
+            $localDay = CarbonImmutable::parse($data['date'], $mechanic->timezone ?: 'UTC')->startOfDay();
+            $from = $localDay->utc();
+            $to = $localDay->addDay()->utc();
+        } else {
+            $from = CarbonImmutable::parse($data['from'])->utc();
+            $to = CarbonImmutable::parse($data['to'])->utc();
+        }
         if ($from->diffInDays($to) > 31) {
             throw ValidationException::withMessages(['to' => [__('api.availability_range')]]);
         }
         $busy = $mechanic->appointments()->whereIn('status', ['requested', 'confirmed'])->where('requested_start_at', '<', $to)->where('requested_end_at', '>', $from)->orderBy('requested_start_at')->get();
 
-        return ApiResponse::success(['mechanicId' => (string) $mechanic->id, 'from' => $from->utc()->toIso8601ZuluString(), 'to' => $to->utc()->toIso8601ZuluString(), 'workingHours' => $mechanic->working_hours_json, 'busy' => $busy->map(fn ($a) => ['start' => $a->requested_start_at->utc()->toIso8601ZuluString(), 'end' => $a->requested_end_at->utc()->toIso8601ZuluString()])->all()]);
+        return ApiResponse::success([
+            'mechanicId' => (string) $mechanic->id,
+            'from' => $from->toIso8601ZuluString(), 'to' => $to->toIso8601ZuluString(),
+            'timezone' => $mechanic->timezone ?: 'UTC',
+            'workingHours' => $mechanic->working_hours_json,
+            'busy' => $busy->map(fn ($a) => ['start' => $a->requested_start_at->utc()->toIso8601ZuluString(), 'end' => $a->requested_end_at->utc()->toIso8601ZuluString()])->all(),
+            'availableSlots' => $availability->slots($mechanic, $from, $to, $busy, $data['slotMinutes'] ?? 60),
+        ]);
     }
 
     private function distance(float $lat1, float $lon1, float $lat2, float $lon2): float

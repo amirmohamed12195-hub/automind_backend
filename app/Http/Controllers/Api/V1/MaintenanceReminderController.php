@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Resources\MaintenanceReminderResource;
 use App\Models\MaintenanceReminder;
 use App\Models\Vehicle;
 use App\Support\ApiResponse;
@@ -16,7 +17,7 @@ class MaintenanceReminderController
     {
         Gate::authorize('view', $vehicle);
 
-        return ApiResponse::success($vehicle->reminders()->get()->map(fn ($r) => $this->resource($r, $vehicle))->all());
+        return ApiResponse::success($vehicle->reminders()->get()->map(fn ($r) => MaintenanceReminderResource::make($r, $vehicle))->all());
     }
 
     public function store(Request $request, Vehicle $vehicle)
@@ -25,7 +26,7 @@ class MaintenanceReminderController
         $data = $this->validate($request, true);
         $reminder = $vehicle->reminders()->create(['service_definition_id' => $data['serviceDefinitionId'], 'due_date' => $data['dueDate'] ?? null, 'due_km' => $data['dueKm'] ?? null, 'notification_preferences' => $data['notificationPreferences'] ?? null]);
 
-        return ApiResponse::success($this->resource($reminder, $vehicle), 201);
+        return ApiResponse::success(MaintenanceReminderResource::make($reminder, $vehicle), 201);
     }
 
     public function update(Request $request, Vehicle $vehicle, MaintenanceReminder $reminder)
@@ -46,7 +47,7 @@ class MaintenanceReminderController
             }
         } $reminder->update($updates);
 
-        return ApiResponse::success($this->resource($reminder->fresh(), $vehicle));
+        return ApiResponse::success(MaintenanceReminderResource::make($reminder->fresh(), $vehicle));
     }
 
     public function complete(Request $request, Vehicle $vehicle, MaintenanceReminder $reminder)
@@ -62,7 +63,7 @@ class MaintenanceReminderController
             $reminder->update(['status' => 'completed', 'completed_record_id' => $record->id]);
         });
 
-        return ApiResponse::success($this->resource($reminder->fresh(), $vehicle));
+        return ApiResponse::success(MaintenanceReminderResource::make($reminder->fresh(), $vehicle));
     }
 
     public function snooze(Request $request, Vehicle $vehicle, MaintenanceReminder $reminder)
@@ -75,7 +76,7 @@ class MaintenanceReminderController
         $data = $request->validate(['until' => ['required', 'date', 'after:now']]);
         $reminder->update(['status' => 'snoozed', 'snoozed_until' => $data['until']]);
 
-        return ApiResponse::success($this->resource($reminder->fresh(), $vehicle));
+        return ApiResponse::success(MaintenanceReminderResource::make($reminder->fresh(), $vehicle));
     }
 
     private function validate(Request $request, bool $create): array
@@ -90,12 +91,5 @@ class MaintenanceReminderController
         if ($reminder->vehicle_id !== $vehicle->id) {
             abort(404);
         }
-    }
-
-    private function resource(MaintenanceReminder $r, Vehicle $vehicle): array
-    {
-        $due = $r->status === 'pending' && (($r->due_date && $r->due_date->isPast()) || ($r->due_km !== null && $r->due_km <= $vehicle->mileage_km));
-
-        return ['id' => (string) $r->id, 'vehicleId' => (string) $r->vehicle_id, 'serviceDefinitionId' => (string) $r->service_definition_id, 'dueDate' => $r->due_date?->toDateString(), 'dueKm' => $r->due_km, 'status' => $r->status, 'isDue' => $due, 'snoozedUntil' => $r->snoozed_until?->utc()->toIso8601ZuluString(), 'completedRecordId' => $r->completed_record_id, 'notificationPreferences' => $r->notification_preferences];
     }
 }

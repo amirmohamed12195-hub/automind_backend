@@ -55,6 +55,7 @@ class DatabaseSeeder extends Seeder
             'latitude' => 30.0561, 'longitude' => 31.3300, 'rating_average' => 4.7, 'rating_count' => 124,
             'verified' => true, 'active' => true,
             'working_hours_json' => ['sun' => ['09:00', '18:00'], 'mon' => ['09:00', '18:00']],
+            'timezone' => 'Africa/Cairo',
         ]);
         $mechanic->specialties()->syncWithoutDetaching(
             MechanicSpecialty::query()->where('code', 'general')->pluck('id'),

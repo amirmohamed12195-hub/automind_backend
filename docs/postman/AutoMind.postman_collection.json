@@ -17245,6 +17245,24 @@
                 {"name":"adminBillingAuditLogs","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["admin","billing","audit-logs"]}}},
                 {"name":"adminBillingAnalytics","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["admin","billing","analytics"]}}}
             ]
+        },
+        {
+            "name": "Report Follow-ups and Service Requests",
+            "description": "Interactive report follow-ups, paginated summaries, maintenance conversion, multi-workshop quotes, chat, and repair status.",
+            "item": [
+                {"name":"listReports","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["reports"]}}},
+                {"name":"listReportFollowUps","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["reports",":reportId","follow-ups"]}}},
+                {"name":"createReportFollowUp","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["reports",":reportId","follow-ups"]}}},
+                {"name":"createReportMaintenanceReminders","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["reports",":reportId","maintenance-reminders"]}}},
+                {"name":"listServiceRequests","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["service-requests"]}}},
+                {"name":"createServiceRequest","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["service-requests"]}}},
+                {"name":"getServiceRequest","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["service-requests",":serviceRequestId"]}}},
+                {"name":"sendServiceRequestMessage","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["service-requests",":serviceRequestId","messages"]}}},
+                {"name":"acceptServiceQuote","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["service-requests",":serviceRequestId","quotes",":quoteId","accept"]}}},
+                {"name":"listMechanicServiceRequests","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["mechanic","service-requests"]}}},
+                {"name":"submitServiceQuote","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["mechanic","service-requests",":serviceRequestId","quote"]}}},
+                {"name":"updateServiceRequestStatus","request":{"method":"PATCH","url":{"host":["{{baseUrl}}"],"path":["mechanic","service-requests",":serviceRequestId","status"]}}}
+            ]
         }
     ],
     "auth": {

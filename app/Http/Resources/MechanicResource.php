@@ -21,6 +21,7 @@ class MechanicResource extends JsonResource
             'distanceKm' => isset($this->distance_km) ? round((float) $this->distance_km, 2) : null,
             'rating' => (float) $this->rating_average, 'ratingCount' => (int) $this->rating_count, 'verified' => (bool) $this->verified,
             'workingHours' => $this->working_hours_json,
+            'timezone' => $this->timezone ?: 'UTC',
             'specialties' => $this->whenLoaded('specialties', fn () => $this->specialties->map(fn ($s) => ['code' => $s->code, 'name' => $locale === 'ar' ? $s->name_ar : $s->name_en])->all(), []),
         ];
     }
