@@ -52,7 +52,10 @@ jobs:
           REDIS_HOST: 127.0.0.1
           CACHE_STORE: redis
           QUEUE_CONNECTION: sync
-        run: php artisan migrate:fresh --schema-path=/tmp/automind-no-schema.sql --seed --force && php artisan test --coverage --min=40
+        run: |
+          php artisan migrate:fresh --schema-path=/tmp/automind-no-schema.sql --seed --force
+          php artisan db:wipe --force
+          php artisan test --coverage --min=40
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
