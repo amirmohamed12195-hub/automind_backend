@@ -312,6 +312,7 @@ alter table `service_request_messages` add constraint `service_request_messages_
 alter table `service_request_messages` add constraint `service_request_messages_sender_user_id_foreign` foreign key (`sender_user_id`) references `users` (`id`) on delete set null;
 alter table `service_request_messages` add constraint `service_request_messages_mechanic_id_foreign` foreign key (`mechanic_id`) references `mechanics` (`id`) on delete set null;
 alter table `service_request_messages` add index `service_request_messages_timeline_idx`(`service_request_id`, `created_at`);
+update `store_products` set `active_for_sale` = 1, `store_status` = 'active', `last_synced_at` = CURRENT_TIMESTAMP, `updated_at` = CURRENT_TIMESTAMP where `platform` = 'apple' and `product_id` in ('com.automind.ai.full_report.single.v1', 'com.automind.ai.plus.monthly.v1', 'com.automind.ai.plus.yearly.v1');
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -327,4 +328,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_08_13_000000_creat
 insert into `migrations` (`migration`, `batch`) values ('2026_08_18_000100_add_phone_verification_to_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_21_000100_add_logo_path_to_vehicle_makes', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_24_000100_create_follow_up_and_service_request_tables', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_08_26_000100_enable_apple_products_for_app_review', 1);
 SET FOREIGN_KEY_CHECKS=1;

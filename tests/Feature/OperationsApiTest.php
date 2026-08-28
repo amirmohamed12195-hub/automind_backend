@@ -79,7 +79,7 @@ class OperationsApiTest extends ApiTestCase
         $vehicle = Vehicle::factory()->for($user)->create();
         $mechanic = Mechanic::factory()->create(['name_en' => 'Cairo Auto', 'name_ar' => 'مركز القاهرة']);
         $this->withHeader('Accept-Language', 'ar')->getJson('/api/v1/mechanics?latitude=30.04&longitude=31.23&radiusKm=20')->assertOk()->assertJsonPath('data.0.name', 'مركز القاهرة');
-        $start = now()->addDay()->startOfHour();
+        $start = now('Africa/Cairo')->addDay()->setTime(12, 0)->utc();
         $end = $start->copy()->addHour();
         $payload = ['mechanicId' => $mechanic->id, 'vehicleId' => $vehicle->id, 'requestedStart' => $start->toIso8601String(), 'requestedEnd' => $end->toIso8601String()];
         $appointment = $this->withHeader('Idempotency-Key', 'booking-1')->postJson('/api/v1/appointments', $payload)->assertCreated();

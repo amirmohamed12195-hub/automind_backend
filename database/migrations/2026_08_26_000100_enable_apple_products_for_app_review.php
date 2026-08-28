@@ -17,8 +17,8 @@ return new class extends Migration
             ->update([
                 'active_for_sale' => true,
                 'store_status' => 'active',
-                'last_synced_at' => now(),
-                'updated_at' => now(),
+                'last_synced_at' => DB::raw('CURRENT_TIMESTAMP'),
+                'updated_at' => DB::raw('CURRENT_TIMESTAMP'),
             ]);
     }
 
