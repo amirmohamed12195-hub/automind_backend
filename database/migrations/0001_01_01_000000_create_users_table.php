@@ -26,7 +26,6 @@ return new class extends Migration
             $table->boolean('maintenance_reminders_enabled')->default(true);
             $table->boolean('is_admin')->default(false)->index();
             $table->timestamp('email_verified_at')->nullable();
-            $table->timestamp('last_login_at')->nullable();
             $table->timestamp('deletion_requested_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
