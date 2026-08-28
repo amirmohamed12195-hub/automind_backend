@@ -19,10 +19,10 @@ tags:
   - {name: Maintenance, description: Service history and reminders.}
   - {name: Mechanics, description: Public verified mechanic discovery.}
   - {name: Appointments, description: Conflict-safe bookings and reviews.}
-  - {name: Service Requests, description: Multi-workshop quotes, repair chat, and status tracking.}
+  - {name: Service Requests, description: "Multi-workshop quotes, repair chat, and status tracking."}
   - {name: Notifications, description: User notification inbox.}
   - {name: Webhooks, description: Signature-verified provider callbacks.}
-  - {name: Billing, description: Store catalog, verified purchases, entitlements, credits, and subscription lifecycle.}
+  - {name: Billing, description: "Store catalog, verified purchases, entitlements, credits, and subscription lifecycle."}
   - {name: Admin Billing, description: Permission-protected billing catalog and support operations.}
   - {name: Admin, description: Role-protected production data operations.}
 paths:
@@ -238,10 +238,13 @@ paths:
   /billing/reconcile:
     post: {tags: [Billing], operationId: reconcileBilling, summary: Queue bounded user reconciliation, responses: {'202': {$ref: '#/components/responses/Success'}}}
   /diagnostics/{diagnosisId}/reserve-entitlement:
+    parameters: [{$ref: '#/components/parameters/DiagnosisId'}]
     post: {tags: [Billing], operationId: reserveDiagnosticEntitlement, summary: Atomically reserve report allowance, responses: {'200': {$ref: '#/components/responses/Success'}, '402': {$ref: '#/components/responses/Error'}}}
   /diagnostics/{diagnosisId}/finalize-entitlement:
+    parameters: [{$ref: '#/components/parameters/DiagnosisId'}]
     post: {tags: [Billing], operationId: finalizeDiagnosticEntitlement, summary: Finalize report allowance after publication, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /diagnostics/{diagnosisId}/release-entitlement:
+    parameters: [{$ref: '#/components/parameters/DiagnosisId'}]
     post: {tags: [Billing], operationId: releaseDiagnosticEntitlement, summary: Release allowance after permanent failure, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /billing/webhooks/apple:
     post: {tags: [Webhooks], operationId: appleBillingWebhookLegacy, summary: Durable Apple V2 notification alias, security: [], responses: {'202': {description: Durably accepted}, '400': {$ref: '#/components/responses/Error'}}}
@@ -257,27 +260,35 @@ paths:
     get: {tags: [Admin Billing], operationId: adminBillingPlans, summary: List plans, responses: {'200': {$ref: '#/components/responses/Success'}}}
     post: {tags: [Admin Billing], operationId: adminCreateBillingPlan, summary: Create inactive internal plan, responses: {'201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
   /admin/billing/plans/{planId}:
+    parameters: [{$ref: '#/components/parameters/PlanId'}]
     get: {tags: [Admin Billing], operationId: adminGetBillingPlan, summary: Get plan configuration, responses: {'200': {$ref: '#/components/responses/Success'}}}
     patch: {tags: [Admin Billing], operationId: adminUpdateBillingPlan, summary: Update plan copy features limits and regions, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
   /admin/billing/plans/{planId}/activate:
+    parameters: [{$ref: '#/components/parameters/PlanId'}]
     post: {tags: [Admin Billing], operationId: adminActivateBillingPlan, summary: Activate plan, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/plans/{planId}/deactivate:
+    parameters: [{$ref: '#/components/parameters/PlanId'}]
     post: {tags: [Admin Billing], operationId: adminDeactivateBillingPlan, summary: Deactivate and unpublish plan, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/plans/{planId}/duplicate:
+    parameters: [{$ref: '#/components/parameters/PlanId'}]
     post: {tags: [Admin Billing], operationId: adminDuplicateBillingPlan, summary: Duplicate plan without store mappings, responses: {'201': {$ref: '#/components/responses/Success'}}}
   /admin/billing/products:
     get: {tags: [Admin Billing], operationId: adminBillingProducts, summary: List store mappings and price snapshots, responses: {'200': {$ref: '#/components/responses/Success'}}}
     post: {tags: [Admin Billing], operationId: adminCreateBillingProduct, summary: Create pending immutable store mapping, responses: {'201': {$ref: '#/components/responses/Success'}}}
   /admin/billing/products/{productId}:
+    parameters: [{$ref: '#/components/parameters/ProductId'}]
     patch: {tags: [Admin Billing], operationId: adminUpdateBillingProduct, summary: Update sale status and effective window only, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/products/{productId}/sync-google:
+    parameters: [{$ref: '#/components/parameters/ProductId'}]
     post: {tags: [Admin Billing], operationId: adminSyncGoogleProduct, summary: Synchronize authoritative Google product prices, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/store-products:
     get: {tags: [Admin Billing], operationId: adminStoreProducts, summary: List store product mappings alias, responses: {'200': {$ref: '#/components/responses/Success'}}}
     post: {tags: [Admin Billing], operationId: adminCreateStoreProduct, summary: Create pending store mapping alias, responses: {'201': {$ref: '#/components/responses/Success'}}}
   /admin/billing/store-products/{productId}:
+    parameters: [{$ref: '#/components/parameters/ProductId'}]
     patch: {tags: [Admin Billing], operationId: adminUpdateStoreProduct, summary: Update store mapping sale state alias, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/store-products/{productId}/sync:
+    parameters: [{$ref: '#/components/parameters/ProductId'}]
     post: {tags: [Admin Billing], operationId: adminSyncStoreProduct, summary: Synchronize Google store product alias, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/catalog/sync-all:
     post: {tags: [Admin Billing], operationId: adminSyncBillingCatalog, summary: Synchronize all Google mappings for current environment, responses: {'200': {$ref: '#/components/responses/Success'}}}
@@ -286,20 +297,27 @@ paths:
   /admin/billing/subscriptions:
     get: {tags: [Admin Billing], operationId: adminBillingSubscriptions, summary: List store subscription entitlements, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/users/{userId}:
+    parameters: [{$ref: '#/components/parameters/UserId'}]
     get: {tags: [Admin Billing], operationId: adminUserBilling, summary: User entitlement grants and snapshot, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/users/{userId}/reconcile:
+    parameters: [{$ref: '#/components/parameters/UserId'}]
     post: {tags: [Admin Billing], operationId: adminReconcileUserBilling, summary: Queue user reconciliation, responses: {'202': {$ref: '#/components/responses/Success'}}}
   /admin/billing/users/{userId}/grants:
+    parameters: [{$ref: '#/components/parameters/UserId'}]
     post: {tags: [Admin Billing], operationId: adminGrantUserBilling, summary: Create dated manual entitlement, responses: {'201': {$ref: '#/components/responses/Success'}}}
   /admin/billing/grants/{grantId}/revoke:
+    parameters: [{$ref: '#/components/parameters/GrantId'}]
     post: {tags: [Admin Billing], operationId: adminRevokeBillingGrant, summary: Revoke manual entitlement, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/users/{userId}/grants/{grantId}:
+    parameters: [{$ref: '#/components/parameters/UserId'}, {$ref: '#/components/parameters/GrantId'}]
     delete: {tags: [Admin Billing], operationId: adminDeleteUserBillingGrant, summary: Revoke a user's manual entitlement, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/users/{userId}/credits:
+    parameters: [{$ref: '#/components/parameters/UserId'}]
     post: {tags: [Admin Billing], operationId: adminAdjustBillingCredits, summary: Append audited credit adjustment, responses: {'201': {$ref: '#/components/responses/Success'}}}
   /admin/billing/events:
     get: {tags: [Admin Billing], operationId: adminBillingEvents, summary: List durable billing events, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /admin/billing/events/{eventId}/reprocess:
+    parameters: [{$ref: '#/components/parameters/EventId'}]
     post: {tags: [Admin Billing], operationId: adminReprocessBillingEvent, summary: Queue idempotent event reprocessing, responses: {'202': {$ref: '#/components/responses/Success'}}}
   /admin/billing/audit-logs:
     get: {tags: [Admin Billing], operationId: adminBillingAuditLogs, summary: List immutable billing admin audits, responses: {'200': {$ref: '#/components/responses/Success'}}}
@@ -408,6 +426,12 @@ components:
     MakeId: {name: makeId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     ServiceId: {name: serviceId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     RunId: {name: runId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    DiagnosisId: {name: diagnosisId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    PlanId: {name: planId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    ProductId: {name: productId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    UserId: {name: userId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    GrantId: {name: grantId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+    EventId: {name: eventId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
     MakeCode: {name: makeCode, in: path, required: true, schema: {type: string}}
     WebhookId: {name: webhook-id, in: header, required: true, schema: {type: string}}
     WebhookTimestamp: {name: webhook-timestamp, in: header, required: true, schema: {type: string}}
