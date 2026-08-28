@@ -1,6 +1,6 @@
 # Twilio WhatsApp phone verification setup
 
-Password registration requires an E.164 phone number and completes only after the user enters the one-time code delivered through a Twilio WhatsApp Content Template. Google and Apple sign-in are unchanged.
+Password registration does not require a phone number. If a user optionally supplies an E.164 phone number, the app verifies it with a one-time code delivered through a Twilio WhatsApp Content Template before issuing that registration session. Google and Apple sign-in do not request a phone number.
 
 The backend generates a six-digit code, sends it as Content Template variable `{{1}}`, and stores only an HMAC of the code in Laravel's configured cache. A code expires after 10 minutes by default, can be attempted five times, and is removed after successful verification. Do not use an in-memory cache in production.
 
@@ -73,7 +73,7 @@ php artisan optimize
 
 ## API lifecycle
 
-- `POST /api/v1/auth/register` creates an unverified account, sends the WhatsApp code, and returns an opaque verification token. It does not issue a bearer token.
+- `POST /api/v1/auth/register` issues a bearer session immediately when phone is omitted. When the user voluntarily supplies a phone, it creates an unverified account, sends the WhatsApp code, and returns an opaque verification token instead.
 - `POST /api/v1/auth/login` returns `OTP_REQUIRED` after valid credentials when the registered phone is still unverified. A fresh WhatsApp code is sent unless the resend cooldown is active.
 - `POST /api/v1/auth/otp/resend` replaces the prior code with a newly generated code after the cooldown.
 - `POST /api/v1/auth/otp/verify` validates the code, marks `phone_verified_at`, removes the code so it cannot be reused, and issues the first bearer token.

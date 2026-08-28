@@ -14,6 +14,8 @@ class BillingCatalogService
         $locale = in_array(app()->getLocale(), ['en', 'ar'], true) ? app()->getLocale() : 'en';
         $country = strtoupper((string) ($user->country_code ?: 'EG'));
         $environment = strtolower((string) config('billing.environment')) === 'production' ? 'production' : 'sandbox';
+        $billingEnabled = (bool) config('billing.enabled')
+            && (bool) config("billing.platforms.$platform", false);
         $plans = BillingPlan::query()
             ->where('active', true)
             ->where('published', true)
@@ -30,9 +32,9 @@ class BillingCatalogService
             ])
             ->orderBy('sort_order')
             ->get()
-            ->map(function (BillingPlan $plan) use ($locale): array {
+            ->map(function (BillingPlan $plan) use ($billingEnabled, $locale): array {
                 $copy = $plan->localizations->firstWhere('locale', $locale) ?? $plan->localizations->firstWhere('locale', 'en');
-                $products = $plan->storeProducts->map(function (StoreProduct $product): array {
+                $products = $plan->storeProducts->map(function (StoreProduct $product) use ($billingEnabled): array {
                     $price = $product->priceSnapshots->first();
 
                     return [
@@ -40,7 +42,7 @@ class BillingCatalogService
                         'productType' => $product->product_type,
                         'basePlanId' => $product->base_plan_id,
                         'offerId' => $product->offer_id,
-                        'availableForSale' => (bool) config('billing.enabled')
+                        'availableForSale' => $billingEnabled
                             && (bool) $product->active_for_sale
                             && $product->store_status === 'active',
                         'storeStatus' => $product->store_status,
@@ -73,7 +75,7 @@ class BillingCatalogService
             })->values()->all();
 
         return [
-            'enabled' => (bool) config('billing.enabled'),
+            'enabled' => $billingEnabled,
             'environment' => $environment,
             'countryCode' => $country,
             'locale' => $locale,

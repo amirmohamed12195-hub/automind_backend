@@ -3,6 +3,12 @@
 return [
     'enabled' => (bool) env('BILLING_ENABLED', false),
     'environment' => env('BILLING_ENVIRONMENT', 'sandbox'),
+    'platforms' => [
+        // Apple is the first live store. Google remains independently gated
+        // until its Play Console credentials and notifications are complete.
+        'apple' => (bool) env('APPLE_BILLING_ENABLED', true),
+        'google' => (bool) env('GOOGLE_BILLING_ENABLED', false),
+    ],
     'webhook_base_url' => env('BILLING_WEBHOOK_BASE_URL'),
     'terms_url' => env('BILLING_TERMS_URL', rtrim((string) env('APP_URL', ''), '/').'/terms'),
     'privacy_url' => env('BILLING_PRIVACY_URL', rtrim((string) env('APP_URL', ''), '/').'/privacy'),

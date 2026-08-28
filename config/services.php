@@ -41,7 +41,10 @@ return [
     ],
 
     'apple' => [
-        'client_ids' => array_values(array_filter(explode(',', (string) env('APPLE_CLIENT_IDS', '')))),
+        'client_ids' => array_values(array_filter(explode(',', (string) env(
+            'APPLE_CLIENT_IDS',
+            'com.automind.ai,com.automind.ai.service',
+        )))),
         'jwks_url' => env('APPLE_JWKS_URL', 'https://appleid.apple.com/auth/keys'),
     ],
 

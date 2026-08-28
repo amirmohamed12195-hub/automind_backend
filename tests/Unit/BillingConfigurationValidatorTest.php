@@ -25,13 +25,15 @@ class BillingConfigurationValidatorTest extends TestCase
         $errors = app(BillingConfigurationValidator::class)->errors(requireEnabled: true);
 
         $this->assertContains('APPLE_APP_ID must contain the numeric App Store application ID.', $errors);
-        $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.', $errors);
+        $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when Google billing is enabled.', $errors);
     }
 
     public function test_enabled_billing_fails_closed_when_store_credentials_are_missing(): void
     {
         config([
             'billing.enabled' => true,
+            'billing.platforms.apple' => true,
+            'billing.platforms.google' => true,
             'billing.environment' => 'sandbox',
             'billing.webhook_base_url' => 'https://automind-ai.net/api/v1/webhooks',
             'billing.terms_url' => 'https://automind-ai.net/terms',
@@ -53,6 +55,26 @@ class BillingConfigurationValidatorTest extends TestCase
         $errors = app(BillingConfigurationValidator::class)->errors();
 
         $this->assertContains('APPLE_APP_ID must contain the numeric App Store application ID.', $errors);
-        $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.', $errors);
+        $this->assertContains('GOOGLE_PLAY_PROJECT_ID is required when Google billing is enabled.', $errors);
+    }
+
+    public function test_disabled_google_billing_does_not_require_google_credentials(): void
+    {
+        config([
+            'billing.enabled' => true,
+            'billing.platforms.apple' => true,
+            'billing.platforms.google' => false,
+            'billing.google.project_id' => null,
+            'billing.google.service_account' => null,
+            'billing.google.service_account_path' => null,
+        ]);
+
+        $errors = app(BillingConfigurationValidator::class)->errors();
+
+        $this->assertNotContains('GOOGLE_PLAY_PROJECT_ID is required when Google billing is enabled.', $errors);
+        $this->assertNotContains(
+            'Configure valid Google Play service-account JSON with GOOGLE_PLAY_SERVICE_ACCOUNT_PATH or GOOGLE_PLAY_SERVICE_ACCOUNT.',
+            $errors,
+        );
     }
 }

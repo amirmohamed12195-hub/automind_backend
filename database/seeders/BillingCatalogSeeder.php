@@ -79,11 +79,21 @@ class BillingCatalogSeeder extends Seeder
                 foreach ($mappings as [$planCode, $platform, $productId, $type, $basePlanId]) {
                     $plan = BillingPlan::query()->where('code', $planCode)->sole();
                     $key = implode(':', [$platform, $environment, $productId, $basePlanId ?: '-', '-']);
-                    StoreProduct::query()->updateOrCreate(['mapping_key' => $key], [
+                    $product = StoreProduct::query()->firstOrNew(['mapping_key' => $key]);
+                    $product->fill([
                         'billing_plan_id' => $plan->id, 'platform' => $platform, 'product_id' => $productId,
                         'product_type' => $type, 'base_plan_id' => $basePlanId, 'environment' => $environment,
-                        'active_for_sale' => false, 'store_status' => 'pending',
                     ]);
+                    if (! $product->exists) {
+                        // The Apple products are configured in App Store Connect
+                        // and must remain queryable by StoreKit during review.
+                        // Google mappings stay disabled until their Play Console
+                        // setup is completed.
+                        $product->active_for_sale = $platform === 'apple';
+                        $product->store_status = $platform === 'apple' ? 'active' : 'pending';
+                        $product->last_synced_at = $platform === 'apple' ? now() : null;
+                    }
+                    $product->save();
                 }
             }
         });

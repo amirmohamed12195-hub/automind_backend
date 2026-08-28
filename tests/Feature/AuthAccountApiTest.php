@@ -50,6 +50,30 @@ class AuthAccountApiTest extends ApiTestCase
         $this->withToken($token)->getJson('/api/v1/me')->assertUnauthorized();
     }
 
+    public function test_registration_without_a_phone_creates_a_session_immediately(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Private Driver',
+            'email' => 'private-driver@example.com',
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
+            'deviceName' => 'iPad',
+            'locale' => 'en',
+            'termsAccepted' => true,
+            'privacyAccepted' => true,
+            'legalVersion' => '2026-08-11',
+        ])->assertCreated()
+            ->assertJsonPath('data.user.phone', null)
+            ->assertJsonPath('data.tokenType', 'Bearer')
+            ->assertJsonStructure(['data' => ['user', 'accessToken'], 'meta' => ['requestId']]);
+
+        $this->assertNotEmpty($response->json('data.accessToken'));
+        $user = User::query()->where('email', 'private-driver@example.com')->sole();
+        $this->assertNull($user->phone);
+        $this->assertNotNull($user->last_login_at);
+        $this->assertSame('iPad', $user->tokens()->sole()->name);
+    }
+
     public function test_validation_and_unauthenticated_errors_use_localized_envelope(): void
     {
         $this->withHeader('Accept-Language', 'ar')->postJson('/api/v1/auth/register', [])->assertUnprocessable()->assertJsonPath('error.code', 'VALIDATION_FAILED')->assertJsonPath('error.message', 'البيانات المُرسلة غير صالحة.')->assertJsonPath('error.details.name.0', 'حقل الاسم مطلوب.')->assertJsonStructure(['error' => ['details', 'requestId']]);

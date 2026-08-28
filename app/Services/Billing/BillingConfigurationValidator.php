@@ -15,6 +15,11 @@ class BillingConfigurationValidator
         }
 
         $errors = [];
+        $validateApple = $requireEnabled || (bool) config('billing.platforms.apple');
+        $validateGoogle = $requireEnabled || (bool) config('billing.platforms.google');
+        if (! $validateApple && ! $validateGoogle) {
+            $errors[] = 'Enable at least one billing platform.';
+        }
         if (! in_array(config('billing.environment'), ['sandbox', 'production'], true)) {
             $errors[] = 'BILLING_ENVIRONMENT must be sandbox or production.';
         }
@@ -23,48 +28,52 @@ class BillingConfigurationValidator
                 $errors[] = "$name must contain a production HTTPS URL when billing is enabled.";
             }
         }
-        $bundleId = trim((string) config('billing.apple.bundle_id'));
-        if ($bundleId === '' || $bundleId !== config('public.app_links.apple_bundle_id')) {
-            $errors[] = 'APPLE_BUNDLE_ID must match the mobile application bundle identifier.';
-        }
-        if (! ctype_digit(trim((string) config('billing.apple.app_id')))) {
-            $errors[] = 'APPLE_APP_ID must contain the numeric App Store application ID.';
-        }
-        foreach (['issuer_id' => 'APPLE_ISSUER_ID', 'key_id' => 'APPLE_KEY_ID'] as $key => $name) {
-            $value = trim((string) config("billing.apple.$key"));
-            if ($value === '' || $this->placeholder($value)) {
-                $errors[] = "$name is required when billing is enabled.";
+        if ($validateApple) {
+            $bundleId = trim((string) config('billing.apple.bundle_id'));
+            if ($bundleId === '' || $bundleId !== config('public.app_links.apple_bundle_id')) {
+                $errors[] = 'APPLE_BUNDLE_ID must match the mobile application bundle identifier.';
+            }
+            if (! ctype_digit(trim((string) config('billing.apple.app_id')))) {
+                $errors[] = 'APPLE_APP_ID must contain the numeric App Store application ID.';
+            }
+            foreach (['issuer_id' => 'APPLE_ISSUER_ID', 'key_id' => 'APPLE_KEY_ID'] as $key => $name) {
+                $value = trim((string) config("billing.apple.$key"));
+                if ($value === '' || $this->placeholder($value)) {
+                    $errors[] = "$name is required when Apple billing is enabled.";
+                }
+            }
+            if (! $this->applePrivateKeyAvailable()) {
+                $errors[] = 'Configure a readable APPLE_PRIVATE_KEY_PATH or a valid APPLE_PRIVATE_KEY.';
+            }
+            if (! $this->appleRootsAvailable()) {
+                $errors[] = 'APPLE_ROOT_CERTIFICATES_PATH must contain at least one readable Apple root certificate.';
+            }
+            if ((bool) config('billing.apple.online_certificate_checks') && ! $this->opensslAvailable()) {
+                $errors[] = 'APPLE_OPENSSL_BINARY must point to an executable OpenSSL binary for online certificate checks.';
             }
         }
-        if (! $this->applePrivateKeyAvailable()) {
-            $errors[] = 'Configure a readable APPLE_PRIVATE_KEY_PATH or a valid APPLE_PRIVATE_KEY.';
-        }
-        if (! $this->appleRootsAvailable()) {
-            $errors[] = 'APPLE_ROOT_CERTIFICATES_PATH must contain at least one readable Apple root certificate.';
-        }
-        if ((bool) config('billing.apple.online_certificate_checks') && ! $this->opensslAvailable()) {
-            $errors[] = 'APPLE_OPENSSL_BINARY must point to an executable OpenSSL binary for online certificate checks.';
-        }
 
-        if (trim((string) config('billing.google.package_name')) !== config('public.app_links.android_package')) {
-            $errors[] = 'GOOGLE_PLAY_PACKAGE_NAME must match the Android application ID.';
-        }
-        $projectId = trim((string) config('billing.google.project_id'));
-        if ($projectId === '' || $this->placeholder($projectId)) {
-            $errors[] = 'GOOGLE_PLAY_PROJECT_ID is required when billing is enabled.';
-        }
-        if (! $this->googleCredentialsAvailable()) {
-            $errors[] = 'Configure valid Google Play service-account JSON with GOOGLE_PLAY_SERVICE_ACCOUNT_PATH or GOOGLE_PLAY_SERVICE_ACCOUNT.';
-        }
-        if (! $this->httpsUrl(config('billing.google.pubsub_audience'))) {
-            $errors[] = 'GOOGLE_PLAY_PUBSUB_AUDIENCE must be the HTTPS Google webhook URL.';
-        }
-        if (! filter_var(config('billing.google.pubsub_service_account_email'), FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'GOOGLE_PLAY_PUBSUB_SERVICE_ACCOUNT_EMAIL must contain the authenticated Pub/Sub push identity.';
-        }
-        $topic = trim((string) config('billing.google.pubsub_topic'));
-        if ($topic === '' || $this->placeholder($topic)) {
-            $errors[] = 'GOOGLE_PLAY_PUBSUB_TOPIC is required when billing is enabled.';
+        if ($validateGoogle) {
+            if (trim((string) config('billing.google.package_name')) !== config('public.app_links.android_package')) {
+                $errors[] = 'GOOGLE_PLAY_PACKAGE_NAME must match the Android application ID.';
+            }
+            $projectId = trim((string) config('billing.google.project_id'));
+            if ($projectId === '' || $this->placeholder($projectId)) {
+                $errors[] = 'GOOGLE_PLAY_PROJECT_ID is required when Google billing is enabled.';
+            }
+            if (! $this->googleCredentialsAvailable()) {
+                $errors[] = 'Configure valid Google Play service-account JSON with GOOGLE_PLAY_SERVICE_ACCOUNT_PATH or GOOGLE_PLAY_SERVICE_ACCOUNT.';
+            }
+            if (! $this->httpsUrl(config('billing.google.pubsub_audience'))) {
+                $errors[] = 'GOOGLE_PLAY_PUBSUB_AUDIENCE must be the HTTPS Google webhook URL.';
+            }
+            if (! filter_var(config('billing.google.pubsub_service_account_email'), FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'GOOGLE_PLAY_PUBSUB_SERVICE_ACCOUNT_EMAIL must contain the authenticated Pub/Sub push identity.';
+            }
+            $topic = trim((string) config('billing.google.pubsub_topic'));
+            if ($topic === '' || $this->placeholder($topic)) {
+                $errors[] = 'GOOGLE_PLAY_PUBSUB_TOPIC is required when Google billing is enabled.';
+            }
         }
 
         return $errors;

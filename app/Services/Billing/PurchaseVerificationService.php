@@ -239,6 +239,13 @@ class PurchaseVerificationService
 
     private function validateEnvironment(VerifiedStorePurchase $verified): void
     {
+        // Apple signs the transaction environment and App Review uses the
+        // sandbox with production builds. Both mappings are seeded, so a
+        // verified Apple transaction can safely use its signed environment.
+        if ($verified->platform === 'apple') {
+            return;
+        }
+
         $expected = strtolower((string) config('billing.environment')) === 'production' ? 'production' : 'sandbox';
         if ($verified->environment !== $expected) {
             throw new BillingException('PURCHASE_ENVIRONMENT_MISMATCH', 'The purchase belongs to a different store environment.', 409);

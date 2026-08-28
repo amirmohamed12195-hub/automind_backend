@@ -21,17 +21,34 @@ class AppleAppStoreProvider implements AppleStoreProvider
     {
         $environment = $this->normalizeEnvironment($proof['environment'] ?? config('billing.environment'));
         $signed = is_string($proof['signedTransactionInfo'] ?? null) ? $proof['signedTransactionInfo'] : null;
-        if (! $signed) {
-            $transactionId = trim((string) ($proof['transactionId'] ?? ''));
-            if ($transactionId === '') {
-                throw new BillingException('PURCHASE_VERIFICATION_FAILED', 'An Apple transaction identifier is required.');
-            }
-            $response = $this->request($environment)->get('/inApps/v1/transactions/'.rawurlencode($transactionId));
-            if (! $response->successful() || ! is_string($response->json('signedTransactionInfo'))) {
-                throw new BillingException('PURCHASE_VERIFICATION_FAILED', 'Apple could not confirm this transaction.', 422, $response->serverError());
-            }
-            $signed = $response->json('signedTransactionInfo');
+        if ($signed) {
+            // App Review and TestFlight transactions are signed as Sandbox
+            // even when the installed app is a production build. The signed
+            // payload is authoritative, so do not force it through the
+            // catalog's configured environment.
+            $payload = $this->signedData->verify($signed);
+            $environment = $this->normalizeEnvironment($payload['environment'] ?? $environment);
+
+            return $this->purchaseFromPayload($payload, $environment);
         }
+
+        $transactionId = trim((string) ($proof['transactionId'] ?? ''));
+        if ($transactionId === '') {
+            throw new BillingException('PURCHASE_VERIFICATION_FAILED', 'An Apple transaction identifier is required.');
+        }
+        $response = $this->request($environment)->get('/inApps/v1/transactions/'.rawurlencode($transactionId));
+        if (! array_key_exists('environment', $proof) && $response->status() === 404) {
+            $alternateEnvironment = $environment === 'production' ? 'sandbox' : 'production';
+            $alternateResponse = $this->request($alternateEnvironment)->get('/inApps/v1/transactions/'.rawurlencode($transactionId));
+            if ($alternateResponse->successful()) {
+                $environment = $alternateEnvironment;
+                $response = $alternateResponse;
+            }
+        }
+        if (! $response->successful() || ! is_string($response->json('signedTransactionInfo'))) {
+            throw new BillingException('PURCHASE_VERIFICATION_FAILED', 'Apple could not confirm this transaction.', 422, $response->serverError());
+        }
+        $signed = $response->json('signedTransactionInfo');
 
         return $this->purchaseFromPayload($this->signedData->verify($signed), $environment);
     }

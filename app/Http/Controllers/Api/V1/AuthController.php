@@ -25,14 +25,16 @@ class AuthController
     {
         $acceptedAt = now();
         $settings = app(PlatformSettings::class);
-        $challenge = DB::transaction(function () use ($acceptedAt, $request, $settings, $verification): array {
+        [$user, $challenge] = DB::transaction(function () use ($acceptedAt, $request, $settings, $verification): array {
             $user = User::query()->create([
                 'name' => $request->string('name'),
                 'email' => $request->string('email'),
-                'phone' => (string) $request->string('phone'),
+                'phone' => $request->filled('phone') ? (string) $request->string('phone') : null,
                 'password' => $request->string('password'),
                 'locale' => $request->input('locale', $settings->get('default_locale')),
-                'country_code' => (string) $request->string('countryCode'),
+                'country_code' => $request->filled('countryCode')
+                    ? (string) $request->string('countryCode')
+                    : $settings->get('default_country'),
                 'currency' => $settings->get('default_currency'),
                 'terms_accepted_at' => $acceptedAt,
                 'terms_version' => $request->string('legalVersion'),
@@ -40,10 +42,25 @@ class AuthController
                 'privacy_version' => $request->string('legalVersion'),
             ]);
 
-            return $verification->begin($user, 'registration');
+            return [
+                $user,
+                $user->phone !== null
+                    ? $verification->begin($user, 'registration')
+                    : null,
+            ];
         });
 
-        return ApiResponse::success($challenge, 201);
+        if ($challenge !== null) {
+            return ApiResponse::success($challenge, 201);
+        }
+
+        $user->forceFill(['last_login_at' => now()])->save();
+
+        return ApiResponse::success([
+            'user' => (new UserResource($user))->resolve(),
+            'accessToken' => $user->createToken($this->deviceName($request))->plainTextToken,
+            'tokenType' => 'Bearer',
+        ], 201);
     }
 
     public function login(LoginRequest $request)
@@ -78,7 +95,9 @@ class AuthController
         ]);
         try {
             $identity = $verifier->verify($provider, $data['identityToken'], $data['nonce'] ?? null);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            report($exception);
+
             return ApiResponse::error('SOCIAL_IDENTITY_INVALID', __('api.social_invalid'), 401);
         }
         $knownIdentity = SocialIdentity::query()->where('provider', $provider)->where('provider_subject', $identity['subject'])->exists();

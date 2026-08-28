@@ -27,7 +27,42 @@ class BillingApiTest extends ApiTestCase
     {
         parent::setUp();
         $this->seed(BillingCatalogSeeder::class);
-        config(['billing.enabled' => true, 'billing.environment' => 'sandbox']);
+        config([
+            'billing.enabled' => true,
+            'billing.environment' => 'sandbox',
+            'billing.platforms.apple' => true,
+            'billing.platforms.google' => false,
+        ]);
+    }
+
+    public function test_catalog_seeding_preserves_store_activation_state(): void
+    {
+        $product = StoreProduct::query()
+            ->where('platform', 'apple')
+            ->where('environment', 'sandbox')
+            ->where('product_id', config('billing.products.plus_monthly.apple'))
+            ->sole();
+        $product->update(['active_for_sale' => true, 'store_status' => 'active']);
+
+        $this->seed(BillingCatalogSeeder::class);
+
+        $product->refresh();
+        $this->assertTrue((bool) $product->active_for_sale);
+        $this->assertSame('active', $product->store_status);
+    }
+
+    public function test_catalog_seeding_enables_configured_apple_products_for_storekit(): void
+    {
+        $products = StoreProduct::query()
+            ->where('platform', 'apple')
+            ->get();
+
+        $this->assertCount(6, $products);
+        foreach ($products as $product) {
+            $this->assertTrue((bool) $product->active_for_sale);
+            $this->assertSame('active', $product->store_status);
+            $this->assertNotNull($product->last_synced_at);
+        }
     }
 
     public function test_catalog_and_store_account_identifiers_are_server_driven(): void
@@ -44,6 +79,21 @@ class BillingApiTest extends ApiTestCase
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $response->json('data.appleAppAccountToken'));
         $this->assertSame(64, strlen($response->json('data.googleObfuscatedAccountId')));
         $this->assertSame($user->id, $user->billingAccount()->firstOrFail()->user_id);
+    }
+
+    public function test_apple_catalog_is_enabled_without_enabling_google_billing(): void
+    {
+        $this->actingAsUser(['country_code' => 'EG']);
+
+        $this->getJson('/api/v1/billing/catalog?platform=apple')
+            ->assertOk()
+            ->assertJsonPath('data.enabled', true)
+            ->assertJsonPath('data.plans.1.products.0.availableForSale', true);
+
+        $this->getJson('/api/v1/billing/catalog?platform=google')
+            ->assertOk()
+            ->assertJsonPath('data.enabled', false)
+            ->assertJsonPath('data.plans.1.products.0.availableForSale', false);
     }
 
     public function test_store_account_identifier_needs_no_deployment_secret(): void
