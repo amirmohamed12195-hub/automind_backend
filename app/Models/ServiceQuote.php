@@ -8,7 +8,14 @@ class ServiceQuote extends UlidModel
 {
     protected function casts(): array
     {
-        return ['line_items_json' => 'array', 'expires_at' => 'datetime'];
+        return [
+            'labor_amount' => 'decimal:2',
+            'parts_amount' => 'decimal:2',
+            'fees_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'line_items_json' => 'array',
+            'expires_at' => 'datetime',
+        ];
     }
 
     /** @return BelongsTo<ServiceRequest, $this> */

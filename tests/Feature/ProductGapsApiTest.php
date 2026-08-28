@@ -162,7 +162,7 @@ class ProductGapsApiTest extends ApiTestCase
             ],
         ])->assertCreated()
             ->assertJsonPath('data.status', 'quotes_ready')
-            ->assertJsonPath('data.quotes.0.totalAmount', 1800);
+            ->assertJsonPath('data.quotes.0.totalAmount', '1800.00');
         $quoteId = $quoted->json('data.quotes.0.id');
 
         Sanctum::actingAs($secondOwner);

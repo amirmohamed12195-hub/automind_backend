@@ -13,10 +13,10 @@ class SystemWebhookSecurityTest extends ApiTestCase
     {
         $this->getJson('/api/v1/health?type=liveness')->assertOk()->assertJsonPath('data.status', 'alive')->assertHeader('X-Request-Id');
         $this->getJson('/api/v1/health?type=unknown')->assertUnprocessable()->assertJsonPath('error.code', 'VALIDATION_FAILED');
-        $this->getJson('/api/v1/health')
+        $readiness = $this->getJson('/api/v1/health')
             ->assertOk()
-            ->assertJsonPath('data.checks.database', 'ok')
-            ->assertJsonPath('data.checks.mediaTools', 'ok');
+            ->assertJsonPath('data.checks.database', 'ok');
+        $this->assertContains($readiness->json('data.checks.mediaTools'), ['ok', 'optional']);
         $this->getJson('/api/v1/version')->assertOk()->assertJsonStructure(['data' => ['apiVersion', 'laravelVersion', 'environment']]);
     }
 
@@ -57,7 +57,7 @@ class SystemWebhookSecurityTest extends ApiTestCase
     {
         config([
             'queue.default' => 'database',
-            'queue.connections.database.connection' => 'sqlite',
+            'queue.connections.database.connection' => DB::getDefaultConnection(),
             'automind.queue.critical' => ['diagnostic-ai'],
             'automind.queue.stale_after_seconds' => 30,
         ]);

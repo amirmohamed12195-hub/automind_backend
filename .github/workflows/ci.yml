@@ -50,7 +50,7 @@ jobs:
           DB_PASSWORD: automind
           REDIS_CLIENT: phpredis
           REDIS_HOST: 127.0.0.1
-          CACHE_STORE: redis
+          CACHE_STORE: array
           QUEUE_CONNECTION: sync
         run: |
           php artisan migrate:fresh --schema-path=/tmp/automind-no-schema.sql --seed --force
