@@ -28,6 +28,14 @@ return [
         'ffmpeg_path' => env('FFMPEG_PATH', 'ffmpeg'),
         'ffprobe_path' => env('FFPROBE_PATH', 'ffprobe'),
     ],
+    'vehicle_catalog_images' => [
+        'disk' => env('VEHICLE_IMAGE_DISK', 'public'),
+        'width' => (int) env('VEHICLE_IMAGE_WIDTH', 960),
+        'max_bytes' => (int) env('VEHICLE_IMAGE_MAX_BYTES', 5242880),
+        'download_delay_ms' => (int) env('VEHICLE_IMAGE_DOWNLOAD_DELAY_MS', 250),
+        'wikimedia_api_url' => env('WIKIMEDIA_COMMONS_API_URL', 'https://commons.wikimedia.org/w/api.php'),
+        'user_agent' => env('WIKIMEDIA_USER_AGENT', 'AutoMindVehicleCatalog/1.0 (https://automind-ai.net; support@automind-ai.net)'),
+    ],
     'price_search_ttl_days' => (int) env('PRICE_SEARCH_TTL_DAYS', 7),
     'price_source_max_age_days' => (int) env('PRICE_SOURCE_MAX_AGE_DAYS', 30),
     'queue' => [

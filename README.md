@@ -25,6 +25,13 @@ php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search
 php artisan schedule:work
 ```
 
+The reference seed includes 184 makes, 5,904 model nameplates, and distinct
+generation/body-era records. Vehicle APIs return the correct generation photo
+when available and automatically fall back to the locally hosted make logo.
+Licensed Wikimedia Commons photos are filled by the scheduler, or on demand
+with `php artisan automind:sync-vehicle-images --limit=0`; attribution metadata
+is returned beside every model photo.
+
 The API is served at `http://localhost:8080/api/v1`. Non-production Swagger UI is at `http://localhost:8080/docs/api`. For a host-only SQLite test run, create `database/database.sqlite`, set `DB_CONNECTION=sqlite`, then run migrations and tests.
 
 ## Configuration

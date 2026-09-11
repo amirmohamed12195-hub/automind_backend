@@ -3500,6 +3500,59 @@
                     }
                 },
                 {
+                    "id": "4ea43225-f68a-421c-a62d-3d4468720277",
+                    "name": "listVehicleModelGenerations",
+                    "request": {
+                        "name": "listVehicleModelGenerations",
+                        "description": {
+                            "type": "text/plain"
+                        },
+                        "url": {
+                            "path": [
+                                "vehicle-catalog",
+                                "makes",
+                                ":makeCode",
+                                "models",
+                                ":modelCode",
+                                "generations"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [
+                                {
+                                    "disabled": true,
+                                    "key": "year",
+                                    "value": "<integer>"
+                                }
+                            ],
+                            "variable": [
+                                {
+                                    "key": "makeCode",
+                                    "value": "toyota"
+                                },
+                                {
+                                    "key": "modelCode",
+                                    "value": "corolla"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "response": [],
+                    "event": [],
+                    "protocolProfileBehavior": {
+                        "disableBodyPruning": true
+                    }
+                },
+                {
                     "id": "cf5c548d-e005-4737-83e1-8670b506f498",
                     "name": "listVehicles",
                     "request": {

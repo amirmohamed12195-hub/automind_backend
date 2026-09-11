@@ -16,11 +16,13 @@ class VehicleApiTest extends ApiTestCase
         $this->seed(ReferenceDataSeeder::class);
         $user = $this->actingAsUser();
         $payload = ['brand' => 'Toyota', 'model' => 'Corolla', 'year' => 2018, 'engine' => '1.6L', 'fuelType' => 'Petrol', 'transmission' => 'Automatic', 'mileage' => 145000];
-        $created = $this->postJson('/api/v1/vehicles', $payload)->assertCreated()->assertJsonStructure(['data' => ['id', 'userId', 'brand', 'model', 'year', 'engine', 'fuelType', 'transmission', 'mileage', 'vin', 'imagePath', 'brandLogoUrl', 'catalogMakeId', 'catalogModelId', 'healthScore', 'isSelected', 'createdAt', 'updatedAt']]);
+        $created = $this->postJson('/api/v1/vehicles', $payload)->assertCreated()->assertJsonStructure(['data' => ['id', 'userId', 'brand', 'model', 'year', 'engine', 'fuelType', 'transmission', 'mileage', 'vin', 'imagePath', 'brandLogoUrl', 'catalogImageUrl', 'catalogImageType', 'catalogGenerationCode', 'catalogImageAttribution', 'catalogMakeId', 'catalogModelId', 'healthScore', 'isSelected', 'createdAt', 'updatedAt']]);
         $id = $created->json('data.id');
         $this->assertSame($user->id, $created->json('data.userId'));
         $this->assertNotNull($created->json('data.catalogMakeId'));
+        $this->assertNotNull($created->json('data.catalogModelId'));
         $this->assertSame('http://localhost/images/vehicle-makes/toyota-logo.svg', $created->json('data.brandLogoUrl'));
+        $this->assertSame('brand_logo', $created->json('data.catalogImageType'));
         $this->putJson("/api/v1/vehicles/$id/selected")->assertOk()->assertJsonPath('data.isSelected', true);
         $this->patchJson("/api/v1/vehicles/$id", ['mileage' => 150000])->assertOk()->assertJsonPath('data.mileage', 150000);
         $this->getJson("/api/v1/vehicles/$id/health")->assertOk()->assertJsonPath('data.healthScore', 100);

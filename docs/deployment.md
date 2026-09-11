@@ -4,7 +4,7 @@
 
 1. Build an immutable PHP-FPM image from the repository and scan dependencies/image layers.
 2. Inject production secrets at runtime. Run `php artisan automind:check-provider-config`; it makes no paid provider call.
-3. Run `php artisan migrate --force` from one release task, then `php artisan db:seed --class=Database\\Seeders\\ReferenceDataSeeder --force`. The reference seeder is safe and idempotent; never enable demo seeding in production. Migrations are additive-first; delay destructive changes until old application versions are drained.
+3. Run `php artisan migrate --force` from one release task, create the public storage link, then run `php artisan db:seed --class=Database\\Seeders\\ReferenceDataSeeder --force`. The reference seeder is safe and idempotent; never enable demo seeding in production. Migrations are additive-first; delay destructive changes until old application versions are drained.
 4. Warm configuration/routes/views, start web instances, and pass `/api/v1/health?type=readiness` before shifting traffic.
 5. Start workers for all named queues and one scheduler leader. Restart workers after every deployment.
 6. Run an authenticated smoke flow that does not invoke OpenAI, then an explicitly approved low-cost provider smoke if required.
@@ -49,6 +49,22 @@ The production deployment script clears stale caches, validates provider
 configuration without making a paid request, applies migrations, refreshes
 the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
 Laravel's caches, and restarts queue workers.
+
+The vehicle catalog contains one or more production-era/body-shape records for
+every model. The scheduler downloads licensed Wikimedia Commons thumbnails in
+small hourly batches and retains author, license, and source attribution. Until
+a generation photo passes the match and license checks, API clients receive the
+local make logo. To fill the backlog immediately on a host with adequate disk
+and network capacity, run:
+
+```bash
+php artisan automind:sync-vehicle-images --limit=0
+```
+
+Use `VEHICLE_IMAGE_DISK=public` with `php artisan storage:link`, or point it to
+a public S3-compatible disk. The default 960-pixel thumbnails are capped at 5
+MiB each. Do not remove image attribution from product surfaces; see the source
+notices in `database/data/vehicle_model_sources/`.
 
 The repository contains Apple's public root certificates under
 `resources/certificates/apple`. Keep `APPLE_ROOT_CERTIFICATES_PATH` pointed at
@@ -204,7 +220,7 @@ The included Compose stack is a development/smoke environment. Copy `.env.exampl
 - Probe `/health?type=liveness` for process health and `/health?type=readiness` for MySQL, Redis, storage, and queue dependencies. Health checks never call OpenAI.
 - Ship structured JSON logs centrally; alert on 5xx rate, p95/p99 latency, queue delay, failed jobs, provider failure/refusal/schema rate, missing price sources, and approximate daily AI spend.
 - Run `queue:work` with bounded timeout/tries and a supervisor that restarts clean exits. Use `queue:restart` during deploys.
-- Run the scheduler every minute or use `schedule:work`; monitor its heartbeat. It sends maintenance reminders and enforces retention.
+- Run the scheduler every minute or use `schedule:work`; monitor its heartbeat. It sends maintenance reminders, enforces retention, and progressively fills the licensed vehicle-generation photo catalog.
 - Register the exact public OpenAI webhook URL and rotate its secret using an overlap window. Rotate OAuth, push, storage, database, and provider credentials with documented owners.
 - Before exposing service estimates, use the audited admin endpoints to append current currency evidence at `/admin/currency-rates` and market/service-specific labor hours plus hourly-rate ranges at `/admin/labor-rate-sources`. Use canonical part codes or `default` for a whole-job labor basis; expire superseded labor records instead of silently guessing values.
 - Back up before risky migrations. Verify the SQL export using `php scripts/export-mysql-schema.php --check` in the built release.

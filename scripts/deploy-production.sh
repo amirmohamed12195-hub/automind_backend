@@ -30,6 +30,7 @@ fi
 "$AUTOMIND_PHP_BINARY" artisan automind:check-provider-config --ansi
 "$AUTOMIND_PHP_BINARY" artisan automind:check-billing-config --ansi
 "$AUTOMIND_PHP_BINARY" artisan migrate --force --ansi
+"$AUTOMIND_PHP_BINARY" artisan storage:link --force --ansi
 "$AUTOMIND_PHP_BINARY" artisan db:seed --class='Database\Seeders\ReferenceDataSeeder' --force --ansi
 "$AUTOMIND_PHP_BINARY" artisan optimize:clear --ansi
 "$AUTOMIND_PHP_BINARY" artisan optimize --ansi

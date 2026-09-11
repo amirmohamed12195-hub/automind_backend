@@ -11,6 +11,8 @@ Schedule::job(new SendMaintenanceReminders)->dailyAt('08:00')->withoutOverlappin
 Schedule::job(new PurgeExpiredData)->dailyAt('02:00')->withoutOverlapping()->onOneServer();
 Schedule::job(new ReconcileUserBilling)->hourly()->withoutOverlapping()->onOneServer();
 Schedule::job(new ReleaseStaleReportReservations)->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('automind:sync-vehicle-images --limit=100')->hourly()->withoutOverlapping()->onOneServer();
+Schedule::command('automind:sync-vehicle-images --retry-missing --limit=100')->monthly()->withoutOverlapping()->onOneServer();
 Schedule::call(function (): void {
     DeviceToken::query()
         ->where('enabled', true)

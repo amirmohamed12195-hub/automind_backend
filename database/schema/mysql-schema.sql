@@ -313,6 +313,11 @@ alter table `service_request_messages` add constraint `service_request_messages_
 alter table `service_request_messages` add constraint `service_request_messages_mechanic_id_foreign` foreign key (`mechanic_id`) references `mechanics` (`id`) on delete set null;
 alter table `service_request_messages` add index `service_request_messages_timeline_idx`(`service_request_id`, `created_at`);
 update `store_products` set `active_for_sale` = 1, `store_status` = 'active', `last_synced_at` = CURRENT_TIMESTAMP, `updated_at` = CURRENT_TIMESTAMP where `platform` = 'apple' and `product_id` in ('com.automind.ai.full_report.single.v1', 'com.automind.ai.plus.monthly.v1', 'com.automind.ai.plus.yearly.v1');
+create table `vehicle_model_generations` (`id` char(26) not null, `model_id` char(26) not null, `code` varchar(160) not null, `name` varchar(255) not null, `start_year` smallint unsigned null, `end_year` smallint unsigned null, `body_type` varchar(120) null, `data_source` varchar(80) not null default 'catalog-range', `image_status` varchar(24) not null default 'pending', `image_disk` varchar(32) null, `image_path` varchar(255) null, `image_source_page_url` text null, `image_author` text null, `image_license` varchar(120) null, `image_license_url` text null, `image_attribution` text null, `image_sha256` char(64) null, `image_width` smallint unsigned null, `image_height` smallint unsigned null, `image_last_attempted_at` timestamp null, `image_downloaded_at` timestamp null, `created_at` timestamp null, `updated_at` timestamp null, primary key (`id`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `vehicle_model_generations` add constraint `vehicle_model_generations_model_id_foreign` foreign key (`model_id`) references `vehicle_models` (`id`) on delete cascade;
+alter table `vehicle_model_generations` add unique `vehicle_model_generations_model_id_code_unique`(`model_id`, `code`);
+alter table `vehicle_model_generations` add index `vehicle_generation_year_idx`(`model_id`, `start_year`, `end_year`);
+alter table `vehicle_model_generations` add index `vehicle_model_generations_image_status_index`(`image_status`);
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -329,4 +334,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_08_18_000100_add_p
 insert into `migrations` (`migration`, `batch`) values ('2026_08_21_000100_add_logo_path_to_vehicle_makes', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_24_000100_create_follow_up_and_service_request_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_26_000100_enable_apple_products_for_app_review', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_09_11_000100_create_vehicle_model_generations_table', 1);
 SET FOREIGN_KEY_CHECKS=1;

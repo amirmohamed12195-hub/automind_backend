@@ -35,12 +35,31 @@ class VehicleResource extends JsonResource
                 ->orWhere('code', str($this->brand)->slug()->toString())
                 ->first() ?? $catalogMake;
         }
+        $catalogModel = $this->catalogModel;
+        if (! $catalogModel && $catalogMake) {
+            $catalogModel = $catalogMake->models()
+                ->where(function ($query): void {
+                    $query->where('name_en', $this->model)
+                        ->orWhere('name_ar', $this->model)
+                        ->orWhere('code', str($this->model)->slug()->toString());
+                })
+                ->with('generations')
+                ->first();
+        }
+        $catalogImage = $catalogModel?->displayImage((int) $this->year, $catalogMake) ?? [
+            'url' => $catalogMake?->logoUrl(),
+            'type' => $catalogMake?->logoUrl() ? 'brand_logo' : null,
+            'generation' => null,
+            'attribution' => null,
+        ];
         $selected = DB::table('user_selected_vehicles')->where('user_id', $this->user_id)->where('vehicle_id', $this->id)->exists();
 
         return [
             'id' => (string) $this->id, 'userId' => (string) $this->user_id, 'brand' => $this->brand, 'model' => $this->model,
             'year' => (int) $this->year, 'engine' => $this->engine, 'fuelType' => $this->fuel_type, 'transmission' => $this->transmission,
             'mileage' => (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'brandLogoUrl' => $catalogMake?->logoUrl(),
+            'catalogImageUrl' => $catalogImage['url'], 'catalogImageType' => $catalogImage['type'],
+            'catalogGenerationCode' => $catalogImage['generation']?->code, 'catalogImageAttribution' => $catalogImage['attribution'],
             'catalogMakeId' => $this->catalog_make_id ? (string) $this->catalog_make_id : null, 'catalogModelId' => $this->catalog_model_id ? (string) $this->catalog_model_id : null,
             'healthScore' => (int) $this->health_score,
             'plateNumber' => $this->plate_number, 'nickname' => $this->nickname, 'isSelected' => $selected,

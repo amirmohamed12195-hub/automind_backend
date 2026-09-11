@@ -7,6 +7,7 @@ use App\Models\MechanicSpecialty;
 use App\Models\SymptomDefinition;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use App\Models\VehicleModelGeneration;
 use Database\Seeders\ReferenceDataSeeder;
 
 class ReferenceDataSeederTest extends ApiTestCase
@@ -18,6 +19,7 @@ class ReferenceDataSeederTest extends ApiTestCase
         $firstCounts = [
             VehicleMake::query()->count(),
             VehicleModel::query()->count(),
+            VehicleModelGeneration::query()->count(),
             SymptomDefinition::query()->count(),
             MaintenanceServiceDefinition::query()->count(),
             MechanicSpecialty::query()->count(),
@@ -28,16 +30,25 @@ class ReferenceDataSeederTest extends ApiTestCase
         $this->assertSame($firstCounts, [
             VehicleMake::query()->count(),
             VehicleModel::query()->count(),
+            VehicleModelGeneration::query()->count(),
             SymptomDefinition::query()->count(),
             MaintenanceServiceDefinition::query()->count(),
             MechanicSpecialty::query()->count(),
         ]);
         $this->assertSame(184, $firstCounts[0]);
         $this->assertSame(5904, $firstCounts[1]);
+        $this->assertSame(10181, $firstCounts[2]);
         $this->assertSame(0, VehicleMake::query()->whereDoesntHave('models')->count());
-        $this->assertSame(9, $firstCounts[2]);
-        $this->assertSame(15, $firstCounts[3]);
-        $this->assertSame(10, $firstCounts[4]);
+        $this->assertSame(0, VehicleMake::query()->whereNull('logo_path')->count());
+        $this->assertSame([], VehicleMake::query()->pluck('logo_path')
+            ->filter(fn (string $path): bool => ! is_file(public_path($path)))
+            ->values()
+            ->all());
+        $this->assertSame(0, VehicleModel::query()->whereDoesntHave('generations')->count());
+        $this->assertSame(6595, VehicleModelGeneration::query()->where('data_source', 'vehicle-makes-models')->count());
+        $this->assertSame(9, $firstCounts[3]);
+        $this->assertSame(15, $firstCounts[4]);
+        $this->assertSame(10, $firstCounts[5]);
 
         $this->getJson('/api/v1/vehicle-catalog/makes')
             ->assertOk()
@@ -61,8 +72,15 @@ class ReferenceDataSeederTest extends ApiTestCase
         $this->assertFileExists(public_path('images/vehicle-makes/rivian-logo.svg'));
         $this->getJson('/api/v1/vehicle-catalog/makes/toyota/models')
             ->assertOk()
-            ->assertJsonFragment(['code' => 'corolla', 'name' => 'Corolla'])
+            ->assertJsonFragment(['code' => 'corolla', 'name' => 'Corolla', 'imageType' => 'brand_logo'])
             ->assertJsonPath('meta.customModelAllowed', true);
+        $this->getJson('/api/v1/vehicle-catalog/makes/toyota/models/corolla/generations?year=2018')
+            ->assertOk()
+            ->assertJsonFragment([
+                'code' => 'corolla-sedan-2016',
+                'name' => 'Corolla Sedan (2016)',
+                'imageType' => 'brand_logo',
+            ]);
         $this->getJson('/api/v1/vehicle-catalog/makes/lexus/models')
             ->assertOk()
             ->assertJsonFragment(['code' => 'es', 'name' => 'ES']);

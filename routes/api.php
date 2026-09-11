@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('vehicle-catalog/makes', [VehicleCatalogController::class, 'makes']);
     Route::get('vehicle-catalog/makes/{makeCode}/models', [VehicleCatalogController::class, 'models']);
+    Route::get('vehicle-catalog/makes/{makeCode}/models/{modelCode}/generations', [VehicleCatalogController::class, 'generations']);
     Route::get('symptoms', [DiagnosisController::class, 'symptoms']);
     Route::get('maintenance-service-definitions', [MaintenanceController::class, 'serviceDefinitions']);
     Route::get('mechanics', [MechanicController::class, 'index']);

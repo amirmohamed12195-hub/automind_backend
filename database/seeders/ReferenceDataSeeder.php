@@ -7,6 +7,7 @@ use App\Models\MechanicSpecialty;
 use App\Models\SymptomDefinition;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use App\Models\VehicleModelGeneration;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -118,6 +119,71 @@ class ReferenceDataSeeder extends Seeder
                 ['name_en', 'name_ar', 'start_year', 'end_year', 'active', 'updated_at'],
             );
         }
+
+        $this->seedVehicleGenerations();
+    }
+
+    private function seedVehicleGenerations(): void
+    {
+        /** @var array{makes: array<string, array<string, array<int, array{code: string, name: string, start_year: int|null, end_year: int|null, body_type: string|null}>>>} $generationCatalog */
+        $generationCatalog = json_decode(
+            file_get_contents(database_path('data/vehicle_generations.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $makeIds = VehicleMake::query()->pluck('id', 'code');
+        $timestamp = now();
+
+        foreach ($generationCatalog['makes'] as $makeCode => $models) {
+            $makeId = $makeIds->get($makeCode);
+            if (! $makeId) {
+                throw new \RuntimeException("Vehicle generation catalog references unknown make [$makeCode].");
+            }
+
+            $modelIds = VehicleModel::query()->where('make_id', $makeId)->pluck('id', 'code');
+            foreach ($models as $modelCode => $generations) {
+                $modelId = $modelIds->get($modelCode);
+                if (! $modelId) {
+                    throw new \RuntimeException("Vehicle generation catalog references unknown model [$makeCode/$modelCode].");
+                }
+
+                VehicleModelGeneration::query()->upsert(
+                    array_map(fn (array $generation): array => [
+                        'id' => (string) Str::ulid(),
+                        'model_id' => $modelId,
+                        'code' => $generation['code'],
+                        'name' => $generation['name'],
+                        'start_year' => $generation['start_year'],
+                        'end_year' => $generation['end_year'],
+                        'body_type' => $generation['body_type'],
+                        'data_source' => 'vehicle-makes-models',
+                        'image_status' => 'pending',
+                        'created_at' => $timestamp,
+                        'updated_at' => $timestamp,
+                    ], $generations),
+                    ['model_id', 'code'],
+                    ['name', 'start_year', 'end_year', 'body_type', 'data_source', 'updated_at'],
+                );
+            }
+        }
+
+        VehicleModel::query()
+            ->whereDoesntHave('generations')
+            ->chunkById(500, function ($models) use ($timestamp): void {
+                VehicleModelGeneration::query()->insert($models->map(fn (VehicleModel $model): array => [
+                    'id' => (string) Str::ulid(),
+                    'model_id' => $model->id,
+                    'code' => 'default',
+                    'name' => $model->name_en,
+                    'start_year' => $model->start_year,
+                    'end_year' => $model->end_year,
+                    'body_type' => null,
+                    'data_source' => 'catalog-range',
+                    'image_status' => 'pending',
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ])->all());
+            });
     }
 
     private function seedMaintenanceServices(): void

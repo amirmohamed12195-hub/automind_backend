@@ -7,6 +7,7 @@ use App\Http\Requests\VehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Vehicle;
 use App\Models\VehicleMake;
+use App\Models\VehicleModel;
 use App\Services\Billing\EntitlementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class VehicleController
 {
     public function index(Request $request)
     {
-        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->with('catalogMake')->latest('updated_at')->get())->resolve());
+        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->with(['catalogMake', 'catalogModel.generations'])->latest('updated_at')->get())->resolve());
     }
 
     public function store(VehicleRequest $request, EntitlementService $entitlements)
@@ -103,6 +104,24 @@ class VehicleController
                 ->first();
             if ($make) {
                 $result['catalog_make_id'] = $make->id;
+            }
+        }
+
+        if ($request->isMethod('post') && ! array_key_exists('catalog_model_id', $result) && isset($result['catalog_make_id'], $result['model'])) {
+            $model = VehicleModel::query()
+                ->where('make_id', $result['catalog_make_id'])
+                ->where(function ($query) use ($result): void {
+                    $query->where('name_en', $result['model'])
+                        ->orWhere('name_ar', $result['model'])
+                        ->orWhere('code', str($result['model'])->slug()->toString());
+                })
+                ->when(isset($result['year']), function ($query) use ($result): void {
+                    $query->where(fn ($q) => $q->whereNull('start_year')->orWhere('start_year', '<=', $result['year']))
+                        ->where(fn ($q) => $q->whereNull('end_year')->orWhere('end_year', '>=', $result['year']));
+                })
+                ->first();
+            if ($model) {
+                $result['catalog_model_id'] = $model->id;
             }
         }
 

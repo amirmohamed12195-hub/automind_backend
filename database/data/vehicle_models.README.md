@@ -11,7 +11,8 @@ The snapshot combines and deduplicates:
 - [VehiclesDB](https://vehiclesdb.com), pinned at commit
   `03039f8bbf3f0e6081f5c7e883aa5e319199c5ea` (CC-BY 4.0).
 - [vehicle-makes-models](https://github.com/gor3a/vehicle-makes-models),
-  pinned at the commit recorded in `_meta` (MIT).
+  pinned at the commit recorded in `_meta` (model snapshot attribution recorded
+  at import time; generation facts are ODbL 1.0).
 - [global-car-models](https://github.com/serhatkildaci/global-car-models),
   pinned at commit `44da5c9e5e0f3162d65579033f7a641473308b11`
   (MIT).
@@ -21,3 +22,9 @@ The snapshot combines and deduplicates:
 Required licenses, source notices, and the full VehiclesDB attribution are in
 `vehicle_model_sources/`. Product surfaces using this data must include the
 VehiclesDB credit described there in their About/Credits screen.
+
+`vehicle_generations.json` adds distinct production eras and body shapes from
+the pinned `vehicle-makes-models` snapshot. Every remaining catalog model gets
+a generated `catalog-range` row during seeding so the API can always resolve a
+model/year to either a model photo or its make logo. See
+`vehicle_model_sources/VEHICLE_MAKES_MODELS_DATA_LICENSE.md` for ODbL terms.
