@@ -153,7 +153,7 @@ class BillingApiTest extends ApiTestCase
         $user = $this->actingAsUser();
         $account = app(BillingAccountService::class)->forUser($user);
         $verified = new VerifiedStorePurchase(
-            'google', 'sandbox', 'automind_plus_v1', 'subscription', 'active', 'monthly-v1', null,
+            'google', 'sandbox', 'automind_plus_v1', 'subscription', 'active', 'monthlyv1', null,
             null, null, 'subscription-token', 'GPA.1', $account->google_obfuscated_account_id,
             CarbonImmutable::now()->subDay(), CarbonImmutable::now()->subDay(), CarbonImmutable::now()->addMonth(),
             null, true, true, false,
@@ -178,7 +178,7 @@ class BillingApiTest extends ApiTestCase
         $user = $this->actingAsUser();
         $account = app(BillingAccountService::class)->forUser($user);
         $verified = new VerifiedStorePurchase(
-            'google', 'sandbox', 'automind_plus_v1', 'subscription', 'billingRetry', 'monthly-v1', null,
+            'google', 'sandbox', 'automind_plus_v1', 'subscription', 'billingRetry', 'monthlyv1', null,
             null, null, 'subscription-on-hold-token', 'GPA.on-hold', $account->google_obfuscated_account_id,
             CarbonImmutable::now()->subMonth(), CarbonImmutable::now()->subMonth(), CarbonImmutable::now()->addMonth(),
             null, false, true, false,

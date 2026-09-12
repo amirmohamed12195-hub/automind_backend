@@ -50,12 +50,12 @@ return [
         'plus_monthly' => [
             'apple' => 'com.automind.ai.plus.monthly.v1',
             'google' => 'automind_plus_v1',
-            'google_base_plan' => 'monthly-v1',
+            'google_base_plan' => 'monthlyv1',
         ],
         'plus_yearly' => [
             'apple' => 'com.automind.ai.plus.yearly.v1',
-            'google' => 'automind_plus_v1',
-            'google_base_plan' => 'yearly-v1',
+            'google' => 'automind_plus_yearly_v1',
+            'google_base_plan' => 'yearlyv1',
         ],
     ],
 ];
