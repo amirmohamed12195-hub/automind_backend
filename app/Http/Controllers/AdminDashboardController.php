@@ -27,6 +27,7 @@ use App\Models\UserNotification;
 use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
+use App\Services\AccountDeletionService;
 use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Services\Notifications\UserNotificationService;
@@ -172,14 +173,18 @@ class AdminDashboardController
         return $this->done('users', $suspended ? 'User suspended and active sessions revoked.' : 'User account reactivated.');
     }
 
-    public function destroyUser(Request $request, User $user): RedirectResponse
+    public function destroyUser(Request $request, string $user, AccountDeletionService $deletion): RedirectResponse
     {
-        $user->tokens()->delete();
-        DB::table('device_tokens')->where('user_id', $user->id)->update(['enabled' => false, 'updated_at' => now()]);
-        $this->audit($request, 'admin.web.user.deleted', $user);
-        $user->delete();
+        $record = User::withTrashed()->findOrFail($user);
+        $request->validate([
+            'confirmation' => ['required', 'string', Rule::in([$record->email])],
+        ], [
+            'confirmation.in' => 'Enter the user email exactly to confirm permanent deletion.',
+        ]);
+        $this->audit($request, 'admin.web.user.permanently_deleted', $record);
+        $deletion->purge($record);
 
-        return $this->done('users', 'User account moved to deleted accounts.');
+        return $this->done('users', 'User account and user-owned data permanently deleted.');
     }
 
     public function restoreUser(Request $request, string $user): RedirectResponse

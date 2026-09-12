@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\DeviceToken;
+use App\Models\DiagnosticMedia;
+use App\Models\DiagnosticSession;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -46,6 +51,75 @@ class AdminDashboardTest extends TestCase
         ])->assertRedirect(route('admin.dashboard').'#users');
 
         $this->assertNull($user->fresh()->suspended_at);
+    }
+
+    public function test_admin_can_permanently_delete_a_user_and_related_data(): void
+    {
+        Storage::fake('local');
+        config(['automind.media.disk' => 'local']);
+        $user = User::factory()->create(['email' => 'delete-me@example.com', 'avatar_path' => 'avatars/delete-me/avatar.jpg']);
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id]);
+        $media = DiagnosticMedia::query()->create([
+            'diagnostic_session_id' => $session->id, 'media_kind' => 'photo', 'storage_disk' => 'local',
+            'storage_path' => 'diagnostics/delete-me/photo.jpg', 'original_filename' => 'photo.jpg', 'mime_type' => 'image/jpeg',
+            'extension' => 'jpg', 'byte_size' => 100, 'sha256' => hash('sha256', 'delete-me-photo'),
+            'upload_status' => 'uploaded', 'scan_status' => 'clean', 'processing_status' => 'ready',
+        ]);
+        $user->createToken('mobile');
+        DeviceToken::query()->create([
+            'user_id' => $user->id, 'platform' => 'ios', 'push_token' => 'delete-me-token',
+            'token_hash' => hash('sha256', 'delete-me-token'), 'enabled' => true,
+        ]);
+        DB::table('sessions')->insert([
+            'id' => 'delete-me-session', 'user_id' => $user->id, 'payload' => 'payload', 'last_activity' => time(),
+        ]);
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->email, 'token' => 'reset-token', 'created_at' => now(),
+        ]);
+        Storage::disk('local')->put($user->avatar_path, 'avatar');
+        Storage::disk('local')->put($media->storage_path, 'photo');
+
+        $this->asWebAdmin()->delete(route('admin.users.destroy', $user->id), [
+            'confirmation' => $user->email,
+        ])->assertRedirect(route('admin.dashboard').'#users');
+
+        $this->assertNull(User::withTrashed()->find($user->id));
+        $this->assertDatabaseMissing('vehicles', ['id' => $vehicle->id]);
+        $this->assertDatabaseMissing('diagnostic_sessions', ['id' => $session->id]);
+        $this->assertDatabaseMissing('diagnostic_media', ['id' => $media->id]);
+        $this->assertDatabaseMissing('device_tokens', ['user_id' => $user->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', ['tokenable_id' => $user->id]);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+        Storage::disk('local')->assertMissing($user->avatar_path);
+        Storage::disk('local')->assertMissing($media->storage_path);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'admin.web.user.permanently_deleted', 'target_id' => $user->id,
+        ]);
+    }
+
+    public function test_permanent_user_deletion_requires_the_exact_email(): void
+    {
+        $user = User::factory()->create(['email' => 'keep-me@example.com']);
+
+        $this->asWebAdmin()->from(route('admin.dashboard').'#users')->delete(route('admin.users.destroy', $user->id), [
+            'confirmation' => 'wrong@example.com',
+        ])->assertRedirect(route('admin.dashboard').'#users')->assertSessionHasErrors('confirmation');
+
+        $this->assertNotNull(User::withTrashed()->find($user->id));
+    }
+
+    public function test_admin_can_permanently_delete_a_previously_soft_deleted_user(): void
+    {
+        $user = User::factory()->create(['email' => 'already-deleted@example.com']);
+        $user->delete();
+
+        $this->asWebAdmin()->delete(route('admin.users.destroy', $user->id), [
+            'confirmation' => $user->email,
+        ])->assertRedirect(route('admin.dashboard').'#users');
+
+        $this->assertNull(User::withTrashed()->find($user->id));
     }
 
     public function test_suspended_user_cannot_log_in_or_use_an_existing_token(): void
