@@ -6,6 +6,7 @@ use App\Jobs\ProcessOpenAiWebhook;
 use App\Services\Media\MediaToolchain;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 
 class SystemWebhookSecurityTest extends ApiTestCase
 {
@@ -76,5 +77,16 @@ class SystemWebhookSecurityTest extends ApiTestCase
             ->assertJsonPath('data.checks.queue', 'failed')
             ->assertJsonPath('data.queue.connection', 'database')
             ->assertJsonPath('data.queue.depth', 1);
+    }
+
+    public function test_readiness_fails_when_required_schema_is_missing(): void
+    {
+        Schema::drop('vehicle_model_generations');
+
+        $this->getJson('/api/v1/health')
+            ->assertServiceUnavailable()
+            ->assertJsonPath('data.status', 'not_ready')
+            ->assertJsonPath('data.checks.database', 'ok')
+            ->assertJsonPath('data.checks.schema', 'failed');
     }
 }

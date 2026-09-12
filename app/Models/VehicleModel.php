@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class VehicleModel extends UlidModel
 {
@@ -13,6 +14,10 @@ class VehicleModel extends UlidModel
     protected static function booted(): void
     {
         static::created(function (VehicleModel $model): void {
+            if (! self::generationCatalogAvailable()) {
+                return;
+            }
+
             $model->generations()->create([
                 'code' => 'default',
                 'name' => $model->name_en,
@@ -37,6 +42,10 @@ class VehicleModel extends UlidModel
 
     public function generationForYear(?int $year): ?VehicleModelGeneration
     {
+        if (! $this->relationLoaded('generations') && ! self::generationCatalogAvailable()) {
+            return null;
+        }
+
         /** @var Collection<int, VehicleModelGeneration> $generations */
         $generations = $this->relationLoaded('generations')
             ? $this->generations
@@ -80,5 +89,10 @@ class VehicleModel extends UlidModel
             'generation' => $generation,
             'attribution' => null,
         ];
+    }
+
+    public static function generationCatalogAvailable(): bool
+    {
+        return Schema::hasTable('vehicle_model_generations');
     }
 }

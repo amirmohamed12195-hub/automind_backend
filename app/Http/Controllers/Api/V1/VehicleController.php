@@ -19,7 +19,9 @@ class VehicleController
 {
     public function index(Request $request)
     {
-        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->with(['catalogMake', 'catalogModel.generations'])->latest('updated_at')->get())->resolve());
+        $relations = ['catalogMake', VehicleModel::generationCatalogAvailable() ? 'catalogModel.generations' : 'catalogModel'];
+
+        return ApiResponse::success(VehicleResource::collection($request->user()->vehicles()->with($relations)->latest('updated_at')->get())->resolve());
     }
 
     public function store(VehicleRequest $request, EntitlementService $entitlements)

@@ -7,6 +7,7 @@ use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -29,6 +30,11 @@ class SystemController
             $checks['database'] = 'ok';
         } catch (Throwable) {
             $checks['database'] = 'failed';
+        }
+        try {
+            $checks['schema'] = Schema::hasTable('vehicle_model_generations') ? 'ok' : 'failed';
+        } catch (Throwable) {
+            $checks['schema'] = 'failed';
         }
         try {
             Storage::disk(config('automind.media.disk'))->exists('.');

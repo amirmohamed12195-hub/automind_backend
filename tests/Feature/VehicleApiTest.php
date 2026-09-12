@@ -7,6 +7,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
 
 class VehicleApiTest extends ApiTestCase
@@ -69,5 +70,44 @@ class VehicleApiTest extends ApiTestCase
             ->assertJsonPath('data.catalogMakeId', (string) $make->id)
             ->assertJsonPath('data.catalogModelId', null)
             ->assertJsonPath('data.brandLogoUrl', 'http://localhost/images/vehicle-makes/aito-logo.svg');
+    }
+
+    public function test_vehicle_and_model_lists_fall_back_while_generation_schema_is_pending(): void
+    {
+        $user = $this->actingAsUser();
+        $make = VehicleMake::query()->create([
+            'code' => 'toyota',
+            'name_en' => 'Toyota',
+            'name_ar' => 'تويوتا',
+            'logo_path' => 'images/vehicle-makes/toyota-logo.svg',
+            'active' => true,
+        ]);
+        $model = VehicleModel::query()->create([
+            'make_id' => $make->id,
+            'code' => 'corolla',
+            'name_en' => 'Corolla',
+            'name_ar' => 'كورولا',
+            'start_year' => 1966,
+            'active' => true,
+        ]);
+        Vehicle::factory()->for($user)->create([
+            'catalog_make_id' => $make->id,
+            'catalog_model_id' => $model->id,
+        ]);
+
+        Schema::drop('vehicle_model_generations');
+
+        $this->getJson('/api/v1/vehicles')
+            ->assertOk()
+            ->assertJsonPath('data.0.catalogImageType', 'brand_logo')
+            ->assertJsonPath('data.0.catalogImageUrl', 'http://localhost/images/vehicle-makes/toyota-logo.svg')
+            ->assertJsonPath('data.0.catalogGenerationCode', null);
+        $this->getJson('/api/v1/vehicle-catalog/makes/toyota/models')
+            ->assertOk()
+            ->assertJsonPath('data.0.generationCount', 0)
+            ->assertJsonPath('data.0.imageType', 'brand_logo');
+        $this->getJson('/api/v1/vehicle-catalog/makes/toyota/models/corolla/generations')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 }

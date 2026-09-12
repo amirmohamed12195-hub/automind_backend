@@ -35,13 +35,17 @@ class VehicleCatalogController
         $request->validate(['year' => ['nullable', 'integer', 'between:1886,'.((int) date('Y') + 1)]]);
         $make = VehicleMake::query()->where('code', $makeCode)->where('active', true)->firstOrFail();
         $locale = app()->getLocale();
-        $query = $make->models()->where('active', true)->with('generations');
+        $generationsAvailable = VehicleModel::generationCatalogAvailable();
+        $query = $make->models()->where('active', true);
+        if ($generationsAvailable) {
+            $query->with('generations');
+        }
         if ($request->filled('year')) {
             $query->where(fn ($q) => $q->whereNull('start_year')->orWhere('start_year', '<=', $request->integer('year')))->where(fn ($q) => $q->whereNull('end_year')->orWhere('end_year', '>=', $request->integer('year')));
         }
 
         return ApiResponse::success(
-            $query->orderBy("name_$locale")->get()->map(function (VehicleModel $model) use ($locale, $make, $request): array {
+            $query->orderBy("name_$locale")->get()->map(function (VehicleModel $model) use ($locale, $make, $request, $generationsAvailable): array {
                 $display = $model->displayImage($request->filled('year') ? $request->integer('year') : null, $make);
 
                 return [
@@ -53,7 +57,7 @@ class VehicleCatalogController
                     'imageUrl' => $display['url'],
                     'imageType' => $display['type'],
                     'generationCode' => $display['generation']?->code,
-                    'generationCount' => $model->generations->count(),
+                    'generationCount' => $generationsAvailable ? $model->generations->count() : 0,
                     'imageAttribution' => $display['attribution'],
                 ];
             })->all(),
@@ -66,6 +70,9 @@ class VehicleCatalogController
         $request->validate(['year' => ['nullable', 'integer', 'between:1886,'.((int) date('Y') + 1)]]);
         $make = VehicleMake::query()->where('code', $makeCode)->where('active', true)->firstOrFail();
         $model = $make->models()->where('code', $modelCode)->where('active', true)->firstOrFail();
+        if (! VehicleModel::generationCatalogAvailable()) {
+            return ApiResponse::success([]);
+        }
         $query = $model->generations();
         if ($request->filled('year')) {
             $year = $request->integer('year');
