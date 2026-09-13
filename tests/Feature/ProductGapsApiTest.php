@@ -50,6 +50,22 @@ class ProductGapsApiTest extends ApiTestCase
             ->assertJsonPath('meta.unreadCount', 3);
     }
 
+    public function test_report_summaries_keep_vehicle_details_after_vehicle_is_soft_deleted(): void
+    {
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create([
+            'brand' => 'Toyota',
+            'model' => 'Corolla',
+        ]);
+        $report = $this->createReport($user, $vehicle, 'Historical report');
+        $vehicle->delete();
+
+        $this->getJson('/api/v1/reports?limit=20')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $report->id)
+            ->assertJsonPath('data.0.vehicleName', 'Toyota Corolla');
+    }
+
     public function test_availability_and_appointments_enforce_mechanic_local_working_hours(): void
     {
         $user = $this->actingAsUser();

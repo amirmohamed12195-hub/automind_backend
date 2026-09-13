@@ -22,7 +22,10 @@ class DiagnosticReport extends UlidModel
     /** @return BelongsTo<Vehicle, $this> */
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        // Historical reports remain available after a vehicle is removed from
+        // the active garage, so their summary still needs the soft-deleted
+        // vehicle's immutable make/model details.
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     /** @return HasMany<DiagnosticReportTranslation, $this> */
