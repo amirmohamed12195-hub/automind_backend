@@ -12,6 +12,7 @@ use App\Enums\DiagnosticStep;
 use App\Exceptions\AiProviderException;
 use App\Models\AuditLog;
 use App\Models\DiagnosticMedia;
+use App\Models\DiagnosticReport;
 use App\Models\DiagnosticSession;
 use App\Models\MediaObservation;
 use App\Models\UserNotification;
@@ -23,7 +24,6 @@ use App\Services\Diagnostics\DiagnosticReportValidator;
 use App\Services\Diagnostics\DiagnosticSafetyPolicy;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Services\Notifications\UserNotificationService;
-use App\Services\Pricing\PriceResearchService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -64,7 +64,6 @@ class AnalyzeDiagnosticSession implements ShouldQueue
         DiagnosticReportValidator $validator,
         DiagnosticSafetyPolicy $safety,
         DiagnosticReportPersister $persister,
-        PriceResearchService $priceResearch,
         AiRunRecorder $runs,
         UserNotificationService $notifications,
         ReportEntitlementService $reportEntitlements,
@@ -150,7 +149,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
 
             if ($existingReport = $session->report()->first()) {
                 if ($existingReport->faults()->whereHas('parts')->exists() && ! $existingReport->estimate()->exists()) {
-                    RefreshServiceEstimate::dispatch($existingReport->id)->afterCommit();
+                    $this->queueEstimate($existingReport);
                 }
                 $this->publish($stateMachine, $session, $existingReport->id, $notifications, $reportEntitlements);
 
@@ -173,12 +172,11 @@ class AnalyzeDiagnosticSession implements ShouldQueue
             if ($quarantined !== []) {
                 AuditLog::query()->create(['actor_user_id' => $session->user_id, 'action' => 'diagnostic.unsafe_actions_quarantined', 'target_type' => DiagnosticSession::class, 'target_id' => $session->id, 'request_id' => 'queue-'.$this->job?->getJobId(), 'metadata_json' => ['count' => count($quarantined)]]);
             }
-            if (collect($reportData['suspectedFaults'])->flatMap(fn ($fault) => $fault['recommendedParts'])->isNotEmpty()) {
-                $this->checkpoint($session, DiagnosticStep::ResearchingPrices, 82);
-                $priceResearch->research($report, $reportData, $safetyId);
-            }
             $this->assertNotCancelled($session);
             $this->publish($stateMachine, $session, $report->id, $notifications, $reportEntitlements);
+            if (collect($reportData['suspectedFaults'])->flatMap(fn ($fault) => $fault['recommendedParts'])->isNotEmpty()) {
+                $this->queueEstimate($report);
+            }
         } catch (AiProviderException $e) {
             if ($e->transient) {
                 if ($e->retryAfterSeconds) {
@@ -272,5 +270,24 @@ class AnalyzeDiagnosticSession implements ShouldQueue
                 ]);
             }
         });
+    }
+
+    private function queueEstimate(DiagnosticReport $report): void
+    {
+        if ($report->estimate()->exists()) {
+            return;
+        }
+        $search = $report->priceSearches()->whereIn('status', ['queued', 'running'])->latest('id')->first();
+        if (! $search) {
+            $report->loadMissing('session');
+            $search = $report->priceSearches()->create([
+                'country_code' => $report->session->market_country_code ?? 'US',
+                'city' => $report->session->market_city,
+                'currency' => $report->session->market_currency ?? 'USD',
+                'query_json' => ['refresh' => false],
+                'status' => 'queued',
+            ]);
+        }
+        RefreshServiceEstimate::dispatch($report->id, $search->id)->afterCommit();
     }
 }

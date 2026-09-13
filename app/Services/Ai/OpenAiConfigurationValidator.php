@@ -41,10 +41,33 @@ class OpenAiConfigurationValidator
         if (! in_array(config('openai.vision_detail'), ['low', 'high', 'auto', 'original'], true)) {
             $errors[] = 'OPENAI_VISION_DETAIL must be low, high, auto, or original.';
         }
+        if (! in_array(config('openai.text_verbosity'), ['low', 'medium', 'high'], true)) {
+            $errors[] = 'OPENAI_TEXT_VERBOSITY must be low, medium, or high.';
+        }
         foreach (['diagnosis', 'vision', 'price_search'] as $task) {
             $effort = config("openai.{$task}_reasoning_effort");
             if (! in_array($effort, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], true)) {
                 $errors[] = 'OPENAI_'.strtoupper($task).'_REASONING_EFFORT must be none, low, medium, high, xhigh, or max.';
+            }
+        }
+        $requestTimeout = (int) config('openai.timeout_seconds');
+        $connectTimeout = (int) config('openai.connect_timeout_seconds');
+        if ($requestTimeout < 10 || $requestTimeout > 180) {
+            $errors[] = 'OPENAI_REQUEST_TIMEOUT_SECONDS must be between 10 and 180.';
+        }
+        if ($connectTimeout < 1 || $connectTimeout > $requestTimeout) {
+            $errors[] = 'OPENAI_CONNECT_TIMEOUT_SECONDS must be between 1 and OPENAI_REQUEST_TIMEOUT_SECONDS.';
+        }
+        foreach ([
+            'OPENAI_DIAGNOSIS_MAX_OUTPUT_TOKENS' => 'diagnosis_max_output_tokens',
+            'OPENAI_VISION_MAX_OUTPUT_TOKENS' => 'vision_max_output_tokens',
+            'OPENAI_AUDIO_MAX_OUTPUT_TOKENS' => 'audio_max_output_tokens',
+            'OPENAI_PRICE_SEARCH_MAX_OUTPUT_TOKENS' => 'price_search_max_output_tokens',
+            'OPENAI_REPORT_ASSISTANT_MAX_OUTPUT_TOKENS' => 'report_assistant_max_output_tokens',
+        ] as $environmentName => $configKey) {
+            $tokens = (int) config("openai.$configKey");
+            if ($tokens < 128 || $tokens > 20000) {
+                $errors[] = "$environmentName must be between 128 and 20000.";
             }
         }
         if ($requireKey && config('openai.pricing.version') === 'unconfigured') {

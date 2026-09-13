@@ -69,7 +69,7 @@ class PriceResearchServiceTest extends ApiTestCase
         $this->assertDatabaseCount('ai_runs', 1);
 
         $provider->fail = true;
-        $refresh = $report->priceSearches()->create(['country_code' => 'EG', 'city' => 'Cairo', 'currency' => 'EGP', 'query_json' => [], 'status' => 'queued']);
+        $refresh = $report->priceSearches()->create(['country_code' => 'EG', 'city' => 'Cairo', 'currency' => 'EGP', 'query_json' => ['refresh' => true], 'status' => 'queued']);
         $kept = app(PriceResearchService::class)->research($report->fresh(), $structured, 'safe-user', $refresh);
         $this->assertSame($estimate->id, $kept?->id);
         $this->assertSame('failed', $refresh->fresh()->status);
@@ -78,7 +78,7 @@ class PriceResearchServiceTest extends ApiTestCase
 
         $provider->fail = false;
         $provider->transientFail = true;
-        $retryable = $report->priceSearches()->create(['country_code' => 'EG', 'city' => 'Cairo', 'currency' => 'EGP', 'query_json' => [], 'status' => 'queued']);
+        $retryable = $report->priceSearches()->create(['country_code' => 'EG', 'city' => 'Cairo', 'currency' => 'EGP', 'query_json' => ['refresh' => true], 'status' => 'queued']);
         try {
             app(PriceResearchService::class)->research($report->fresh(), $structured, 'safe-user', $retryable);
             $this->fail('Expected a transient refresh failure to be retried by the queue.');

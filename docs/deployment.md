@@ -179,6 +179,10 @@ php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search
 ```
 
 When using the shared-hosting defaults, replace `redis` with `database`.
+Set `QUEUE_WORKER_TIMEOUT_SECONDS=240` and the selected queue connection's
+`retry_after` to at least 300 seconds (`DB_QUEUE_RETRY_AFTER=300` or
+`REDIS_QUEUE_RETRY_AFTER=300`). The production preflight rejects a visibility
+timeout that could release a diagnosis while its worker is still running.
 On Hostinger, this must be configured as a persistent background process. A
 scheduler cron by itself does not consume queued diagnostic jobs. Verify it by
 submitting a diagnosis and confirming that readiness remains HTTP 200 with
@@ -186,7 +190,9 @@ submitting a diagnosis and confirming that readiness remains HTTP 200 with
 now makes readiness return HTTP 503.
 
 If the Hostinger plan has no persistent worker feature, configure a separate
-cron task every minute to drain the database queues. In hPanel, set the
+cron task every minute to drain the database queues. The wrapper stays alive
+for 55 seconds instead of exiting when the queue is briefly empty, reducing
+worst-case cron pickup delay from about one minute to only a few seconds. In hPanel, set the
 schedule to once per minute and invoke the repository-owned wrapper with
 `/bin/sh`. Calling the shell explicitly keeps the job working even when an
 uploaded script does not retain its executable bit:

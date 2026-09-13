@@ -22,7 +22,7 @@ class OpenAiAudioUnderstandingProvider implements AudioUnderstandingProvider
                 ['type' => 'text', 'text' => 'Analyze this as consumer-recorded engine sound, not speech. Return cautious acoustic observations only (rhythmic clicking, knocking-like impulses, squeal-like tones, rough idle variation, or insufficient quality). Audio alone cannot prove a component failure. Return only one JSON object with exactly these keys: {"quality":"poor|limited|moderate|strong","observations":[{"code":"short_snake_case","confidence":0.0,"textEn":"English observation","textAr":"Arabic observation"}]}. Include at most 10 observations and never use confidence above 0.75.'],
                 ['type' => 'input_audio', 'input_audio' => ['data' => base64_encode(Storage::disk($disk)->get($path)), 'format' => $format]],
             ]]],
-            'max_completion_tokens' => min(1000, (int) config('openai.max_output_tokens')),
+            'max_completion_tokens' => config('openai.audio_max_output_tokens'),
         ]);
         if (isset($response['choices'][0]['message']['refusal'])) {
             throw new AiProviderException('The AI provider declined audio analysis.', 'refusal');

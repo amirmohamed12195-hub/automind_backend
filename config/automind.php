@@ -42,6 +42,7 @@ return [
         'critical' => ['media-processing', 'diagnostic-ai', 'price-search', 'notifications', 'maintenance-reminders'],
         'stale_after_seconds' => (int) env('QUEUE_STALE_AFTER_SECONDS', 90),
         'diagnostic_redispatch_after_seconds' => (int) env('DIAGNOSTIC_REDISPATCH_AFTER_SECONDS', 90),
+        'worker_timeout_seconds' => (int) env('QUEUE_WORKER_TIMEOUT_SECONDS', 240),
     ],
     'retention' => [
         'raw_media_days' => (int) env('RAW_MEDIA_RETENTION_DAYS', 30),

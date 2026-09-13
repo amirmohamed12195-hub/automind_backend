@@ -92,10 +92,14 @@ Successful JSON uses
 "requestId": "..."}}`. The client maps stable error codes and preserves the
 request ID for support.
 
-Analysis uploads server-owned media IDs, starts the job with an idempotency key,
-polls the real status/progress fields, handles failed and cancelled terminal
-states, and fetches the report from the API. Reports expose safety guidance,
-limitations, missing evidence, sourced estimates, and the server disclaimer.
+Analysis uploads server-owned media IDs and starts the job with an idempotency
+key. The start request returns HTTP 202 immediately; the client must poll the
+provided `statusUrl` and must not hold that POST open or apply a fixed two- or
+three-minute deadline to the whole workflow. It handles failed and cancelled
+terminal states, then fetches the report from the API. Reports expose safety
+guidance, limitations, missing evidence, sourced estimates, and the server
+disclaimer. Price research continues independently after the core report is
+ready, so refresh the report while `estimateStatus` is `queued` or `running`.
 
 Flutter contains no OpenAI API key, model name, prompt, pricing, or webhook
 secret. Those remain server-only.

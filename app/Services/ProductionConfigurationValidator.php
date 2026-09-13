@@ -95,8 +95,20 @@ class ProductionConfigurationValidator
             $errors[] = 'Configure TWILIO_API_KEY and TWILIO_API_SECRET (recommended), or TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.';
         }
 
-        if (in_array(config('queue.default'), ['sync', 'null'], true)) {
+        $queueConnection = (string) config('queue.default');
+        if (in_array($queueConnection, ['sync', 'null'], true)) {
             $errors[] = 'QUEUE_CONNECTION must use a durable asynchronous driver in production.';
+        } else {
+            $queueDriver = (string) config("queue.connections.$queueConnection.driver");
+            $retryAfter = config("queue.connections.$queueConnection.retry_after");
+            $workerTimeout = (int) config('automind.queue.worker_timeout_seconds', 240);
+            if ($workerTimeout < 1) {
+                $errors[] = 'QUEUE_WORKER_TIMEOUT_SECONDS must be positive.';
+            } elseif (in_array($queueDriver, ['database', 'redis', 'beanstalkd'], true)
+                && is_numeric($retryAfter)
+                && (int) $retryAfter <= $workerTimeout) {
+                $errors[] = 'The queue retry_after value must be greater than QUEUE_WORKER_TIMEOUT_SECONDS to prevent duplicate diagnostic jobs.';
+            }
         }
 
         if (in_array(config('mail.default'), ['array', 'log'], true)) {

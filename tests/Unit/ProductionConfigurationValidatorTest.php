@@ -37,6 +37,8 @@ class ProductionConfigurationValidatorTest extends TestCase
             'services.fcm.credentials_path' => '/run/secrets/firebase.json',
             'services.fcm.credentials_base64' => null,
             'queue.default' => 'database',
+            'queue.connections.database.retry_after' => 300,
+            'automind.queue.worker_timeout_seconds' => 240,
             'mail.default' => 'smtp',
             'mail.mailers.smtp.host' => 'smtp.automind.example',
             'mail.mailers.smtp.username' => 'mailer',
@@ -94,6 +96,34 @@ class ProductionConfigurationValidatorTest extends TestCase
         $this->assertContains(
             'OPENAI_DIAGNOSIS_REASONING_EFFORT must be none, low, medium, high, xhigh, or max.',
             app(OpenAiConfigurationValidator::class)->errors(false),
+        );
+    }
+
+    public function test_provider_latency_bounds_are_validated(): void
+    {
+        config([
+            'openai.timeout_seconds' => 60,
+            'openai.connect_timeout_seconds' => 61,
+            'openai.vision_max_output_tokens' => 64,
+        ]);
+
+        $errors = app(OpenAiConfigurationValidator::class)->errors(false);
+
+        $this->assertContains('OPENAI_CONNECT_TIMEOUT_SECONDS must be between 1 and OPENAI_REQUEST_TIMEOUT_SECONDS.', $errors);
+        $this->assertContains('OPENAI_VISION_MAX_OUTPUT_TOKENS must be between 128 and 20000.', $errors);
+    }
+
+    public function test_queue_retry_after_must_exceed_worker_timeout(): void
+    {
+        config([
+            'queue.default' => 'database',
+            'queue.connections.database.retry_after' => 90,
+            'automind.queue.worker_timeout_seconds' => 240,
+        ]);
+
+        $this->assertContains(
+            'The queue retry_after value must be greater than QUEUE_WORKER_TIMEOUT_SECONDS to prevent duplicate diagnostic jobs.',
+            app(ProductionConfigurationValidator::class)->errors(),
         );
     }
 

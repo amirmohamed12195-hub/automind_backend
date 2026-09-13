@@ -7,27 +7,33 @@ All OpenAI API calls originate on the trusted backend. The Flutter app never rec
 | Stage | Endpoint | Default model | Required capability | Persistence |
 |---|---|---|---|---|
 | Diagnostic synthesis | `POST /v1/responses` | `gpt-5.6-terra` | text, Structured Outputs | strict bilingual report graph |
-| Photo observations | `POST /v1/responses` | `gpt-5.6-terra` | image input, Structured Outputs | evidence observations and run metadata |
+| Photo observations | `POST /v1/responses` | `gpt-5.6-luna` | image input, Structured Outputs | evidence observations and run metadata |
 | Engine acoustic observations | `POST /v1/chat/completions` | `gpt-audio-1.5` | audio input, JSON-only output with local validation | cautious acoustic evidence |
 | Spoken symptom transcript | `POST /v1/audio/transcriptions` | `gpt-4o-mini-transcribe` | transcription | original-language user evidence |
 | Part-price research | `POST /v1/responses` | `gpt-5.6-luna` | `web_search`, Structured Outputs | attributable sources, quotes, estimate |
 
-Terra is the balanced diagnosis/vision choice and Luna is used for efficient web research. All IDs are environment-driven. `OPENAI_MODEL_CAPABILITIES_JSON` is the deployment-approved allowlist; invalid stage/model combinations fail production boot and `automind:check-provider-config`. Capability changes must be verified against current official model documentation before updating it.
+Terra remains the balanced choice for the safety-critical final diagnosis. Luna handles the narrower photo-observation and web-research stages so those supporting tasks do not spend Terra-level time or cost. All IDs are environment-driven. `OPENAI_MODEL_CAPABILITIES_JSON` is the deployment-approved allowlist; invalid stage/model combinations fail production boot and `automind:check-provider-config`. Capability changes must be verified against current official model documentation before updating it.
 
 ## Request behavior
 
 - Diagnostic schema version: `diagnostic-report-v1`; prompt version: `diagnostic-v1`. Every object rejects additional properties.
-- Responses requests set `store: false` by default, low reasoning effort for interactive latency, a hashed `safety_identifier`, bounded output tokens, and no raw email, phone, VIN, or database ID.
+- Responses requests set `store: false` by default, low text verbosity, low reasoning for final diagnosis and price research, no reasoning for the narrow vision extraction, a hashed `safety_identifier`, stage-specific output bounds, and no raw email, phone, VIN, or database ID.
 - Images use resized, re-encoded private bytes as data URLs and default to `high` detail for vehicle damage and component inspection; deployments may explicitly lower it only after an image-quality and cost evaluation. Engine audio is normalized and submitted as audio, never fake-transcribed.
 - `gpt-audio-1.5` does not support Structured Outputs, so its short JSON-only response is strictly validated in the application before it can become diagnostic evidence.
 - Web search is capped at three tool calls, includes the full source list, deduplicates by URL hash, rejects currency/part incompatibility, and returns unavailable when evidence is insufficient.
 - User text, OCR, OBD descriptions, transcripts, and web pages are untrusted evidence. Prompts explicitly prohibit following instructions found inside that evidence.
 
+## Latency behavior
+
+The core diagnosis is published as soon as evidence extraction, structured synthesis, validation, and deterministic safety checks finish. Part-price web research is queued afterward on `price-search`; it no longer delays the report or the completion notification. A report can therefore temporarily return `estimateStatus: queued` or `running` with `serviceEstimate: null`. Clients may refresh the report while that status is non-terminal.
+
+The default interactive profile uses a 60-second provider request timeout, a 10-second connection timeout, low response verbosity, Luna with `reasoning.effort=none` for photo extraction, and Terra with `reasoning.effort=low` for final synthesis. High image detail remains enabled to preserve small automotive visual evidence; change it to `low` only after evaluation on representative vehicle photos.
+
 ## Errors, retries, and webhooks
 
 Refusals, incomplete output, missing structured output, schema errors, authentication/configuration failures, 429s, and 5xx responses are categorized separately. Only transient errors retry, with bounded exponential backoff. A provider `Retry-After` value schedules the next attempt at that delay. Exhausted jobs become reviewable failed sessions; permanent failures do not consume repeated provider calls.
 
-Provider calls remain foreground within asynchronous Laravel queue jobs, so `OPENAI_BACKGROUND_MODE` must remain `false`; the deployment validator rejects `true` rather than allowing an incomplete provider-resume path. The public webhook endpoint is retained for provider events and forward-compatible background processing. When configured, it validates the exact raw body using Standard Webhooks headers, acknowledges with 202, queues processing, and deduplicates by webhook ID and provider object ID. Duplicate or out-of-order events cannot publish the same result twice.
+Provider calls remain foreground within asynchronous Laravel queue jobs, so `OPENAI_BACKGROUND_MODE` must remain `false`; the deployment validator rejects `true` rather than allowing an incomplete provider-resume path. Queue `retry_after` must be greater than the 240-second worker timeout so a long-running diagnosis cannot be executed twice. The public webhook endpoint is retained for provider events and forward-compatible background processing. When configured, it validates the exact raw body using Standard Webhooks headers, acknowledges with 202, queues processing, and deduplicates by webhook ID and provider object ID. Duplicate or out-of-order events cannot publish the same result twice.
 
 ## Cost and observability
 

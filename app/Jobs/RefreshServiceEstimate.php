@@ -20,6 +20,10 @@ class RefreshServiceEstimate implements ShouldQueue
 
     public int $tries = 3;
 
+    public int $timeout = 90;
+
+    public bool $failOnTimeout = true;
+
     public function __construct(public readonly string $reportId, public readonly ?string $priceSearchId = null)
     {
         $this->onQueue('price-search');

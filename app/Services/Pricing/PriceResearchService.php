@@ -41,7 +41,7 @@ class PriceResearchService
             'city' => $report->session->market_city,
             'currency' => strtoupper($report->session->market_currency ?? 'USD'),
         ];
-        $forceRefresh = (bool) data_get($search?->query_json, 'refresh', false) || $search?->status === 'queued';
+        $forceRefresh = (bool) data_get($search?->query_json, 'refresh', false);
         $search ??= $report->priceSearches()->create([
             'country_code' => $market['countryCode'] ?? 'US', 'city' => $market['city'], 'currency' => $market['currency'],
             'query_json' => ['parts' => $parts], 'status' => 'running',

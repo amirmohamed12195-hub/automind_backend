@@ -7,6 +7,7 @@ use App\Contracts\AudioUnderstandingProvider;
 use App\Contracts\SpeechTranscriptionProvider;
 use App\Contracts\VisionUnderstandingProvider;
 use App\Contracts\WebPriceSearchProvider;
+use App\DTO\AiProviderResult;
 use App\Jobs\AnalyzeDiagnosticSession;
 use App\Jobs\ProcessDiagnosticMedia;
 use App\Jobs\RefreshServiceEstimate;
@@ -147,6 +148,52 @@ class DiagnosisApiTest extends ApiTestCase
         $first = $this->withHeader('Idempotency-Key', 'estimate-refresh-1')->postJson("/api/v1/reports/$report->id/refresh-estimate")->assertStatus(202);
         $this->withHeader('Idempotency-Key', 'estimate-refresh-1')->postJson("/api/v1/reports/$report->id/refresh-estimate")->assertStatus(202)->assertJsonPath('data.priceSearchId', $first->json('data.priceSearchId'));
         Queue::assertPushed(RefreshServiceEstimate::class, 1);
+    }
+
+    public function test_price_research_is_queued_after_the_core_report_is_published(): void
+    {
+        Queue::fake();
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id, 'status' => 'queued']);
+        $reportData = FakeAiProviders::report();
+        $reportData['suspectedFaults'][0]['recommendedParts'] = [[
+            'canonicalName' => 'ignition_coil',
+            'name' => ['en' => 'Ignition coil', 'ar' => 'ملف الإشعال'],
+            'reason' => ['en' => 'Inspect before replacement.', 'ar' => 'يجب الفحص قبل الاستبدال.'],
+            'partNumber' => null,
+            'required' => false,
+            'compatibilityConfidence' => 0.6,
+            'searchKeywords' => ['en' => 'Toyota ignition coil', 'ar' => 'ملف إشعال تويوتا'],
+        ]];
+        $this->app->instance(AiDiagnosticProvider::class, new class($reportData) implements AiDiagnosticProvider
+        {
+            public function __construct(private readonly array $reportData) {}
+
+            public function synthesize(array $evidenceManifest, string $safetyIdentifier): AiProviderResult
+            {
+                return new AiProviderResult($this->reportData, 'resp_test', 'fake-diagnostic', '/v1/responses');
+            }
+        });
+        $fake = new FakeAiProviders;
+        foreach ([AudioUnderstandingProvider::class, SpeechTranscriptionProvider::class, VisionUnderstandingProvider::class, WebPriceSearchProvider::class] as $contract) {
+            $this->app->instance($contract, $fake);
+        }
+
+        $this->app->call([new AnalyzeDiagnosticSession($session->id), 'handle']);
+
+        $this->assertSame('completed', $session->fresh()->status);
+        $this->assertNull($session->fresh()->report?->estimate);
+        $this->assertSame([], $fake->calls);
+        $report = $session->fresh()->report;
+        $this->assertNotNull($report);
+        $search = $report->priceSearches()->sole();
+        $this->assertSame('queued', $search?->status);
+        $this->getJson("/api/v1/reports/$report->id")
+            ->assertOk()
+            ->assertJsonPath('data.estimateStatus', 'queued')
+            ->assertJsonPath('data.serviceEstimate', null);
+        Queue::assertPushed(RefreshServiceEstimate::class, fn (RefreshServiceEstimate $job) => $job->reportId === $report->id && $job->priceSearchId === $search->id);
     }
 
     public function test_report_persister_bounds_long_fault_cause_codes_without_losing_text(): void

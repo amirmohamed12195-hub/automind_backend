@@ -57,6 +57,7 @@ sequenceDiagram
     participant API as Laravel API
     participant Media as Media worker
     participant AI as Diagnostic AI worker
+    participant Price as Price worker
     participant OA as OpenAI API
     participant DB as MySQL
     App->>API: Create draft with consent and Idempotency-Key
@@ -71,11 +72,12 @@ sequenceDiagram
     AI->>OA: Responses API strict diagnostic schema
     AI->>AI: PHP schema validation and safety escalation
     AI->>DB: Transactionally persist bilingual report graph
+    AI->>DB: Mark completed and enqueue notification
     opt Replaceable parts
-        AI->>OA: Responses API web_search with citations
-        AI->>DB: Persist sources and decimal estimate
+        AI-->>Price: Queue non-blocking estimate research
+        Price->>OA: Responses API web_search with citations
+        Price->>DB: Persist sources and decimal estimate
     end
-    AI->>DB: Mark completed and enqueue generic notification
     loop Until terminal
         App->>API: GET /diagnoses/{id}/status
         API-->>App: progress, step, status
@@ -83,4 +85,4 @@ sequenceDiagram
     App->>API: GET /diagnoses/{id}/report
 ```
 
-Locks, idempotency keys, state-transition checks, and a final cancellation check prevent duplicate or stale completion. A failed price search leaves the validated diagnostic report readable with an unavailable/partial estimate. Source prices retain their original currency; normalization occurs only when an administrator has appended a provider-attributed currency rate. Labor is included only when current configured hours and hourly-rate ranges cover the job, otherwise the estimate remains partial and explicitly excludes it.
+Locks, idempotency keys, state-transition checks, and a final cancellation check prevent duplicate or stale completion. Price research runs after the core report is available; while it is queued or running, the report exposes that state and leaves `serviceEstimate` null. A failed price search leaves the validated diagnostic report readable with an unavailable/partial estimate. Source prices retain their original currency; normalization occurs only when an administrator has appended a provider-attributed currency rate. Labor is included only when current configured hours and hourly-rate ranges cover the job, otherwise the estimate remains partial and explicitly excludes it.

@@ -12,4 +12,4 @@ exec "$AUTOMIND_PHP_BINARY" artisan queue:work database \
     --sleep=1 \
     --tries=4 \
     --timeout=240 \
-    --stop-when-empty
+    --max-time=55

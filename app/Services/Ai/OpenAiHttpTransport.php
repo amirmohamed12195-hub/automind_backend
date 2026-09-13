@@ -44,9 +44,12 @@ class OpenAiHttpTransport
             throw new AiProviderException('OpenAI API is not configured.', 'configuration', false);
         }
 
+        $timeout = max(1, (int) config('openai.timeout_seconds'));
+        $connectTimeout = max(1, min($timeout, (int) config('openai.connect_timeout_seconds')));
+
         return Http::baseUrl((string) config('openai.base_url'))
-            ->withToken($key)->acceptJson()->timeout((int) config('openai.timeout_seconds'))
-            ->connectTimeout(min(20, (int) config('openai.timeout_seconds')));
+            ->withToken($key)->acceptJson()->timeout($timeout)
+            ->connectTimeout($connectTimeout);
     }
 
     private function decode(Response $response): array
