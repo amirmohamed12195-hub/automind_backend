@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Contracts\GooglePlayProvider;
 use App\DTO\VerifiedStorePurchase;
+use App\Exceptions\BillingException;
 use App\Jobs\ProcessBillingEvent;
 use App\Jobs\ReconcileUserBilling;
 use App\Models\BillingEvent;
@@ -49,6 +50,51 @@ class BillingApiTest extends ApiTestCase
         $product->refresh();
         $this->assertTrue((bool) $product->active_for_sale);
         $this->assertSame('active', $product->store_status);
+    }
+
+    public function test_free_plan_defaults_to_ten_reports_and_preserves_a_custom_allowance(): void
+    {
+        $plan = BillingPlan::query()->where('code', 'FREE')->sole();
+        $this->assertSame(10, $plan->reports_per_period);
+
+        $plan->update(['reports_per_period' => 7]);
+        $this->seed(BillingCatalogSeeder::class);
+
+        $this->assertSame(7, $plan->fresh()->reports_per_period);
+    }
+
+    public function test_free_report_allowance_is_enforced_from_the_plan_configuration(): void
+    {
+        BillingPlan::query()->where('code', 'FREE')->sole()->update(['reports_per_period' => 2]);
+        $user = $this->actingAsUser();
+        $reports = app(ReportEntitlementService::class);
+
+        foreach (range(1, 2) as $_) {
+            $session = $this->diagnosticSession($user);
+            $reports->reserve($session);
+            $reports->finalize($session);
+        }
+
+        try {
+            $reports->reserve($this->diagnosticSession($user));
+            $this->fail('The configured free report allowance was not enforced.');
+        } catch (BillingException $exception) {
+            $this->assertSame('ENTITLEMENT_REQUIRED', $exception->errorCode);
+        }
+    }
+
+    public function test_existing_default_free_allowance_is_upgraded_without_overwriting_custom_values(): void
+    {
+        $plan = BillingPlan::query()->where('code', 'FREE')->sole();
+        $migration = require database_path('migrations/2026_09_13_000100_raise_free_report_allowance_to_ten.php');
+
+        $plan->update(['reports_per_period' => 1]);
+        $migration->up();
+        $this->assertSame(10, $plan->fresh()->reports_per_period);
+
+        $plan->update(['reports_per_period' => 7]);
+        $migration->up();
+        $this->assertSame(7, $plan->fresh()->reports_per_period);
     }
 
     public function test_catalog_seeding_enables_configured_apple_products_for_storekit(): void

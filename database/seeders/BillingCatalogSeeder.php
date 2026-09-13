@@ -15,9 +15,9 @@ class BillingCatalogSeeder extends Seeder
             $plans = [
                 'FREE' => [
                     'type' => 'free', 'sort_order' => 10, 'recommended' => false,
-                    'default_for_new_users' => true, 'max_vehicles' => 1, 'reports_per_period' => 1,
-                    'en' => ['Free', 'Get started with essential vehicle guidance.', ['One vehicle', 'One introductory diagnosis', 'Basic OBD code explanation', 'Limited diagnostic history']],
-                    'ar' => ['مجاني', 'ابدأ بإرشادات السيارة الأساسية.', ['سيارة واحدة', 'تشخيص تمهيدي واحد', 'شرح أساسي لأكواد OBD', 'سجل تشخيصات محدود']],
+                    'default_for_new_users' => true, 'max_vehicles' => 1, 'reports_per_period' => 10,
+                    'en' => ['Free', 'Get started with essential vehicle guidance.', ['One vehicle', 'Ten free diagnostic reports', 'Basic OBD code explanation', 'Limited diagnostic history']],
+                    'ar' => ['مجاني', 'ابدأ بإرشادات السيارة الأساسية.', ['سيارة واحدة', 'عشرة تقارير تشخيص مجانية', 'شرح أساسي لأكواد OBD', 'سجل تشخيصات محدود']],
                     'features' => ['basic_diagnosis' => true, 'advanced_obd' => false, 'full_history' => false, 'pdf_sharing' => false, 'maintenance_reminders' => false, 'priority_analysis' => false],
                 ],
                 'SINGLE_FULL_REPORT' => [
@@ -44,13 +44,20 @@ class BillingCatalogSeeder extends Seeder
             ];
 
             foreach ($plans as $code => $definition) {
-                $plan = BillingPlan::query()->updateOrCreate(['code' => $code], [
-                    'type' => $definition['type'], 'active' => true, 'published' => true,
-                    'sort_order' => $definition['sort_order'], 'recommended' => $definition['recommended'],
+                $plan = BillingPlan::query()->firstOrNew(['code' => $code]);
+                $plan->fill([
+                    'type' => $definition['type'], 'sort_order' => $definition['sort_order'],
                     'badge' => $definition['recommended'] ? 'recommended' : null,
                     'default_for_new_users' => $definition['default_for_new_users'],
-                    'max_vehicles' => $definition['max_vehicles'], 'reports_per_period' => $definition['reports_per_period'],
                 ]);
+                // Dashboard-managed limits and visibility are defaults, not deployment-time overrides.
+                if (! $plan->exists) {
+                    $plan->fill([
+                        'active' => true, 'published' => true, 'recommended' => $definition['recommended'],
+                        'max_vehicles' => $definition['max_vehicles'], 'reports_per_period' => $definition['reports_per_period'],
+                    ]);
+                }
+                $plan->save();
                 foreach (['en', 'ar'] as $locale) {
                     [$name, $description, $features] = $definition[$locale];
                     $plan->localizations()->updateOrCreate(['locale' => $locale], [

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\BillingPlan;
 use App\Models\DeviceToken;
 use App\Models\DiagnosticMedia;
 use App\Models\DiagnosticSession;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Models\Vehicle;
+use Database\Seeders\BillingCatalogSeeder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -158,6 +160,22 @@ class AdminDashboardTest extends TestCase
         $this->postJson('/api/v1/auth/register', [])
             ->assertStatus(503)
             ->assertJsonPath('error.code', 'FEATURE_UNAVAILABLE');
+    }
+
+    public function test_admin_can_change_the_free_report_allowance(): void
+    {
+        $this->seed(BillingCatalogSeeder::class);
+        $plan = BillingPlan::query()->where('code', 'FREE')->sole();
+
+        $this->asWebAdmin()->patch(route('admin.billing.plans.update', $plan), [
+            'active' => true,
+            'published' => true,
+            'recommended' => false,
+            'maxVehicles' => 1,
+            'reportsPerPeriod' => 12,
+        ])->assertRedirect();
+
+        $this->assertSame(12, $plan->fresh()->reports_per_period);
     }
 
     public function test_dashboard_uses_compatibility_mode_when_admin_migration_is_pending(): void
