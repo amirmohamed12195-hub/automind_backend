@@ -12,7 +12,7 @@ return new class extends Migration
             ->where('reports_per_period', 1)
             ->update([
                 'reports_per_period' => 10,
-                'updated_at' => now(),
+                'updated_at' => DB::raw('CURRENT_TIMESTAMP'),
             ]);
     }
 

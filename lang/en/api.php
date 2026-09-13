@@ -37,6 +37,7 @@ return [
     'vin_exists' => 'This VIN is already registered.',
     'catalog_model_make_mismatch' => 'The selected vehicle model does not belong to the selected make.',
     'media_not_ready' => 'Attached media is still processing or failed validation.',
+    'media_processing_failed' => 'One of the attachments could not be processed. Remove it, add a clear supported file, and try again.',
     'report_not_ready' => 'The diagnostic report is not ready.',
     'unsupported_media' => 'The detected file content type is not supported.',
     'duplicate_media' => 'This file is already attached.',

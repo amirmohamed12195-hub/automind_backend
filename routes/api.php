@@ -97,7 +97,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('vehicles/{vehicle}/health', [VehicleController::class, 'health']);
 
         Route::get('diagnoses', [DiagnosisController::class, 'index']);
-        Route::post('diagnoses', [DiagnosisController::class, 'store'])->middleware(['throttle:analysis', 'platform-feature:diagnostics']);
+        Route::post('diagnoses', [DiagnosisController::class, 'store'])->middleware(['throttle:diagnostic-intake', 'platform-feature:diagnostics']);
         Route::get('diagnoses/{diagnosis}', [DiagnosisController::class, 'show']);
         Route::patch('diagnoses/{diagnosis}', [DiagnosisController::class, 'update']);
         Route::delete('diagnoses/{diagnosis}', [DiagnosisController::class, 'destroy']);

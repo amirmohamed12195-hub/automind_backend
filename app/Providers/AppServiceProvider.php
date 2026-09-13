@@ -82,7 +82,7 @@ class AppServiceProvider extends ServiceProvider
             $this->app->make(OpenAiConfigurationValidator::class)->validate();
             $this->app->make(BillingConfigurationValidator::class)->validate();
         }
-        foreach (['login' => 8, 'otp' => 6, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'analysis' => 10, 'follow-ups' => 12, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
+        foreach (['login' => 8, 'otp' => 6, 'admin-login' => 5, 'password-reset' => 5, 'uploads' => 30, 'diagnostic-intake' => 20, 'analysis' => 10, 'follow-ups' => 12, 'web-search' => 5, 'appointments' => 12, 'feedback' => 20, 'billing' => 60] as $name => $perMinute) {
             RateLimiter::for($name, function (Request $request) use ($perMinute) {
                 $user = $request->user();
 

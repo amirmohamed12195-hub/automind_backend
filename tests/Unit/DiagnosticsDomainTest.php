@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\Diagnostics\DiagnosticReportReconciler;
 use App\Services\Diagnostics\DiagnosticReportValidator;
 use App\Services\Diagnostics\DiagnosticSafetyPolicy;
 use App\Services\Diagnostics\ObdNormalizer;
@@ -71,6 +72,39 @@ class DiagnosticsDomainTest extends TestCase
 
         $this->expectException(ValidationException::class);
         app(DiagnosticReportValidator::class)->validate($bad);
+    }
+
+    public function test_report_reconciler_removes_evidence_contradictions_and_duplicate_actions(): void
+    {
+        $report = FakeAiProviders::report();
+        $duplicate = $report['recommendedActions'][0];
+        $duplicate['priority'] = 3;
+        $report['recommendedActions'][] = $duplicate;
+        $report['missingEvidence'] = ['photos', 'obd', 'mileage', 'vin', 'serviceHistory'];
+        $report['suspectedFaults'][0]['evidence'] = [
+            ['sourceType' => 'spokenDescription', 'referenceId' => null, 'observation' => ['en' => 'Typed report of shaking.', 'ar' => 'وصف مكتوب للاهتزاز.'], 'reliability' => 0.7],
+            ['sourceType' => 'photo', 'referenceId' => null, 'observation' => ['en' => 'A damaged seal is visible.', 'ar' => 'يظهر تلف في مانع التسرب.'], 'reliability' => 0.8],
+        ];
+        $manifest = [
+            'vehicle' => ['mileageKm' => 85000, 'vinPresent' => true],
+            'evidenceInventory' => ['photos' => 1, 'engineSound' => false, 'spokenDescription' => false, 'obd' => true, 'serviceHistory' => true],
+            'untrustedEvidence' => [
+                'description' => 'The engine shakes.',
+                'selectedSymptoms' => [],
+                'obdSnapshots' => [['troubleCodes' => [['code' => 'P0301']]]],
+                'photoObservations' => ['observations' => [['sourceMediaId' => '01JPHOTO0000000000000000000']]],
+                'spokenDescription' => null,
+                'engineSoundObservations' => [],
+            ],
+        ];
+
+        $reconciled = app(DiagnosticReportReconciler::class)->reconcile($report, $manifest);
+
+        $this->assertSame([], $reconciled['missingEvidence']);
+        $this->assertCount(1, $reconciled['recommendedActions']);
+        $this->assertSame('text', data_get($reconciled, 'suspectedFaults.0.evidence.0.sourceType'));
+        $this->assertSame('01JPHOTO0000000000000000000', data_get($reconciled, 'suspectedFaults.0.evidence.1.referenceId'));
+        app(DiagnosticReportValidator::class)->validate($reconciled);
     }
 
     public function test_estimate_math_uses_decimal_strings_and_enforces_order(): void

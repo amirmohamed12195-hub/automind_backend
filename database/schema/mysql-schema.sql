@@ -318,6 +318,8 @@ alter table `vehicle_model_generations` add constraint `vehicle_model_generation
 alter table `vehicle_model_generations` add unique `vehicle_model_generations_model_id_code_unique`(`model_id`, `code`);
 alter table `vehicle_model_generations` add index `vehicle_generation_year_idx`(`model_id`, `start_year`, `end_year`);
 alter table `vehicle_model_generations` add index `vehicle_model_generations_image_status_index`(`image_status`);
+update `billing_plans` set `reports_per_period` = 10, `updated_at` = CURRENT_TIMESTAMP where `code` = 'FREE' and `reports_per_period` = 1;
+update `diagnostic_media` set `processing_status` = 'ready', `failure_code` = null, `updated_at` = CURRENT_TIMESTAMP where `media_kind` = 'photo' and `scan_status` = 'not_configured' and `processing_status` = 'pending';
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -335,4 +337,6 @@ insert into `migrations` (`migration`, `batch`) values ('2026_08_21_000100_add_l
 insert into `migrations` (`migration`, `batch`) values ('2026_08_24_000100_create_follow_up_and_service_request_tables', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_08_26_000100_enable_apple_products_for_app_review', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_09_11_000100_create_vehicle_model_generations_table', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_09_13_000100_raise_free_report_allowance_to_ten', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_09_14_000100_mark_unscanned_photos_ready', 1);
 SET FOREIGN_KEY_CHECKS=1;

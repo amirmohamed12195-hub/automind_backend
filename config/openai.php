@@ -22,11 +22,14 @@ return [
     'store_responses' => (bool) env('OPENAI_STORE_RESPONSES', false),
     'vision_detail' => env('OPENAI_VISION_DETAIL', 'high'),
     'text_verbosity' => env('OPENAI_TEXT_VERBOSITY', 'low'),
+    // Stable, non-user-specific routing keys improve prompt-cache hit rates.
+    'diagnosis_prompt_cache_key' => env('OPENAI_DIAGNOSIS_PROMPT_CACHE_KEY', 'automind-diagnostic'),
+    'vision_prompt_cache_key' => env('OPENAI_VISION_PROMPT_CACHE_KEY', 'automind-vision'),
     // Stage-specific bounds prevent short extraction tasks from inheriting the
     // much larger bilingual diagnostic-report output allowance. The legacy
     // value remains as an upper bound for backwards-compatible deployments.
     'max_output_tokens' => $legacyMaxOutputTokens,
-    'diagnosis_max_output_tokens' => (int) env('OPENAI_DIAGNOSIS_MAX_OUTPUT_TOKENS', min(5000, $legacyMaxOutputTokens)),
+    'diagnosis_max_output_tokens' => (int) env('OPENAI_DIAGNOSIS_MAX_OUTPUT_TOKENS', min(4000, $legacyMaxOutputTokens)),
     'vision_max_output_tokens' => (int) env('OPENAI_VISION_MAX_OUTPUT_TOKENS', min(1800, $legacyMaxOutputTokens)),
     'audio_max_output_tokens' => (int) env('OPENAI_AUDIO_MAX_OUTPUT_TOKENS', min(700, $legacyMaxOutputTokens)),
     'price_search_max_output_tokens' => (int) env('OPENAI_PRICE_SEARCH_MAX_OUTPUT_TOKENS', min(4000, $legacyMaxOutputTokens)),

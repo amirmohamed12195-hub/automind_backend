@@ -22,6 +22,7 @@ class OpenAiDiagnosticProvider implements AiDiagnosticProvider
             'store' => config('openai.store_responses'),
             'background' => config('openai.background_mode'),
             'safety_identifier' => $safetyIdentifier,
+            'prompt_cache_key' => config('openai.diagnosis_prompt_cache_key'),
         ]);
 
         return new AiProviderResult($this->parser->structured($response), $response['id'] ?? null, $response['model'] ?? config('openai.diagnosis_model'), '/v1/responses', $this->parser->usage($response), ['status' => $response['status'] ?? null]);

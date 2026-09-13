@@ -80,6 +80,7 @@ class DiagnosisApiTest extends ApiTestCase
     {
         Queue::fake();
         Storage::fake('local');
+        config(['automind.media.clamav_command' => 'clamdscan']);
         $user = $this->actingAsUser();
         $vehicle = Vehicle::factory()->for($user)->create();
         $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id]);
@@ -87,10 +88,40 @@ class DiagnosisApiTest extends ApiTestCase
             $this->post("/api/v1/diagnoses/$session->id/media", ['kind' => 'photo', 'file' => UploadedFile::fake()->image("photo-$i.jpg", 100 + $i, 100 + $i)], ['Accept' => 'application/json'])->assertCreated();
         }
         Queue::assertPushed(ProcessDiagnosticMedia::class, 6);
+        $this->getJson("/api/v1/diagnoses/$session->id/status")
+            ->assertOk()
+            ->assertJsonPath('data.media.total', 6)
+            ->assertJsonPath('data.media.ready', 0)
+            ->assertJsonPath('data.media.processing', 6)
+            ->assertJsonPath('data.media.failed', 0)
+            ->assertJsonPath('data.media.readyForAnalysis', false);
         $this->post("/api/v1/diagnoses/$session->id/media", ['kind' => 'photo', 'file' => UploadedFile::fake()->image('seventh.jpg', 300, 300)], ['Accept' => 'application/json'])->assertStatus(409)->assertJsonPath('error.code', 'MEDIA_LIMIT_REACHED');
         $this->postJson("/api/v1/diagnoses/$session->id/analyze")->assertStatus(409)->assertJsonPath('error.code', 'MEDIA_NOT_READY');
         $other = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id]);
         $this->post("/api/v1/diagnoses/$other->id/media", ['kind' => 'photo', 'file' => UploadedFile::fake()->create('spoof.jpg', 10, 'text/plain')], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonPath('error.code', 'UNSUPPORTED_MEDIA');
+    }
+
+    public function test_valid_photo_is_ready_immediately_when_no_scanner_is_configured(): void
+    {
+        Queue::fake();
+        Storage::fake('local');
+        config(['automind.media.clamav_command' => null]);
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id]);
+
+        $uploaded = $this->post("/api/v1/diagnoses/$session->id/media", [
+            'kind' => 'photo',
+            'file' => UploadedFile::fake()->image('engine.jpg', 640, 480),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        Queue::assertNotPushed(ProcessDiagnosticMedia::class);
+        $this->assertDatabaseHas('diagnostic_media', ['id' => $uploaded->json('data.id'), 'processing_status' => 'ready']);
+        $this->getJson("/api/v1/diagnoses/$session->id/status")
+            ->assertOk()
+            ->assertJsonPath('data.media.ready', 1)
+            ->assertJsonPath('data.media.processing', 0)
+            ->assertJsonPath('data.media.readyForAnalysis', true);
     }
 
     public function test_media_rejects_oversize_and_duplicate_content_sanitizes_names_and_deletes_owned_file(): void

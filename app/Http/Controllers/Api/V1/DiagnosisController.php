@@ -177,7 +177,7 @@ class DiagnosisController
     {
         Gate::authorize('view', $diagnosis);
 
-        return ApiResponse::success(['sessionId' => (string) $diagnosis->id, 'status' => $diagnosis->status, 'progress' => (int) $diagnosis->progress_percentage, 'currentStep' => $diagnosis->current_step, 'error' => $diagnosis->error_code ? ['code' => $diagnosis->error_code, 'message' => trans()->has("api.diagnostic_errors.$diagnosis->error_code") ? __("api.diagnostic_errors.$diagnosis->error_code") : $diagnosis->safe_error_message] : null, 'reportId' => $diagnosis->report?->id]);
+        return ApiResponse::success(['sessionId' => (string) $diagnosis->id, 'status' => $diagnosis->status, 'progress' => (int) $diagnosis->progress_percentage, 'currentStep' => $diagnosis->current_step, 'statusUrl' => "/api/v1/diagnoses/{$diagnosis->id}/status", 'media' => $this->mediaStatus($diagnosis), 'error' => $diagnosis->error_code ? ['code' => $diagnosis->error_code, 'message' => trans()->has("api.diagnostic_errors.$diagnosis->error_code") ? __("api.diagnostic_errors.$diagnosis->error_code") : $diagnosis->safe_error_message] : null, 'reportId' => $diagnosis->report?->id]);
     }
 
     public function report(DiagnosticSession $diagnosis)
@@ -200,6 +200,24 @@ class DiagnosisController
         $key = trim((string) $request->header('Idempotency-Key'));
 
         return $key !== '' ? mb_substr($key, 0, 128) : null;
+    }
+
+    private function mediaStatus(DiagnosticSession $diagnosis): array
+    {
+        $media = $diagnosis->media()->whereNull('deleted_at')->get(['processing_status', 'failure_code']);
+        $ready = $media->where('processing_status', 'ready')->count();
+        $failed = $media->where('processing_status', 'failed')->count();
+        $processing = $media->count() - $ready - $failed;
+
+        return [
+            'total' => $media->count(),
+            'ready' => $ready,
+            'processing' => $processing,
+            'failed' => $failed,
+            'readyForAnalysis' => $processing === 0 && $failed === 0,
+            'failureCode' => $failed > 0 ? $media->firstWhere('processing_status', 'failed')?->failure_code : null,
+            'failureMessage' => $failed > 0 ? __('api.media_processing_failed') : null,
+        ];
     }
 
     private function reportRelations(): array

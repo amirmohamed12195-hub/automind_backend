@@ -20,6 +20,7 @@ use App\Services\Ai\AiRunRecorder;
 use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticManifestBuilder;
 use App\Services\Diagnostics\DiagnosticReportPersister;
+use App\Services\Diagnostics\DiagnosticReportReconciler;
 use App\Services\Diagnostics\DiagnosticReportValidator;
 use App\Services\Diagnostics\DiagnosticSafetyPolicy;
 use App\Services\Diagnostics\DiagnosticStateMachine;
@@ -62,6 +63,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
         VisionUnderstandingProvider $vision,
         AiDiagnosticProvider $diagnostic,
         DiagnosticReportValidator $validator,
+        DiagnosticReportReconciler $reconciler,
         DiagnosticSafetyPolicy $safety,
         DiagnosticReportPersister $persister,
         AiRunRecorder $runs,
@@ -159,6 +161,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
             $this->checkpoint($session, DiagnosticStep::BuildingReport, 65);
             $synthesis = $runs->record($session, 'diagnostic_synthesis', $this->attempts(), fn () => $diagnostic->synthesize($manifest, $safetyId));
             $reportData = $validator->validate($synthesis->data);
+            $reportData = $reconciler->reconcile($reportData, $manifest);
             $reportData = $safety->enforce($reportData, $manifest);
             $quarantined = $reportData['_safety']['quarantinedActions'] ?? [];
             unset($reportData['_safety']);

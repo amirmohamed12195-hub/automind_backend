@@ -6,7 +6,7 @@ return [
     'social_login_enabled' => (bool) env('SOCIAL_LOGIN_ENABLED', false),
     'push_notifications_enabled' => (bool) env('PUSH_NOTIFICATIONS_ENABLED', false),
     'apple_android_application_id' => env('ANDROID_APPLICATION_ID', 'com.automind.ai'),
-    'diagnostic_prompt_version' => 'diagnostic-v1',
+    'diagnostic_prompt_version' => 'diagnostic-v2',
     'diagnostic_schema_version' => 'diagnostic-report-v1',
     'disclaimer_version' => '2026-07-19',
     'disclaimer' => [

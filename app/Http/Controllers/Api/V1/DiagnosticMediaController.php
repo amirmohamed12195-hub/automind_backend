@@ -78,9 +78,12 @@ class DiagnosticMediaController
             }
         }
         $stored = $storage->storePrivate($file, "diagnostics/{$diagnosis->id}");
-        $media = DiagnosticMedia::query()->create(['diagnostic_session_id' => $diagnosis->id, 'media_kind' => $kind, 'storage_disk' => $stored['disk'], 'storage_path' => $stored['path'], 'original_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255), 'mime_type' => $mime, 'extension' => $stored['extension'], 'byte_size' => $stored['byteSize'], 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_milliseconds' => $duration, 'sample_rate' => $sampleRate, 'channels' => $channels, 'upload_status' => 'uploaded', 'scan_status' => config('automind.media.clamav_command') ? 'pending' : 'not_configured', 'processing_status' => 'pending']);
+        $requiresProcessing = $kind !== 'photo' || (bool) config('automind.media.clamav_command');
+        $media = DiagnosticMedia::query()->create(['diagnostic_session_id' => $diagnosis->id, 'media_kind' => $kind, 'storage_disk' => $stored['disk'], 'storage_path' => $stored['path'], 'original_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255), 'mime_type' => $mime, 'extension' => $stored['extension'], 'byte_size' => $stored['byteSize'], 'sha256' => $sha, 'width' => $width, 'height' => $height, 'duration_milliseconds' => $duration, 'sample_rate' => $sampleRate, 'channels' => $channels, 'upload_status' => 'uploaded', 'scan_status' => config('automind.media.clamav_command') ? 'pending' : 'not_configured', 'processing_status' => $requiresProcessing ? 'pending' : 'ready']);
         $diagnosis->update(['status' => 'uploading']);
-        ProcessDiagnosticMedia::dispatch($media->id)->afterCommit();
+        if ($requiresProcessing) {
+            ProcessDiagnosticMedia::dispatch($media->id)->afterCommit();
+        }
 
         return ApiResponse::success(['id' => (string) $media->id, 'kind' => $media->media_kind, 'mimeType' => $mime, 'byteSize' => (int) $media->byte_size, 'width' => $width, 'height' => $height, 'durationMilliseconds' => $duration, 'sha256' => $sha], 201);
     }
