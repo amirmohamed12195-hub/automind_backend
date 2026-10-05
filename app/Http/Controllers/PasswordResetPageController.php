@@ -46,7 +46,7 @@ class PasswordResetPageController
         if ($status !== Password::PASSWORD_RESET) {
             return back()->withInput($request->only('email'))->withErrors([
                 'email' => $locale === 'ar'
-                    ? 'الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً من التطبيق.'
+                    ? 'الرابط غير صحيح أو انتهت صلاحيته. اطلب رابطًا جديدًا من التطبيق.'
                     : 'This link is invalid or expired. Request a new one from the app.',
             ]);
         }

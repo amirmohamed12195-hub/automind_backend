@@ -149,7 +149,7 @@ class ServiceRequestController
             $serviceRequest->user,
             'service_quote_received',
             'A workshop sent a quote', 'أرسلت ورشة عرض سعر',
-            'Compare the itemized quote in AutoMind.', 'قارن عرض السعر المفصل داخل أوتومايند.',
+            'Compare the itemized quote in AutoMind.', 'افتح أوتومايند لمراجعة تفاصيل عرض السعر ومقارنته بالعروض الأخرى.',
             ['serviceRequestId' => (string) $serviceRequest->id, 'quoteId' => (string) $quote->id],
         );
 
@@ -190,7 +190,7 @@ class ServiceRequestController
             $serviceRequest->user,
             'service_request_status',
             'Repair status updated', 'تم تحديث حالة الإصلاح',
-            'Open AutoMind to view the latest service status.', 'افتح أوتومايند لعرض أحدث حالة للصيانة.',
+            'Open AutoMind to view the latest service status.', 'افتح أوتومايند لمتابعة آخر تحديثات الإصلاح.',
             ['serviceRequestId' => (string) $serviceRequest->id],
         );
 

@@ -4,7 +4,7 @@
 
 @section('content')
 <article class="legal-document form-document">
-    <header class="legal-hero danger-hero"><span>{{ $locale === 'ar' ? 'إجراء مهم' : 'Important action' }}</span><h1>{{ $title }}</h1><p>{{ $locale === 'ar' ? 'سيتم تعطيل الحساب وبدء حذف بياناته. لا تضغط الزر إذا لم تطلب ذلك.' : 'This disables the account and starts deleting its data. Do not continue if you did not request this.' }}</p></header>
+    <header class="legal-hero danger-hero"><span>{{ $locale === 'ar' ? 'تأكيد قبل الحذف' : 'Important action' }}</span><h1>{{ $title }}</h1><p>{{ $locale === 'ar' ? 'عند التأكيد، سيتوقف حسابك ويبدأ حذف بياناتك. لا تؤكد إذا لم تطلب حذف حسابك.' : 'This disables the account and starts deleting its data. Do not continue if you did not request this.' }}</p></header>
     <form class="public-form" method="POST" action="{{ request()->fullUrl() }}">
         @csrf
         <p><strong>{{ $locale === 'ar' ? 'الحساب:' : 'Account:' }}</strong> {{ $user->email }}</p>

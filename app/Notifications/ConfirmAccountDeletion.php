@@ -24,12 +24,12 @@ class ConfirmAccountDeletion extends Notification
     {
         if ($this->messageLocale === 'ar') {
             return (new MailMessage)
-                ->subject('تأكيد طلب حذف حساب AutoMind')
+                ->subject('تأكيد حذف حساب أوتومايند')
                 ->greeting('مرحباً،')
-                ->line('وصلنا طلب لحذف حسابك وبياناتك في AutoMind.')
-                ->line('لن يتم حذف الحساب ما لم تؤكد الطلب من الرابط التالي. ينتهي الرابط خلال 60 دقيقة.')
+                ->line('وصلنا طلب لحذف حسابك وبياناتك في أوتومايند.')
+                ->line('لن نحذف حسابك إلا بعد تأكيدك من الرابط التالي. الرابط صالح لمدة 60 دقيقة.')
                 ->action('تأكيد حذف الحساب', $this->confirmationUrl)
-                ->line('إذا لم تطلب حذف الحساب، يمكنك تجاهل هذه الرسالة بأمان.');
+                ->line('إذا لم تطلب حذف حسابك، تجاهل هذه الرسالة.');
         }
 
         return (new MailMessage)

@@ -24,6 +24,7 @@ class OpenAiReportAssistantProvider implements ReportAssistantProvider
                     'State what additional evidence would materially reduce uncertainty.',
                     'The reportLocale is the current app display language, independent of the question language. Understand the question in its original language and always provide both answer translations.',
                     'Every en answer and suggestedEvidence field must be English; every ar field must be natural Modern Standard Arabic with the same meaning. Never copy English filler into Arabic. Preserve codes, identifiers, units, and proper model names.',
+                    'Use plain, natural Arabic for an everyday car owner, not a literal translation. Keep sentences short, explain unavoidable technical terms, and give a clear next safe step. Preserve every warning, condition, and uncertainty; never turn a possible cause into a confirmed diagnosis.',
                 ],
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]];

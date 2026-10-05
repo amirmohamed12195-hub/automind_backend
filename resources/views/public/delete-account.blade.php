@@ -1,4 +1,4 @@
-@php $title = $locale === 'ar' ? 'حذف حساب AutoMind' : 'Delete your AutoMind account'; @endphp
+@php $title = $locale === 'ar' ? 'حذف حساب أوتومايند' : 'Delete your AutoMind account'; @endphp
 @extends('public.layout')
 @section('noindex', 'true')
 
@@ -8,10 +8,10 @@
     <section>
         <h2>{{ $locale === 'ar' ? 'ما الذي يحدث عند التأكيد؟' : 'What happens after confirmation?' }}</h2>
         <ul>
-            <li>{{ $locale === 'ar' ? 'يتم تسجيل الخروج من جميع الأجهزة وتعطيل رموز الإشعارات.' : 'All sessions are signed out and push tokens are disabled.' }}</li>
-            <li>{{ $locale === 'ar' ? 'تُلغى عمليات التشخيص النشطة ويُعطّل الحساب.' : 'Active diagnostics are cancelled and the account is disabled.' }}</li>
+            <li>{{ $locale === 'ar' ? 'سيُسجّل خروجك من جميع الأجهزة وتتوقف الإشعارات المرتبطة بحسابك.' : 'All sessions are signed out and push tokens are disabled.' }}</li>
+            <li>{{ $locale === 'ar' ? 'سيُلغى أي تشخيص جارٍ ويتوقف حسابك عن العمل.' : 'Active diagnostics are cancelled and the account is disabled.' }}</li>
             <li>{{ $locale === 'ar' ? 'يبدأ حذف البيانات وفق سياسة الاحتفاظ، عادة خلال ' . config('automind.retention.deleted_account_grace_days') . ' يومًا.' : 'Data deletion begins under the retention policy, normally within ' . config('automind.retention.deleted_account_grace_days') . ' days.' }}</li>
-            <li>{{ $locale === 'ar' ? 'حذف الحساب لا يلغي اشتراك المتجر تلقائيًا؛ ألغِ الاشتراك من Apple أو Google أيضًا.' : 'Deleting the account does not automatically cancel a store subscription; cancel it in Apple or Google too.' }}</li>
+            <li>{{ $locale === 'ar' ? 'حذف الحساب لا يلغي اشتراكك تلقائيًا. ألغِ الاشتراك أيضًا من حسابك في متجر آبل أو جوجل بلاي.' : 'Deleting the account does not automatically cancel a store subscription; cancel it in Apple or Google too.' }}</li>
         </ul>
     </section>
     <form class="public-form" method="POST" action="{{ route('account-deletion.request') }}">

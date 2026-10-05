@@ -77,7 +77,7 @@ class PriceResearchService
                 return $existing;
             }
 
-            return $report->estimate()->create($this->unavailableEstimate($market, 'Current sourced prices were unavailable.', 'تعذر الحصول على أسعار حالية موثقة.'));
+            return $report->estimate()->create($this->unavailableEstimate($market, 'Current sourced prices were unavailable.', 'لم نتمكن من الحصول على أسعار حديثة من مصادر موثوقة.'));
         }
 
         return DB::transaction(fn () => $this->persist($report, $search, $result, $market));
@@ -186,7 +186,7 @@ class PriceResearchService
                 return $existing;
             }
 
-            return $report->estimate()->create($this->unavailableEstimate($market, 'Compatible attributable current prices were not available.', 'لم تتوفر أسعار حالية موثقة لقطع متوافقة.'));
+            return $report->estimate()->create($this->unavailableEstimate($market, 'Compatible attributable current prices were not available.', 'لم نجد أسعارًا حديثة وموثوقة لقطع تناسب سيارتك.'));
         }
 
         $labor = $this->laborLineItems($partLineItems, $market);
@@ -209,8 +209,8 @@ class PriceResearchService
             return $localized;
         })->all();
         $basisAssumption = $labor['complete']
-            ? ['en' => 'Labor uses current administrator or sourced hours and hourly-rate ranges. Taxes, fees, and towing are excluded unless separately configured.', 'ar' => 'تستخدم العمالة نطاقات حالية معتمدة أو موثقة لساعات العمل وأسعار الساعة. ولا تشمل الضرائب أو الرسوم أو القطر ما لم تُضبط بشكل منفصل.']
-            : ['en' => 'Totals include sourced compatible parts only; labor, taxes, fees, and towing are excluded because no complete current configured basis was available.', 'ar' => 'تشمل الإجماليات أسعار القطع المتوافقة الموثقة فقط؛ ولا تشمل العمالة أو الضرائب أو الرسوم أو القطر لعدم توافر أساس حالي مكتمل ومُعدّ لها.'];
+            ? ['en' => 'Labor uses current administrator or sourced hours and hourly-rate ranges. Taxes, fees, and towing are excluded unless separately configured.', 'ar' => 'حُسبت تكلفة العمل من ساعات العمل وسعر الساعة وفق بيانات حديثة معتمدة أو موثقة. لا تشمل التكلفة الضرائب أو الرسوم أو سحب السيارة، إلا إذا أُضيفت بشكل منفصل.']
+            : ['en' => 'Totals include sourced compatible parts only; labor, taxes, fees, and towing are excluded because no complete current configured basis was available.', 'ar' => 'الإجمالي يشمل أسعار قطع الغيار المناسبة فقط. لا يشمل تكلفة العمل أو الضرائب أو الرسوم أو سحب السيارة، لعدم توفر بيانات حديثة وكاملة لحسابها.'];
         $estimateStatus = $searchStatus === 'available' && $labor['complete'] ? 'available' : 'partial';
         $estimate = $report->estimate()->updateOrCreate([], [
             'status' => $estimateStatus, 'country_code' => $market['countryCode'], 'city' => $market['city'], 'currency' => $market['currency'],

@@ -36,7 +36,7 @@ class PublicAccountDeletionController
         }
 
         return back()->with('status', $locale === 'ar'
-            ? 'إذا كان البريد مرتبطاً بحساب نشط، أرسلنا إليه رابط تأكيد صالحاً لمدة 60 دقيقة.'
+            ? 'إذا كان لديك حساب نشط بهذا البريد، فقد أرسلنا لك رابط تأكيد صالحًا لمدة 60 دقيقة.'
             : 'If the email belongs to an active account, we sent a confirmation link valid for 60 minutes.');
     }
 
@@ -56,7 +56,7 @@ class PublicAccountDeletionController
         return redirect()->route('account-deletion.show', ['lang' => $locale])->with(
             'status',
             $locale === 'ar'
-                ? 'تم تعطيل الحساب وبدأت عملية حذف البيانات. تُحذف البيانات المتبقية وفق مدة الاحتفاظ المنشورة.'
+                ? 'تم تعطيل حسابك وبدأ حذف بياناتك. سنحذف البيانات المتبقية خلال المدة الموضحة في سياسة الخصوصية.'
                 : 'The account is disabled and deletion has started. Remaining data is removed under the published retention schedule.',
         );
     }

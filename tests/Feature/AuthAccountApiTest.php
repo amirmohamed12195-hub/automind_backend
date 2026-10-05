@@ -76,7 +76,7 @@ class AuthAccountApiTest extends ApiTestCase
 
     public function test_validation_and_unauthenticated_errors_use_localized_envelope(): void
     {
-        $this->withHeader('Accept-Language', 'ar')->postJson('/api/v1/auth/register', [])->assertUnprocessable()->assertJsonPath('error.code', 'VALIDATION_FAILED')->assertJsonPath('error.message', 'البيانات المُرسلة غير صالحة.')->assertJsonPath('error.details.name.0', 'حقل الاسم مطلوب.')->assertJsonStructure(['error' => ['details', 'requestId']]);
+        $this->withHeader('Accept-Language', 'ar')->postJson('/api/v1/auth/register', [])->assertUnprocessable()->assertJsonPath('error.code', 'VALIDATION_FAILED')->assertJsonPath('error.message', 'راجع البيانات التي أدخلتها وحاول مرة أخرى.')->assertJsonPath('error.details.name.0', 'أدخل الاسم.')->assertJsonStructure(['error' => ['details', 'requestId']]);
         $this->getJson('/api/v1/me')->assertUnauthorized()->assertJsonPath('error.code', 'UNAUTHENTICATED');
     }
 
@@ -153,7 +153,7 @@ class AuthAccountApiTest extends ApiTestCase
         $this->withHeader('Accept-Language', 'ar')->postJson('/api/v1/auth/login', ['email' => 'missing@example.com', 'password' => 'wrong-password'])
             ->assertStatus(429)
             ->assertJsonPath('error.code', 'RATE_LIMITED')
-            ->assertJsonPath('error.message', 'طلبات كثيرة جداً. يرجى المحاولة لاحقاً.');
+            ->assertJsonPath('error.message', 'حاولت عدة مرات خلال وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.');
     }
 
     public function test_profile_update_does_not_mass_assign_admin_or_status_fields(): void

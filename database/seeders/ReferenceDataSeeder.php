@@ -189,15 +189,15 @@ class ReferenceDataSeeder extends Seeder
     private function seedMaintenanceServices(): void
     {
         foreach ([
-            ['oil_change', 'Engine oil and filter', 'زيت وفلتر المحرك', 6, 10000],
+            ['oil_change', 'Engine oil and filter', 'زيت المحرك وفلتر الزيت', 6, 10000],
             ['air_filter', 'Engine air filter', 'فلتر هواء المحرك', 12, 20000],
             ['cabin_filter', 'Cabin air filter', 'فلتر هواء المقصورة', 12, 15000],
             ['brake_inspection', 'Brake inspection', 'فحص الفرامل', 12, 20000],
             ['brake_fluid', 'Brake fluid', 'سائل الفرامل', 24, 40000],
             ['coolant', 'Engine coolant', 'سائل تبريد المحرك', 36, 60000],
             ['transmission_fluid', 'Transmission fluid', 'زيت ناقل الحركة', 48, 60000],
-            ['spark_plugs', 'Spark plugs', 'شمعات الإشعال', 48, 60000],
-            ['tire_rotation', 'Tire rotation', 'تدوير الإطارات', 6, 10000],
+            ['spark_plugs', 'Spark plugs', 'شمعات الإشعال (البوجيهات)', 48, 60000],
+            ['tire_rotation', 'Tire rotation', 'تبديل أماكن الإطارات', 6, 10000],
             ['tire_inspection', 'Tire inspection', 'فحص الإطارات', 6, 10000],
             ['wheel_alignment', 'Wheel alignment', 'ضبط زوايا العجلات', 12, 20000],
             ['battery_test', 'Battery and charging test', 'فحص البطارية والشحن', 12, 20000],
@@ -227,7 +227,7 @@ class ReferenceDataSeeder extends Seeder
             ['engine', 'Engine', 'المحرك'],
             ['transmission', 'Transmission', 'ناقل الحركة'],
             ['brakes', 'Brakes', 'الفرامل'],
-            ['suspension', 'Suspension and steering', 'التعليق والتوجيه'],
+            ['suspension', 'Suspension and steering', 'نظام التعليق والتوجيه'],
             ['electrical', 'Electrical and diagnostics', 'الكهرباء والتشخيص'],
             ['air-conditioning', 'Air conditioning', 'التكييف'],
             ['tires', 'Tires and alignment', 'الإطارات وضبط الزوايا'],

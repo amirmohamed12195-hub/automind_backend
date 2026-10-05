@@ -6,7 +6,7 @@
 <article class="legal-document form-document">
     <header class="legal-hero"><span>{{ $locale === 'ar' ? 'أمان الحساب' : 'Account security' }}</span><h1>{{ $title }}</h1><p>{{ $locale === 'ar' ? 'اختر كلمة مرور من 8 أحرف على الأقل وتحتوي حروفًا وأرقامًا.' : 'Choose a password with at least 8 characters, including letters and numbers.' }}</p></header>
     @if (session('status'))
-        <a class="public-button" href="{{ route('landing') }}">{{ $locale === 'ar' ? 'العودة إلى AutoMind' : 'Return to AutoMind' }}</a>
+        <a class="public-button" href="{{ route('landing') }}">{{ $locale === 'ar' ? 'العودة إلى أوتومايند' : 'Return to AutoMind' }}</a>
     @elseif ($token !== '' && $email !== '')
         <form class="public-form" method="POST" action="{{ route('password.reset.store') }}">
             @csrf

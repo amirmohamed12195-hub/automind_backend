@@ -194,7 +194,7 @@ class ReportLocaleApiTest extends ApiTestCase
         $this->assertSame('schema', $session->fresh()->error_code);
         $this->assertNull($session->fresh()->report);
         $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/diagnoses/$session->id/status")
-            ->assertOk()->assertJsonPath('data.error.message', 'تعذر التحقق من نتيجة التشخيص بأمان.');
+            ->assertOk()->assertJsonPath('data.error.message', 'تعذر التأكد من صحة نتيجة التشخيص. حاول مرة أخرى.');
     }
 
     public function test_wrong_language_follow_up_is_not_published(): void
@@ -224,7 +224,7 @@ class ReportLocaleApiTest extends ApiTestCase
             ->assertJsonPath('data.displayBrand', 'تويوتا')->assertJsonPath('data.displayModel', 'كورولا')->assertJsonPath('data.displayLocale', 'ar');
         $this->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonPath('data.vehicleName', 'تويوتا كورولا')
             ->assertJsonPath('data.serviceEstimate.lineItems.0.canonicalCode', 'general_service_labor')
-            ->assertJsonPath('data.serviceEstimate.lineItems.0.displayName', 'أجور العمل')->assertJsonPath('data.serviceEstimate.lineItems.0.unitLabel', 'خدمة');
+            ->assertJsonPath('data.serviceEstimate.lineItems.0.displayName', 'تكلفة العمل')->assertJsonPath('data.serviceEstimate.lineItems.0.unitLabel', 'خدمة');
     }
 
     public function test_spoken_question_detects_input_language_without_changing_app_report_language(): void

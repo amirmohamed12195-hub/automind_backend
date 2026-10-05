@@ -6,16 +6,16 @@ return [
     'social_login_enabled' => (bool) env('SOCIAL_LOGIN_ENABLED', false),
     'push_notifications_enabled' => (bool) env('PUSH_NOTIFICATIONS_ENABLED', false),
     'apple_android_application_id' => env('ANDROID_APPLICATION_ID', 'com.automind.ai'),
-    'diagnostic_prompt_version' => 'diagnostic-v2',
+    'diagnostic_prompt_version' => 'diagnostic-v3',
     'diagnostic_schema_version' => 'diagnostic-report-v1',
     'disclaimer_version' => '2026-07-19',
     'disclaimer' => [
         'en' => 'This AI result is an estimate and does not replace an inspection by a qualified automotive technician.',
-        'ar' => 'هذه النتيجة الصادرة عن الذكاء الاصطناعي تقديرية ولا تُغني عن الفحص لدى فني سيارات مؤهل.',
+        'ar' => 'هذا التقرير تقديري، ويساعدك على فهم المشكلة. لا يغني عن فحص السيارة لدى فني مؤهل.',
     ],
     'estimate_disclaimer' => [
         'en' => 'This is an expected market range, not a repair quote. Inspection may change the required work.',
-        'ar' => 'هذا نطاق سوقي متوقع وليس عرض سعر للإصلاح، وقد يغيّر الفحص الأعمال المطلوبة.',
+        'ar' => 'هذه تكلفة تقريبية حسب أسعار السوق. السعر النهائي وما تحتاجه السيارة من إصلاح يتحددان بعد الفحص.',
     ],
     'media' => [
         'disk' => env('PRIVATE_FILESYSTEM_DISK', 'local'),

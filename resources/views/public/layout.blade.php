@@ -33,7 +33,7 @@
         @endif
         @if (isset($errors) && $errors->any())
             <div class="public-alert error" role="alert">
-                <strong>{{ $rtl ? 'تعذر إكمال الطلب:' : 'We could not complete the request:' }}</strong>
+                <strong>{{ $rtl ? 'تعذر إكمال طلبك:' : 'We could not complete the request:' }}</strong>
                 <ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
             </div>
         @endif

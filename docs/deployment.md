@@ -50,6 +50,24 @@ configuration without making a paid request, applies migrations, refreshes
 the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
 Laravel's caches, and restarts queue workers.
 
+### Missing named route after a Git deployment
+
+A Git update alone does not refresh Laravel's route cache. If `/api/v1/me`
+or an avatar upload returns HTTP 500 with `Route [avatars.show] not defined`,
+confirm the deployed `routes/api.php` and `AvatarController.php` include the
+avatar route, then rebuild and verify the cache from the backend root:
+
+```bash
+php artisan route:cache
+php artisan route:list --name=avatars.show -vv
+```
+
+`route:cache` clears the previous route cache before rebuilding it. Run it
+after deployments that add named routes, or use the full deployment script
+above. No database changes or repeat upload are needed when the image was
+saved and the failure occurred while serializing its response; refresh the
+profile after rebuilding the cache.
+
 The vehicle catalog contains one or more production-era/body-shape records for
 every model. The scheduler downloads licensed Wikimedia Commons thumbnails in
 small hourly batches and retains author, license, and source attribution. Until

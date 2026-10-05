@@ -175,7 +175,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
             $quarantined = $reportData['_safety']['quarantinedActions'] ?? [];
             unset($reportData['_safety']);
             if ($reportData['recommendedActions'] === []) {
-                $reportData['recommendedActions'][] = ['code' => 'professional_inspection', 'text' => ['en' => 'Arrange an inspection by a qualified automotive technician.', 'ar' => 'رتّب فحصاً لدى فني سيارات مؤهل.'], 'priority' => 1, 'professionalRequired' => true];
+                $reportData['recommendedActions'][] = ['code' => 'professional_inspection', 'text' => ['en' => 'Arrange an inspection by a qualified automotive technician.', 'ar' => 'احجز فحصًا لدى فني سيارات مؤهل.'], 'priority' => 1, 'professionalRequired' => true];
             }
             $validator->validate($reportData);
             $this->assertNotCancelled($session);
@@ -251,7 +251,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
                     'Your diagnostic report is ready',
                     'تقرير التشخيص جاهز',
                     'Open AutoMind to review the report safely.',
-                    'افتح AutoMind لمراجعة التقرير بأمان.',
+                    'افتح أوتومايند لقراءة النتيجة والخطوات المقترحة.',
                     ['reportId' => $reportId],
                 );
             }

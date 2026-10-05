@@ -45,7 +45,7 @@ class ReportMaintenanceService
             [
                 'name_en' => 'Diagnostic follow-up', 'name_ar' => 'متابعة التشخيص',
                 'description_en' => 'A task created from an AutoMind diagnostic report.',
-                'description_ar' => 'مهمة أُنشئت من تقرير تشخيص أوتومايند.',
+                'description_ar' => 'تذكير بخطوة مقترحة في تقرير أوتومايند.',
                 'active' => true,
             ],
         );

@@ -17,7 +17,7 @@ class DiagnosticSafetyPolicy
                 $report['drivingRecommendation'] = 'stopImmediately';
             }
             $report['professionalInspectionRequired'] = true;
-            $warning = ['en' => 'Stop using the vehicle immediately and arrange professional assistance.', 'ar' => 'أوقف استخدام المركبة فوراً واطلب مساعدة مهنية.'];
+            $warning = ['en' => 'Stop using the vehicle immediately and arrange professional assistance.', 'ar' => 'توقف عن استخدام السيارة فورًا واطلب مساعدة فني مؤهل.'];
             if (! in_array($warning, $report['emergencyWarnings'], true)) {
                 array_unshift($report['emergencyWarnings'], $warning);
             }
