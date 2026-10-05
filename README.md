@@ -57,7 +57,11 @@ Analysis freezes an input manifest, uses a distributed session lock and persiste
 
 ## Localization and storage
 
-Send `Accept-Language: ar` or `en`. API errors, report text, actions, causes, notifications, and seeded catalog labels support both languages. The locale changes presentation only; normalized codes remain stable. Raw media uses the configured private disk and short-lived signed URLs. Retention defaults are documented in [retention](docs/retention.md).
+Send `Accept-Language: ar` or `en` for app content, errors, history summaries, notifications and catalog labels. Missing or unsupported headers fall back to the authenticated account locale, then English.
+
+Full reports use the language of meaningful typed description, then a meaningful spoken transcript, otherwise the current app locale. Thus an English question in an Arabic app produces an English report. Numbers, OBD codes, VINs and make/model-only input do not change report language. Explicit `inputLocale`/`reportLocale` intake fields are fallback hints; meaningful question text takes priority. Legacy stored locale defaults do not override question detection. Spoken transcription uses automatic language detection. Each follow-up answer follows its own question language, otherwise the resolved report language. Signed public shares retain their signed locale.
+
+`reportLocale` and `answerLocale` describe the actual returned prose language so clients can localize the surrounding report UI. Vehicle `displayBrand`, `displayModel`, and `displayLocale`, estimate item `displayName`, `categoryLabel`, and `unitLabel`, and report `missingEvidenceLabels` are additive display fields. Canonical identifiers stay stable; source citation titles retain their original attribution. Both report languages remain stored; missing localized nullable prose never copies English into Arabic. Wrong-language AI titles, summaries, and follow-up answers are rejected before publication. See [Flutter integration](docs/flutter-integration.md#language-resolution) for the precise policy. Raw media uses the configured private disk and short-lived signed URLs. Retention defaults are documented in [retention](docs/retention.md).
 
 ## Quality and generated artifacts
 

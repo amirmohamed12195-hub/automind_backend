@@ -194,10 +194,20 @@ class PriceResearchService
         $partTotals = $this->calculator->calculate($partLineItems);
         $laborTotals = $labor['items'] === [] ? null : $this->calculator->calculate($labor['items']);
         $totals = $this->calculator->calculate($lineItems);
-        $conditionSummary = collect($partLineItems)->map(fn (array $item) => [
-            'en' => "{$item['canonicalCode']} uses {$item['condition']}-condition prices from {$item['sourceCount']} independent source domain(s).",
-            'ar' => "يعتمد {$item['canonicalCode']} على أسعار حالة {$item['condition']} من {$item['sourceCount']} نطاق مصادر مستقلة.",
-        ])->all();
+        $conditionSummary = collect($partLineItems)->map(function (array $item) use ($partsById): array {
+            $part = collect($partsById)->firstWhere('canonical_part_name', $item['canonicalCode']);
+            $localized = [];
+            foreach (['en', 'ar'] as $locale) {
+                $conditionKey = "reports.condition.{$item['condition']}";
+                $condition = trans()->has($conditionKey, $locale, false) ? trans($conditionKey, [], $locale) : trans('reports.condition.unknown', [], $locale);
+                $localized[$locale] = trans('reports.condition_assumption', [
+                    'part' => $part?->translations->firstWhere('locale', $locale)?->display_name ?: trans('reports.category.part', [], $locale),
+                    'condition' => $condition, 'count' => $item['sourceCount'],
+                ], $locale);
+            }
+
+            return $localized;
+        })->all();
         $basisAssumption = $labor['complete']
             ? ['en' => 'Labor uses current administrator or sourced hours and hourly-rate ranges. Taxes, fees, and towing are excluded unless separately configured.', 'ar' => 'تستخدم العمالة نطاقات حالية معتمدة أو موثقة لساعات العمل وأسعار الساعة. ولا تشمل الضرائب أو الرسوم أو القطر ما لم تُضبط بشكل منفصل.']
             : ['en' => 'Totals include sourced compatible parts only; labor, taxes, fees, and towing are excluded because no complete current configured basis was available.', 'ar' => 'تشمل الإجماليات أسعار القطع المتوافقة الموثقة فقط؛ ولا تشمل العمالة أو الضرائب أو الرسوم أو القطر لعدم توافر أساس حالي مكتمل ومُعدّ لها.'];

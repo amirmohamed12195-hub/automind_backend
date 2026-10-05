@@ -45,6 +45,16 @@ class DiagnosticsDomainTest extends TestCase
         $validator->validate($bad);
     }
 
+    public function test_report_validator_rejects_opposite_language_prose_but_keeps_technical_identifiers(): void
+    {
+        $report = FakeAiProviders::report();
+        $report['title']['ar'] = 'اختلال في محرك BMW مع الرمز P0301';
+        app(DiagnosticReportValidator::class)->validate($report);
+        $report['summary']['en'] = $report['summary']['ar'];
+        $this->expectException(ValidationException::class);
+        app(DiagnosticReportValidator::class)->validate($report);
+    }
+
     public function test_audio_only_evidence_cannot_establish_a_critical_component_failure(): void
     {
         $report = FakeAiProviders::report();

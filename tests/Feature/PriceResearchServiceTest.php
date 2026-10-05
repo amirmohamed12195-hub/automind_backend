@@ -55,6 +55,10 @@ class PriceResearchServiceTest extends ApiTestCase
         $this->assertSame('130.00', $estimate->total_typical);
         $this->assertSame('170.00', $estimate->total_high);
         $this->assertCount(2, $estimate->lineItems);
+        $this->assertStringContainsString('ملف إشعال', $estimate->assumptions_json[0]['ar']);
+        $this->assertStringContainsString('جديدة', $estimate->assumptions_json[0]['ar']);
+        $this->assertStringNotContainsString('ignition_coil', $estimate->assumptions_json[0]['ar']);
+        $this->assertStringNotContainsString('new', $estimate->assumptions_json[0]['ar']);
         $this->assertSame(['new'], $estimate->lineItems->pluck('source_confidence_metadata.condition')->unique()->values()->all());
         $this->assertDatabaseCount('web_sources', 2);
         $this->assertDatabaseCount('part_price_quotes', 6);

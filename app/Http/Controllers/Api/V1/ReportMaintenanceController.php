@@ -7,6 +7,7 @@ use App\Models\DiagnosticReport;
 use App\Models\ReportAction;
 use App\Services\Maintenance\ReportMaintenanceService;
 use App\Support\ApiResponse;
+use App\Support\ContentLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -19,6 +20,7 @@ class ReportMaintenanceController
         ReportMaintenanceService $maintenance,
     ) {
         Gate::authorize('update', $report);
+        app()->setLocale(app(ContentLocale::class)->forReport($report));
         $data = $request->validate([
             'actionIds' => ['required', 'array', 'between:1,10'],
             'actionIds.*' => ['required', 'ulid', 'distinct'],

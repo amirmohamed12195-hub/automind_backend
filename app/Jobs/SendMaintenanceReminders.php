@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\MaintenanceReminder;
 use App\Services\Notifications\UserNotificationService;
+use App\Support\VehicleDisplayName;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,8 +34,8 @@ class SendMaintenanceReminders implements ShouldQueue
                         'maintenance_due',
                         'Maintenance reminder',
                         'تذكير بالصيانة',
-                        "Maintenance is due for {$vehicle->brand} {$vehicle->model}.",
-                        "حان موعد صيانة {$vehicle->brand} {$vehicle->model}.",
+                        'Maintenance is due for '.app(VehicleDisplayName::class)->name($vehicle, 'en').'.',
+                        'حان موعد صيانة '.app(VehicleDisplayName::class)->name($vehicle, 'ar').'.',
                         ['vehicleId' => (string) $vehicle->id, 'reminderId' => (string) $reminder->id],
                     );
                 }

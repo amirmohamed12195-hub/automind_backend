@@ -25,6 +25,7 @@ use App\Services\Diagnostics\DiagnosticReportValidator;
 use App\Services\Diagnostics\DiagnosticSafetyPolicy;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Services\Notifications\UserNotificationService;
+use App\Support\ContentLocale;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,6 +34,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class AnalyzeDiagnosticSession implements ShouldQueue
@@ -97,15 +99,22 @@ class AnalyzeDiagnosticSession implements ShouldQueue
 
             if (($spoken = $activeMedia->firstWhere('media_kind', 'spoken_description')) && empty($manifest['untrustedEvidence']['spokenDescription'])) {
                 $this->checkpoint($session, DiagnosticStep::AnalyzingDescription, 15);
-                $result = $runs->record($session, 'speech_transcription', $this->attempts(), fn () => $speech->transcribe($spoken->storage_disk, $spoken->storage_path, $spoken->mime_type, $session->input_locale));
+                $result = $runs->record($session, 'speech_transcription', $this->attempts(), fn () => $speech->transcribe($spoken->storage_disk, $spoken->storage_path, $spoken->mime_type, null));
                 $manifest['untrustedEvidence']['spokenDescription'] = ['text' => $result->data['text'], 'language' => $result->data['language'] ?? null, 'sourceMediaId' => (string) $spoken->id];
-                $language = $result->data['language'] ?? $session->input_locale;
+                $language = app(ContentLocale::class)->resolve((string) $result->data['text'], $result->data['language'] ?? $session->input_locale, [$session->vehicle->brand, $session->vehicle->model]);
+                $manifest['untrustedEvidence']['spokenDescription']['language'] = $language;
                 $this->persistObservations($spoken, $result, 'transcription', [[
                     'code' => 'spoken_transcript', 'confidence' => is_numeric($result->data['confidence'] ?? null) ? (float) $result->data['confidence'] : 0.0,
                     'textEn' => $language === 'en' ? (string) $result->data['text'] : '',
                     'textAr' => $language === 'ar' ? (string) $result->data['text'] : '',
                 ]]);
                 $session->update(['input_manifest' => $manifest]);
+            }
+            $resolvedInput = app(ContentLocale::class)->sessionInput($session);
+            if ($resolvedInput !== null) {
+                $manifest['trustedMetadata']['inputLocale'] = $resolvedInput;
+                $manifest['trustedMetadata']['reportLocale'] = $resolvedInput;
+                $session->update(['input_locale' => $resolvedInput, 'report_locale' => $resolvedInput, 'input_manifest' => $manifest]);
             }
             $this->assertNotCancelled($session);
 
@@ -190,6 +199,8 @@ class AnalyzeDiagnosticSession implements ShouldQueue
                 throw $e;
             }
             $this->markFailed($e->category, $e->getMessage());
+        } catch (ValidationException $e) {
+            $this->markFailed('schema', trans('api.diagnostic_errors.schema', [], $session->report_locale ?? 'en'));
         } catch (\LogicException $e) {
             if (DiagnosticSession::query()->whereKey($this->sessionId)->value('status') !== 'cancelled') {
                 throw $e;

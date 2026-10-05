@@ -2,7 +2,12 @@ openapi: 3.1.0
 info:
   title: AutoMind AI Backend API
   version: 1.0.0
-  description: Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
+  description: |
+    Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
+    Send Accept-Language en or ar for app content; absent or unsupported headers fall back to the authenticated account locale, then English.
+    Full reports use meaningful typed description language, then meaningful spoken transcript language, then current app locale. Codes, VINs, numbers and make/model-only input do not override app language.
+    History summaries stay in app language. Signed public report links retain their signed locale. Each follow-up answer follows its own question language, falling back to the report language.
+    Responses expose reportLocale or answerLocale for their actual prose language. Stable technical codes and original source citation titles are not translated.
   license: {name: Proprietary, url: https://automind.example/terms}
 servers:
   - url: https://automind-ai.net/api/v1
@@ -124,7 +129,7 @@ paths:
     parameters: [{$ref: '#/components/parameters/SessionId'}]
     get: {tags: [Reports], operationId: getDiagnosisReport, summary: "getDiagnosisReport", responses: {'200': {$ref: '#/components/responses/Report'}, '409': {$ref: '#/components/responses/Error'}}}
   /reports:
-    get: {tags: [Reports], operationId: listReports, summary: "Paginated report summaries", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+    get: {tags: [Reports], operationId: listReports, summary: "Paginated report summaries", parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}], responses: {'200': {$ref: '#/components/responses/ReportSummaries'}}}
   /reports/{reportId}:
     parameters: [{$ref: '#/components/parameters/ReportId'}]
     get: {tags: [Reports], operationId: getReport, summary: "getReport", responses: {'200': {$ref: '#/components/responses/Report'}, '403': {$ref: '#/components/responses/Error'}}}
@@ -133,8 +138,8 @@ paths:
     post: {tags: [Reports], operationId: reportFeedback, summary: "reportFeedback", requestBody: {$ref: '#/components/requestBodies/ReportFeedback'}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
   /reports/{reportId}/follow-ups:
     parameters: [{$ref: '#/components/parameters/ReportId'}]
-    get: {tags: [Reports], operationId: listReportFollowUps, summary: "List report follow-up questions and answers", responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}}}
-    post: {tags: [Reports], operationId: createReportFollowUp, summary: "Ask a report follow-up with optional new photos", requestBody: {required: true, content: {multipart/form-data: {schema: {type: object, properties: {question: {type: [string, 'null'], maxLength: 2000}, photos: {type: array, maxItems: 3, items: {type: string, format: binary}}}}}}}, responses: {'201': {$ref: '#/components/responses/Success'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
+    get: {tags: [Reports], operationId: listReportFollowUps, summary: "List report follow-up questions and answers", responses: {'200': {$ref: '#/components/responses/ReportFollowUps'}, '403': {$ref: '#/components/responses/Error'}}}
+    post: {tags: [Reports], operationId: createReportFollowUp, summary: "Ask a report follow-up with optional new photos", requestBody: {required: true, content: {multipart/form-data: {schema: {type: object, properties: {question: {type: [string, 'null'], maxLength: 2000}, photos: {type: array, maxItems: 3, items: {type: string, format: binary}}}}}}}, responses: {'201': {$ref: '#/components/responses/ReportFollowUp'}, '502': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}, '422': {$ref: '#/components/responses/Error'}}}
   /reports/{reportId}/maintenance-reminders:
     parameters: [{$ref: '#/components/parameters/ReportId'}]
     post: {tags: [Maintenance], operationId: createReportMaintenanceReminders, summary: "Convert report actions into idempotent maintenance reminders", requestBody: {required: true, content: {application/json: {schema: {type: object, required: [actionIds], properties: {actionIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/Ulid'}}, dueDate: {type: [string, 'null'], format: date}, dueKm: {type: [integer, 'null'], minimum: 0}}}}}}, responses: {'200': {$ref: '#/components/responses/Success'}, '201': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
@@ -476,6 +481,9 @@ components:
     AdminServiceDefinition: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminServiceDefinitionRequest'}}}}
     AdminBroadcast: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminBroadcastRequest'}}}}
   responses:
+    ReportSummaries: {description: App-localized report summaries, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/DiagnosticReportSummary'}}}}]}}}}
+    ReportFollowUps: {description: Follow-up answers localized per question, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/ReportFollowUp'}}}}]}}}}
+    ReportFollowUp: {description: Follow-up answer localized per question, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/ReportFollowUp'}}}]}}}}
     Success: {description: Successful response, content: {application/json: {schema: {$ref: '#/components/schemas/SuccessEnvelope'}}}}
     Error: {description: Error response, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
     Auth: {description: Authenticated, content: {application/json: {schema: {$ref: '#/components/schemas/AuthEnvelope'}}}}
@@ -512,10 +520,10 @@ components:
     VehicleImageAttribution: {type: object, required: [text, author, license, licenseUrl, sourceUrl], properties: {text: {type: [string, 'null']}, author: {type: [string, 'null']}, license: {type: [string, 'null']}, licenseUrl: {type: [string, 'null'], format: uri}, sourceUrl: {type: [string, 'null'], format: uri}}}
     VehicleModelGeneration: {type: object, required: [id, code, name, startYear, endYear, bodyType, imageUrl, imageType, imageAttribution], properties: {id: {$ref: '#/components/schemas/Ulid'}, code: {type: string}, name: {type: string}, startYear: {type: [integer, 'null']}, endYear: {type: [integer, 'null']}, bodyType: {type: [string, 'null']}, imageUrl: {type: [string, 'null'], format: uri}, imageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, imageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}}}
     VehicleCatalogModel: {type: object, required: [id, code, name, startYear, endYear, imageUrl, imageType, generationCode, generationCount, imageAttribution], properties: {id: {$ref: '#/components/schemas/Ulid'}, code: {type: string}, name: {type: string}, startYear: {type: [integer, 'null']}, endYear: {type: [integer, 'null']}, imageUrl: {type: [string, 'null'], format: uri}, imageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, generationCode: {type: [string, 'null']}, generationCount: {type: integer, minimum: 1}, imageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}}}
-    Vehicle: {allOf: [{$ref: '#/components/schemas/VehicleInput'}, {type: object, required: [id, userId, imagePath, brandLogoUrl, catalogImageUrl, catalogImageType, catalogGenerationCode, catalogImageAttribution, catalogMakeId, catalogModelId, healthScore, isSelected, createdAt, updatedAt], properties: {id: {$ref: '#/components/schemas/Ulid'}, userId: {$ref: '#/components/schemas/Ulid'}, imagePath: {type: [string, 'null'], format: uri, description: Optional user-supplied vehicle photo; do not use as the make logo}, brandLogoUrl: {type: [string, 'null'], format: uri, description: Locally hosted vehicle-make logo for cards and selectors}, catalogImageUrl: {type: [string, 'null'], format: uri, description: 'Correct model-generation photo when available, otherwise the make logo'}, catalogImageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, catalogGenerationCode: {type: [string, 'null']}, catalogImageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}, healthScore: {type: integer, minimum: 0, maximum: 100}, isSelected: {type: boolean}, createdAt: {type: string, format: date-time}, updatedAt: {type: string, format: date-time}}}]}
+    Vehicle: {allOf: [{$ref: '#/components/schemas/VehicleInput'}, {type: object, required: [id, userId, displayBrand, displayModel, displayLocale, imagePath, brandLogoUrl, catalogImageUrl, catalogImageType, catalogGenerationCode, catalogImageAttribution, catalogMakeId, catalogModelId, healthScore, isSelected, createdAt, updatedAt], properties: {id: {$ref: '#/components/schemas/Ulid'}, userId: {$ref: '#/components/schemas/Ulid'}, displayBrand: {type: string, description: Localized catalog make name with canonical brand fallback}, displayModel: {type: string, description: Localized catalog model name with canonical model fallback}, displayLocale: {type: string, enum: [en, ar], description: Locale of displayBrand and displayModel; canonical brand and model remain unchanged}, imagePath: {type: [string, 'null'], format: uri, description: Optional user-supplied vehicle photo; do not use as the make logo}, brandLogoUrl: {type: [string, 'null'], format: uri, description: Locally hosted vehicle-make logo for cards and selectors}, catalogImageUrl: {type: [string, 'null'], format: uri, description: 'Correct model-generation photo when available, otherwise the make logo'}, catalogImageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, catalogGenerationCode: {type: [string, 'null']}, catalogImageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}, healthScore: {type: integer, minimum: 0, maximum: 100}, isSelected: {type: boolean}, createdAt: {type: string, format: date-time}, updatedAt: {type: string, format: date-time}}}]}
     Market: {type: object, properties: {countryCode: {type: string, minLength: 2, maxLength: 2}, city: {type: [string, 'null']}, currency: {type: string, minLength: 3, maxLength: 3}}}
-    DiagnosisInput: {type: object, required: [vehicleId, inputLocale, reportLocale, consentVersion], anyOf: [{required: [description]}, {required: [selectedSymptoms]}], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, inputLocale: {type: string, enum: [en, ar]}, reportLocale: {type: string, enum: [en, ar]}, market: {$ref: '#/components/schemas/Market'}, clientReference: {type: [string, 'null']}, consentVersion: {type: string}}}
-    DiagnosisUpdateRequest: {type: object, properties: {description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, reportLocale: {type: string, enum: [en, ar]}}}
+    DiagnosisInput: {type: object, required: [vehicleId, consentVersion], anyOf: [{required: [description]}, {required: [selectedSymptoms]}], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, inputLocale: {type: string, enum: [en, ar], description: Fallback input language when description has no meaningful Arabic or English prose; defaults to app locale}, reportLocale: {type: string, enum: [en, ar], description: Fallback report language for analysis; meaningful description language overrides this hint}, market: {$ref: '#/components/schemas/Market'}, clientReference: {type: [string, 'null']}, consentVersion: {type: string}}}
+    DiagnosisUpdateRequest: {type: object, properties: {description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, reportLocale: {type: string, enum: [en, ar], description: Analysis fallback only; meaningful description language takes priority}}}
     DiagnosticStatus: {type: string, enum: [draft, uploading, queued, analyzing, completed, failed, cancelled]}
     DiagnosticStep: {type: string, enum: [preparingData, analyzingDescription, analyzingSound, analyzingPhotos, readingObd, researchingPrices, buildingReport, completed, failed]}
     DiagnosticSession: {type: object, required: [id, vehicleId, status, progress, currentStep], properties: {id: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null']}, selectedSymptoms: {type: array, items: {type: string}}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer, minimum: 0, maximum: 100}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, createdAt: {type: string, format: date-time}}}
@@ -586,6 +594,38 @@ components:
         text: {type: string}
         priority: {type: integer, minimum: 1, maximum: 5}
         professionalRequired: {type: boolean}
+    DiagnosticReportSummary:
+      type: object
+      description: History summaries always use app locale independently from full report language.
+      required: [reportLocale, id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, professionalInspectionRequired, createdAt]
+      properties:
+        reportLocale: {type: string, enum: [en, ar]}
+        id: {$ref: '#/components/schemas/Ulid'}
+        sessionId: {$ref: '#/components/schemas/Ulid'}
+        vehicleId: {$ref: '#/components/schemas/Ulid'}
+        vehicleName: {type: string}
+        title: {type: [string, 'null']}
+        summary: {type: [string, 'null']}
+        confidence: {type: number}
+        severity: {$ref: '#/components/schemas/Severity'}
+        drivingRecommendation: {$ref: '#/components/schemas/DrivingRecommendation'}
+        professionalInspectionRequired: {type: boolean}
+        createdAt: {type: string, format: date-time}
+    ReportFollowUp:
+      type: object
+      description: Answer and suggested evidence use the question language; code-only or photo-only questions fall back to report language. Both languages are persisted.
+      required: [id, reportId, question, answer, answerLocale, confidence, professionalInspectionRequired, suggestedEvidence, photoCount, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Ulid'}
+        reportId: {$ref: '#/components/schemas/Ulid'}
+        question: {type: [string, 'null']}
+        answer: {type: string}
+        answerLocale: {type: string, enum: [en, ar]}
+        confidence: {type: [number, 'null']}
+        professionalInspectionRequired: {type: boolean}
+        suggestedEvidence: {type: array, items: {type: string}}
+        photoCount: {type: integer}
+        createdAt: {type: string, format: date-time}
     PriceSource:
       type: object
       required: [id, url, title, domain, retrievedAt]
@@ -599,11 +639,14 @@ components:
         qualityScore: {type: [number, 'null'], minimum: 0, maximum: 1}
     EstimateLineItem:
       type: object
-      required: [id, category, canonicalCode, quantity, unit, low, typical, high, currency, sourceConfidence]
+      required: [id, category, canonicalCode, displayName, categoryLabel, quantity, unit, unitLabel, low, typical, high, currency, sourceConfidence]
       properties:
         id: {$ref: '#/components/schemas/Ulid'}
         category: {type: string, enum: [part, labor, fee, tax]}
-        canonicalCode: {type: string}
+        canonicalCode: {type: string, description: Stable technical identifier; use displayName in the UI}
+        displayName: {type: string, description: Localized related part or action name; localized category when unavailable}
+        categoryLabel: {type: string, description: Category label in reportLocale}
+        unitLabel: {type: string, description: Unit label in reportLocale}
         quantity: {type: string}
         unit: {type: string}
         low: {type: [string, 'null'], pattern: '^\d{1,12}(?:\.\d{2})$'}
@@ -670,19 +713,21 @@ components:
     AdminServiceDefinitionCreateRequest: {allOf: [{$ref: '#/components/schemas/AdminServiceDefinitionRequest'}, {type: object, required: [code, nameEn, nameAr]}]}
     AdminBroadcastRequest: {type: object, required: [titleEn, titleAr, bodyEn, bodyAr], properties: {titleEn: {type: string, maxLength: 160}, titleAr: {type: string, maxLength: 160}, bodyEn: {type: string, maxLength: 1000}, bodyAr: {type: string, maxLength: 1000}, userIds: {type: [array, 'null'], maxItems: 10000, items: {$ref: '#/components/schemas/Ulid'}}, data: {type: [object, 'null']}}}
     DiagnosticReport:
+      description: Full report prose uses meaningful typed question language, then spoken transcript language, then current app locale; signed public locale overrides this resolution. Technical identifiers remain stable. Missing localized nullable prose never falls back to another language.
       type: object
-      required: [id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, drivingAdvice, evidenceQuality, professionalInspectionRequired, suspectedFaults, safeChecks, recommendedActions, limitations, missingEvidence, estimateStatus, serviceEstimate, sources, disclaimer, createdAt]
+      required: [reportLocale, id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, drivingAdvice, evidenceQuality, professionalInspectionRequired, suspectedFaults, safeChecks, recommendedActions, limitations, missingEvidence, missingEvidenceLabels, estimateStatus, serviceEstimate, sources, disclaimer, createdAt]
       properties:
+        reportLocale: {type: string, enum: [en, ar], description: Resolved language of all report prose; also returned as meta.locale}
         id: {$ref: '#/components/schemas/Ulid'}
         sessionId: {$ref: '#/components/schemas/Ulid'}
         vehicleId: {$ref: '#/components/schemas/Ulid'}
         vehicleName: {type: string}
-        title: {type: string}
-        summary: {type: string}
+        title: {type: [string, 'null']}
+        summary: {type: [string, 'null']}
         confidence: {type: number, minimum: 0, maximum: 1}
         severity: {$ref: '#/components/schemas/Severity'}
         drivingRecommendation: {$ref: '#/components/schemas/DrivingRecommendation'}
-        drivingAdvice: {type: string}
+        drivingAdvice: {type: [string, 'null']}
         evidenceQuality: {type: string, enum: [poor, limited, moderate, strong]}
         professionalInspectionRequired: {type: boolean}
         suspectedFaults: {type: array, items: {$ref: '#/components/schemas/SuspectedFault'}}
@@ -690,12 +735,13 @@ components:
         recommendedActions: {type: array, items: {$ref: '#/components/schemas/ReportAction'}}
         limitations: {type: array, items: {type: string}}
         missingEvidence: {type: array, items: {type: string, enum: [description, symptoms, engineSound, photos, obd, mileage, vin, serviceHistory]}}
+        missingEvidenceLabels: {type: array, items: {type: string}, description: Localized display labels in the same order as missingEvidence codes}
         estimateStatus: {type: [string, 'null'], enum: [queued, running, available, partial, unavailable, failed, null]}
         serviceEstimate:
           oneOf:
             - {$ref: '#/components/schemas/ServiceEstimate'}
             - {type: 'null'}
         sources: {type: array, items: {$ref: '#/components/schemas/PriceSource'}}
-        disclaimer: {type: string}
+        disclaimer: {type: [string, 'null']}
         createdAt: {type: string, format: date-time}
     AppointmentInput: {type: object, required: [mechanicId, vehicleId, requestedStart, requestedEnd], properties: {mechanicId: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, reportId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}, requestedStart: {type: string, format: date-time}, requestedEnd: {type: string, format: date-time}, customerNote: {type: [string, 'null'], maxLength: 1000}}}

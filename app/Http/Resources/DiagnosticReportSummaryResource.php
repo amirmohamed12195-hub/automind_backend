@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\DiagnosticReport;
+use App\Support\VehicleDisplayName;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,14 +13,14 @@ class DiagnosticReportSummaryResource extends JsonResource
     public function toArray(Request $request): array
     {
         $locale = app()->getLocale();
-        $translation = $this->translations->firstWhere('locale', $locale)
-            ?? $this->translations->firstWhere('locale', 'en');
+        $translation = $this->translations->firstWhere('locale', $locale);
 
         return [
+            'reportLocale' => $locale,
             'id' => (string) $this->id,
             'sessionId' => (string) $this->diagnostic_session_id,
             'vehicleId' => (string) $this->vehicle_id,
-            'vehicleName' => trim($this->vehicle->brand.' '.$this->vehicle->model),
+            'vehicleName' => app(VehicleDisplayName::class)->name($this->vehicle, $locale),
             'title' => $translation?->title,
             'summary' => $translation?->summary,
             'confidence' => (float) $this->overall_confidence,

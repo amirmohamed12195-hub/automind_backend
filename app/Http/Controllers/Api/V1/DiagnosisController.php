@@ -16,6 +16,7 @@ use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Services\PlatformSettings;
 use App\Support\ApiResponse;
+use App\Support\ContentLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -55,7 +56,9 @@ class DiagnosisController
         $session = DB::transaction(function () use ($request, $vehicle, $idempotencyKey, $description, $settings) {
             $session = DiagnosticSession::query()->create([
                 'user_id' => $request->user()->id, 'vehicle_id' => $vehicle->id, 'status' => DiagnosticStatus::Draft->value,
-                'description' => $description ?: null, 'input_locale' => $request->input('inputLocale'), 'report_locale' => $request->input('reportLocale'),
+                'description' => $description ?: null,
+                'input_locale' => app(ContentLocale::class)->resolve($description, $request->input('inputLocale', app()->getLocale()), [$vehicle->brand, $vehicle->model]),
+                'report_locale' => app(ContentLocale::class)->resolve($description, $request->input('reportLocale', app()->getLocale()), [$vehicle->brand, $vehicle->model]),
                 'market_country_code' => strtoupper((string) $request->input('market.countryCode', $request->user()->country_code ?: $settings->get('default_country'))),
                 'market_city' => $request->input('market.city', $request->user()->city), 'market_currency' => strtoupper((string) $request->input('market.currency', $request->user()->currency ?: $settings->get('default_currency'))),
                 'client_reference' => $request->input('clientReference'), 'idempotency_key' => $idempotencyKey,
@@ -93,8 +96,10 @@ class DiagnosisController
         if ($request->exists('description')) {
             $updates['description'] = $description ?: null;
         }
-        if ($request->exists('reportLocale')) {
-            $updates['report_locale'] = $request->input('reportLocale');
+        if ($request->exists('description') || $request->exists('reportLocale')) {
+            $names = [$diagnosis->vehicle->brand, $diagnosis->vehicle->model];
+            $updates['input_locale'] = app(ContentLocale::class)->resolve($description, app()->getLocale(), $names);
+            $updates['report_locale'] = app(ContentLocale::class)->resolve($description, $request->input('reportLocale', app()->getLocale()), $names);
         }
         DB::transaction(function () use ($diagnosis, $request, $updates, $symptoms): void {
             $diagnosis->update($updates);
@@ -177,7 +182,7 @@ class DiagnosisController
     {
         Gate::authorize('view', $diagnosis);
 
-        return ApiResponse::success(['sessionId' => (string) $diagnosis->id, 'status' => $diagnosis->status, 'progress' => (int) $diagnosis->progress_percentage, 'currentStep' => $diagnosis->current_step, 'statusUrl' => "/api/v1/diagnoses/{$diagnosis->id}/status", 'media' => $this->mediaStatus($diagnosis), 'error' => $diagnosis->error_code ? ['code' => $diagnosis->error_code, 'message' => trans()->has("api.diagnostic_errors.$diagnosis->error_code") ? __("api.diagnostic_errors.$diagnosis->error_code") : $diagnosis->safe_error_message] : null, 'reportId' => $diagnosis->report?->id]);
+        return ApiResponse::success(['sessionId' => (string) $diagnosis->id, 'status' => $diagnosis->status, 'progress' => (int) $diagnosis->progress_percentage, 'currentStep' => $diagnosis->current_step, 'statusUrl' => "/api/v1/diagnoses/{$diagnosis->id}/status", 'media' => $this->mediaStatus($diagnosis), 'error' => $diagnosis->error_code ? ['code' => $diagnosis->error_code, 'message' => trans()->has("api.diagnostic_errors.$diagnosis->error_code") ? __("api.diagnostic_errors.$diagnosis->error_code") : __('api.diagnostic_errors.invalid_response')] : null, 'reportId' => $diagnosis->report?->id]);
     }
 
     public function report(DiagnosticSession $diagnosis)
@@ -187,7 +192,7 @@ class DiagnosisController
             return ApiResponse::error('REPORT_NOT_READY', __('api.report_not_ready'), 409);
         }
 
-        return ApiResponse::success((new DiagnosticReportResource($diagnosis->report->load($this->reportRelations())))->resolve(), 200, ['locale' => app()->getLocale()]);
+        return ApiResponse::success((new DiagnosticReportResource($diagnosis->report->load($this->reportRelations())))->resolve(), 200, ['locale' => app(ContentLocale::class)->forReport($diagnosis->report)]);
     }
 
     private function accepted(DiagnosticSession $diagnosis)
@@ -222,6 +227,6 @@ class DiagnosisController
 
     private function reportRelations(): array
     {
-        return ['vehicle', 'translations', 'faults.translations', 'faults.causes.translations', 'faults.actions.translations', 'faults.parts.translations', 'faults.evidence', 'actions.translations', 'evidence', 'estimate.lineItems', 'priceSearches.sources'];
+        return ['session', 'vehicle', 'translations', 'faults.translations', 'faults.causes.translations', 'faults.actions.translations', 'faults.parts.translations', 'faults.evidence', 'actions.translations', 'evidence', 'estimate.lineItems', 'priceSearches.sources'];
     }
 }

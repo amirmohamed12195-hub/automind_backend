@@ -8,8 +8,10 @@ use App\Http\Resources\DiagnosticReportResource;
 use App\Models\DiagnosticReport;
 use App\Models\ReportFollowUp;
 use App\Support\ApiResponse;
+use App\Support\ContentLocale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -18,8 +20,9 @@ class ReportFollowUpController
     public function index(DiagnosticReport $report)
     {
         Gate::authorize('view', $report);
+        app()->setLocale(app(ContentLocale::class)->forReport($report));
 
-        return ApiResponse::success($report->followUps()->get()->map(fn (ReportFollowUp $item) => $this->resource($item))->all());
+        return ApiResponse::success($report->followUps()->get()->map(fn (ReportFollowUp $item) => $this->resource($item, $report))->all());
     }
 
     public function store(
@@ -29,6 +32,9 @@ class ReportFollowUpController
         ReportAssistantProvider $assistant,
     ) {
         Gate::authorize('update', $report);
+        $language = app(ContentLocale::class);
+        $question = $request->input('question');
+        app()->setLocale($language->resolve(is_string($question) ? $question : null, $language->forReport($report), [(string) $report->vehicle?->brand, (string) $report->vehicle?->model]));
         $data = $request->validate([
             'question' => ['nullable', 'string', 'max:2000'],
             'photos' => ['sometimes', 'array', 'max:3'],
@@ -59,7 +65,28 @@ class ReportFollowUpController
                 $attachments,
                 hash_hmac('sha256', (string) $request->user()->id, (string) config('app.key')),
             );
-            $answer = $result->data['answer'] ?? [];
+            $validator = Validator::make($result->data, [
+                'answer.en' => ['required', 'string'], 'answer.ar' => ['required', 'string'],
+                'suggestedEvidence' => ['present', 'array'],
+                'suggestedEvidence.*.en' => ['required', 'string'], 'suggestedEvidence.*.ar' => ['required', 'string'],
+            ]);
+            $validator->after(function ($validator) use ($result): void {
+                foreach (['en', 'ar'] as $locale) {
+                    $answer = data_get($result->data, "answer.$locale");
+                    $detected = is_string($answer) ? app(ContentLocale::class)->detect($answer) : null;
+                    if ($detected !== null && $detected !== $locale) {
+                        $validator->errors()->add("answer.$locale", 'The answer must use its declared language.');
+                    }
+                }
+            });
+            if ($validator->fails()) {
+                foreach ($attachments as $attachment) {
+                    $storage->delete($attachment['disk'], $attachment['path']);
+                }
+
+                return ApiResponse::error('FOLLOW_UP_INVALID_RESPONSE', __('api.diagnostic_errors.schema'), 502);
+            }
+            $answer = $result->data['answer'];
             $followUp = ReportFollowUp::query()->create([
                 'diagnostic_report_id' => $report->id,
                 'user_id' => $request->user()->id,
@@ -72,7 +99,7 @@ class ReportFollowUpController
                 'attachments_json' => $attachments,
             ]);
 
-            return ApiResponse::success($this->resource($followUp), 201);
+            return ApiResponse::success($this->resource($followUp, $report), 201);
         } catch (Throwable $error) {
             foreach ($attachments as $attachment) {
                 $storage->delete($attachment['disk'], $attachment['path']);
@@ -81,14 +108,16 @@ class ReportFollowUpController
         }
     }
 
-    private function resource(ReportFollowUp $item): array
+    private function resource(ReportFollowUp $item, DiagnosticReport $report): array
     {
-        $locale = app()->getLocale();
+        $language = app(ContentLocale::class);
+        $locale = $language->resolve($item->question, $language->forReport($report), [(string) $report->vehicle?->brand, (string) $report->vehicle?->model]);
         $suggested = collect($item->suggested_evidence_json ?? [])->map(
-            fn ($value) => is_array($value) ? ($value[$locale] ?? $value['en'] ?? null) : $value,
+            fn ($value) => is_array($value) ? ($value[$locale] ?? null) : $value,
         )->filter()->values()->all();
 
         return [
+            'answerLocale' => $locale,
             'id' => (string) $item->id,
             'reportId' => (string) $item->diagnostic_report_id,
             'question' => $item->question,
@@ -103,6 +132,6 @@ class ReportFollowUpController
 
     private function reportRelations(): array
     {
-        return ['vehicle', 'translations', 'faults.translations', 'faults.causes.translations', 'faults.actions.translations', 'faults.parts.translations', 'faults.evidence', 'actions.translations', 'evidence', 'estimate.lineItems', 'priceSearches.sources'];
+        return ['session', 'vehicle', 'translations', 'faults.translations', 'faults.causes.translations', 'faults.actions.translations', 'faults.parts.translations', 'faults.evidence', 'actions.translations', 'evidence', 'estimate.lineItems', 'priceSearches.sources'];
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Vehicle;
-use App\Models\VehicleMake;
+use App\Support\VehicleDisplayName;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
@@ -22,30 +22,8 @@ class VehicleResource extends JsonResource
             } catch (Throwable) {
             }
         }
-        $catalogMake = $this->catalogMake;
-        $catalogMakeMatchesBrand = $catalogMake && (
-            strcasecmp($catalogMake->name_en, $this->brand) === 0
-            || $catalogMake->name_ar === $this->brand
-            || $catalogMake->code === str($this->brand)->slug()->toString()
-        );
-        if (! $catalogMakeMatchesBrand) {
-            $catalogMake = VehicleMake::query()
-                ->where('name_en', $this->brand)
-                ->orWhere('name_ar', $this->brand)
-                ->orWhere('code', str($this->brand)->slug()->toString())
-                ->first() ?? $catalogMake;
-        }
-        $catalogModel = $this->catalogModel;
-        if (! $catalogModel && $catalogMake) {
-            $catalogModel = $catalogMake->models()
-                ->where(function ($query): void {
-                    $query->where('name_en', $this->model)
-                        ->orWhere('name_ar', $this->model)
-                        ->orWhere('code', str($this->model)->slug()->toString());
-                })
-                ->with('generations')
-                ->first();
-        }
+        $locale = app()->getLocale();
+        [$catalogMake, $catalogModel] = app(VehicleDisplayName::class)->catalog($this->resource);
         $catalogImage = $catalogModel?->displayImage((int) $this->year, $catalogMake) ?? [
             'url' => $catalogMake?->logoUrl(),
             'type' => $catalogMake?->logoUrl() ? 'brand_logo' : null,
@@ -56,6 +34,7 @@ class VehicleResource extends JsonResource
 
         return [
             'id' => (string) $this->id, 'userId' => (string) $this->user_id, 'brand' => $this->brand, 'model' => $this->model,
+            'displayBrand' => $catalogMake?->{"name_$locale"} ?: $this->brand, 'displayModel' => $catalogModel?->{"name_$locale"} ?: $this->model, 'displayLocale' => $locale,
             'year' => (int) $this->year, 'engine' => $this->engine, 'fuelType' => $this->fuel_type, 'transmission' => $this->transmission,
             'mileage' => (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'brandLogoUrl' => $catalogMake?->logoUrl(),
             'catalogImageUrl' => $catalogImage['url'], 'catalogImageType' => $catalogImage['type'],

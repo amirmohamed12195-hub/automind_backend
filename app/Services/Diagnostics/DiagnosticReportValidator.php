@@ -2,6 +2,7 @@
 
 namespace App\Services\Diagnostics;
 
+use App\Support\ContentLocale;
 use Illuminate\Support\Facades\Validator;
 
 class DiagnosticReportValidator
@@ -46,6 +47,15 @@ class DiagnosticReportValidator
             'recommendedActions.*.priority' => ['required', 'integer', 'between:1,5'], 'recommendedActions.*.professionalRequired' => ['required', 'boolean'],
         ])->after(function ($validator) use ($data): void {
             $this->assertExactKeys($validator, $data, ['title', 'summary', 'overallConfidence', 'severity', 'drivingRecommendation', 'drivingAdvice', 'evidenceQuality', 'professionalInspectionRequired', 'emergencyWarnings', 'suspectedFaults', 'safeChecks', 'recommendedActions', 'limitations', 'missingEvidence'], 'root');
+            foreach (['title', 'summary'] as $field) {
+                foreach (['en', 'ar'] as $locale) {
+                    $text = $data[$field][$locale] ?? null;
+                    $detected = is_string($text) ? app(ContentLocale::class)->detect($text) : null;
+                    if ($detected !== null && $detected !== $locale) {
+                        $validator->errors()->add("$field.$locale", 'The text must use its declared language.');
+                    }
+                }
+            }
             foreach (['title', 'summary', 'drivingAdvice'] as $key) {
                 $this->assertExactKeys($validator, $data[$key] ?? [], ['en', 'ar'], $key);
             }

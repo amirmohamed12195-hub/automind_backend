@@ -104,6 +104,24 @@ ready, so refresh the report while `estimateStatus` is `queued` or `running`.
 Flutter contains no OpenAI API key, model name, prompt, pricing, or webhook
 secret. Those remain server-only.
 
+## Language resolution
+
+Send the effective app/device language as `Accept-Language: en` or `ar` on every request. Regional variants such as `ar-EG` work. With no supported header, the server uses the authenticated account locale, then English. This controls errors, notifications, maintenance definitions, catalog names and report history summaries.
+
+The backend `App\Support\ContentLocale` is authoritative for report language. It strips URLs/email, VINs and alphanumeric codes containing digits; ignores one-letter tokens, automotive acronyms, common makes/models, and selected vehicle make/model tokens; and counts the remaining Arabic/Latin letters. The dominant script wins (Arabic on a tie). One-word symptoms such as `noise` count. Technical-only input such as `BMW P0301 RPM 800` does not override the fallback.
+
+- `POST /diagnoses` and `PATCH /diagnoses/{id}` infer locale from meaningful description. Creation accepts optional `inputLocale`/`reportLocale` analysis fallback hints; updates accept `reportLocale`. App locale is the default. The backend corrects legacy English defaults when meaningful Arabic text exists.
+- Spoken descriptions use automatic transcription without forcing the UI language. If there is no meaningful typed description, meaningful transcript text determines input/report language and is saved in the analysis manifest.
+- `GET /reports/{id}` and `GET /diagnoses/{id}/report` return resolved `reportLocale` and matching `meta.locale`. Priority is typed question, then transcript, then current app locale. The entire report page should use this locale without changing the global app locale.
+- Once report access is authorized, report-operation errors use the resolved report language; follow-up submission errors use a meaningful submitted question language when present. Other app endpoints remain in the header language.
+- `GET /reports` returns app-localized summaries and summary `reportLocale`. Fetching a full report can resolve a different language.
+- `GET /reports/{id}/share` signs the resolved locale into the URL. Public JSON and HTML respect that signed locale even when the recipient app uses another language.
+- `GET`/`POST /reports/{id}/follow-ups` return `answerLocale` for each answer and its suggested evidence. A meaningful follow-up question wins over both app and report locale; technical-only or photo-only input falls back to report locale. Original question text is preserved.
+
+Display `Vehicle.displayBrand` and `displayModel` only when `displayLocale` matches the page locale; retain canonical `brand`/`model` for editing and identifiers. Estimate line items expose localized `displayName`, `categoryLabel` and `unitLabel`; never display `canonicalCode` as prose. Report `missingEvidence` remains stable enum codes, with ordered `missingEvidenceLabels` for display. Part numbers, OBD codes, units in evidence and original source citation titles remain technical identifiers or proper names.
+
+AI output stays bilingual in storage. Missing localized nullable fields are null or omitted from text lists instead of copied from another language. Obvious wrong-language main titles/summaries fail analysis with localized `schema` status; invalid follow-up prose returns HTTP 502 `FOLLOW_UP_INVALID_RESPONSE` and is not saved. No live AI request is needed for the language regression tests.
+
 ## External mobile release requirements
 
 Before store submission, supply the Android upload keystore through the ignored

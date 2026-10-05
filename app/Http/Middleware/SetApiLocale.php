@@ -11,8 +11,15 @@ class SetApiLocale
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $accepted = strtolower(substr((string) $request->getPreferredLanguage(['en', 'ar']), 0, 2));
-        $user = $request->user();
+        $accepted = null;
+        foreach ($request->getLanguages() as $language) {
+            $candidate = strtolower(substr($language, 0, 2));
+            if (in_array($candidate, ['en', 'ar'], true)) {
+                $accepted = $candidate;
+                break;
+            }
+        }
+        $user = $request->user() ?? $request->user('sanctum');
         $userLocale = $user instanceof User ? $user->locale : null;
         $locale = in_array($accepted, ['en', 'ar'], true)
             ? $accepted

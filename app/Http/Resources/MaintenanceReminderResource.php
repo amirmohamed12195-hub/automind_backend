@@ -29,7 +29,7 @@ final class MaintenanceReminderResource
             'sourceReportId' => $reminder->source_report_id,
             'sourceReportActionId' => $reminder->source_report_action_id,
             'sourceActionText' => $locale === 'ar'
-                ? ($reminder->source_action_text_ar ?? $reminder->source_action_text_en)
+                ? $reminder->source_action_text_ar
                 : $reminder->source_action_text_en,
         ];
     }
