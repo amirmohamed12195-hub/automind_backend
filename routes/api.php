@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AdminController;
 use App\Http\Controllers\Api\V1\AppleBillingWebhookController;
 use App\Http\Controllers\Api\V1\AppointmentController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AvatarController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DiagnosisController;
 use App\Http\Controllers\Api\V1\DiagnosticEntitlementController;
@@ -37,6 +38,7 @@ Route::prefix('v1')->group(function (): void {
     Route::post('webhooks/apple/app-store-server-notifications', AppleBillingWebhookController::class)->middleware('throttle:240,1');
     Route::post('webhooks/google/play-notifications', GoogleBillingWebhookController::class)->middleware('throttle:240,1');
     Route::get('shared/reports/{report}', [ReportController::class, 'shared'])->middleware('signed')->name('reports.shared');
+    Route::get('avatars/{user}/{version}', AvatarController::class)->middleware('signed:relative')->name('avatars.show');
 
     Route::prefix('auth')->group(function (): void {
         Route::post('register', [AuthController::class, 'register'])->middleware(['throttle:login', 'platform-feature:registration']);

@@ -58,7 +58,7 @@ class DiagnosisController
                 'user_id' => $request->user()->id, 'vehicle_id' => $vehicle->id, 'status' => DiagnosticStatus::Draft->value,
                 'description' => $description ?: null,
                 'input_locale' => app(ContentLocale::class)->resolve($description, $request->input('inputLocale', app()->getLocale()), [$vehicle->brand, $vehicle->model]),
-                'report_locale' => app(ContentLocale::class)->resolve($description, $request->input('reportLocale', app()->getLocale()), [$vehicle->brand, $vehicle->model]),
+                'report_locale' => app()->getLocale(),
                 'market_country_code' => strtoupper((string) $request->input('market.countryCode', $request->user()->country_code ?: $settings->get('default_country'))),
                 'market_city' => $request->input('market.city', $request->user()->city), 'market_currency' => strtoupper((string) $request->input('market.currency', $request->user()->currency ?: $settings->get('default_currency'))),
                 'client_reference' => $request->input('clientReference'), 'idempotency_key' => $idempotencyKey,
@@ -92,14 +92,11 @@ class DiagnosisController
         if (! $description && $symptoms === [] && $diagnosis->media()->whereNull('deleted_at')->count() === 0 && $diagnosis->obdSnapshots()->count() === 0) {
             return ApiResponse::error('EVIDENCE_REQUIRED', __('api.no_evidence'), 422);
         }
-        $updates = [];
+        $updates = ['report_locale' => app()->getLocale()];
         if ($request->exists('description')) {
             $updates['description'] = $description ?: null;
-        }
-        if ($request->exists('description') || $request->exists('reportLocale')) {
             $names = [$diagnosis->vehicle->brand, $diagnosis->vehicle->model];
             $updates['input_locale'] = app(ContentLocale::class)->resolve($description, app()->getLocale(), $names);
-            $updates['report_locale'] = app(ContentLocale::class)->resolve($description, $request->input('reportLocale', app()->getLocale()), $names);
         }
         DB::transaction(function () use ($diagnosis, $request, $updates, $symptoms): void {
             $diagnosis->update($updates);
@@ -150,7 +147,7 @@ class DiagnosisController
         $diagnosis = DB::transaction(function () use ($diagnosis, $reportEntitlements, $stateMachine): DiagnosticSession {
             $reportEntitlements->reserve($diagnosis);
 
-            return $stateMachine->transition($diagnosis->fresh(), DiagnosticStatus::Queued, ['progress_percentage' => 0, 'current_step' => DiagnosticStep::PreparingData->value, 'error_code' => null, 'safe_error_message' => null, 'failed_at' => null]);
+            return $stateMachine->transition($diagnosis->fresh(), DiagnosticStatus::Queued, ['report_locale' => app()->getLocale(), 'progress_percentage' => 0, 'current_step' => DiagnosticStep::PreparingData->value, 'error_code' => null, 'safe_error_message' => null, 'failed_at' => null]);
         });
         AnalyzeDiagnosticSession::dispatch($diagnosis->id)->afterCommit();
 
@@ -192,7 +189,7 @@ class DiagnosisController
             return ApiResponse::error('REPORT_NOT_READY', __('api.report_not_ready'), 409);
         }
 
-        return ApiResponse::success((new DiagnosticReportResource($diagnosis->report->load($this->reportRelations())))->resolve(), 200, ['locale' => app(ContentLocale::class)->forReport($diagnosis->report)]);
+        return ApiResponse::success((new DiagnosticReportResource($diagnosis->report->load($this->reportRelations())))->resolve(), 200, ['locale' => app(ContentLocale::class)->forReport()]);
     }
 
     private function accepted(DiagnosticSession $diagnosis)

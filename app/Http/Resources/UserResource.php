@@ -5,8 +5,7 @@ namespace App\Http\Resources;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
-use Throwable;
+use Illuminate\Support\Facades\URL;
 
 /** @mixin User */
 class UserResource extends JsonResource
@@ -15,10 +14,12 @@ class UserResource extends JsonResource
     {
         $avatarUrl = null;
         if ($this->avatar_path) {
-            try {
-                $avatarUrl = Storage::disk(config('automind.media.disk'))->temporaryUrl($this->avatar_path, now()->addMinutes(config('automind.media.signed_url_ttl_minutes')));
-            } catch (Throwable) {
-            }
+            $avatarUrl = URL::to(URL::temporarySignedRoute(
+                'avatars.show',
+                now()->addMinutes(config('automind.media.signed_url_ttl_minutes')),
+                ['user' => $this->id, 'version' => hash('sha256', $this->avatar_path)],
+                absolute: false,
+            ));
         }
 
         return [

@@ -38,15 +38,13 @@ class ReportController
     public function show(DiagnosticReport $report)
     {
         Gate::authorize('view', $report);
-        app()->setLocale(app(ContentLocale::class)->forReport($report));
 
-        return ApiResponse::success((new DiagnosticReportResource($report->load($this->relations())))->resolve(), 200, ['locale' => app(ContentLocale::class)->forReport($report)]);
+        return ApiResponse::success((new DiagnosticReportResource($report->load($this->relations())))->resolve(), 200, ['locale' => app(ContentLocale::class)->forReport()]);
     }
 
     public function feedback(Request $request, DiagnosticReport $report)
     {
         Gate::authorize('update', $report);
-        app()->setLocale(app(ContentLocale::class)->forReport($report));
         $data = $request->validate(['helpful' => ['required', 'boolean'], 'comment' => ['nullable', 'string', 'max:2000'], 'confirmedMechanicDiagnosis' => ['nullable', 'string', 'max:2000']]);
         $feedback = ReportFeedback::query()->updateOrCreate(['diagnostic_report_id' => $report->id, 'user_id' => $request->user()->id], ['helpful' => $data['helpful'], 'correction_or_comment' => $data['comment'] ?? null, 'confirmed_mechanic_diagnosis' => $data['confirmedMechanicDiagnosis'] ?? null]);
 
@@ -56,7 +54,6 @@ class ReportController
     public function refreshEstimate(Request $request, DiagnosticReport $report)
     {
         Gate::authorize('update', $report);
-        app()->setLocale(app(ContentLocale::class)->forReport($report));
         $key = trim((string) $request->header('Idempotency-Key'));
         $key = $key === '' ? null : mb_substr($key, 0, 128);
         $report->loadMissing('session');
@@ -76,21 +73,22 @@ class ReportController
     public function share(DiagnosticReport $report)
     {
         Gate::authorize('view', $report);
-        app()->setLocale(app(ContentLocale::class)->forReport($report));
         $expires = now()->addMinutes(30);
 
-        return ApiResponse::success(['url' => URL::temporarySignedRoute('reports.shared', $expires, ['report' => $report->id, 'locale' => app(ContentLocale::class)->forReport($report)]), 'expiresAt' => $expires->utc()->toIso8601ZuluString()]);
+        return ApiResponse::success(['url' => URL::temporarySignedRoute('reports.shared', $expires, ['report' => $report->id, 'locale' => app(ContentLocale::class)->forReport()]), 'expiresAt' => $expires->utc()->toIso8601ZuluString()]);
     }
 
     public function shared(Request $request, DiagnosticReport $report)
     {
-        if ($request->query('locale') && in_array($request->query('locale'), ['en', 'ar'], true)) {
+        $html = str_contains(strtolower((string) $request->header('Accept')), 'text/html');
+        // Browsers keep the sender's locale; mobile JSON uses the app's language.
+        if (($html || $request->attributes->get('apiLocaleSource') === 'default') && in_array($request->query('locale'), ['en', 'ar'], true)) {
             $request->attributes->set('reportLocaleOverride', $request->query('locale'));
         }
 
         $payload = (new DiagnosticReportResource($report->load($this->relations())))->resolve($request);
 
-        if (! str_contains(strtolower((string) $request->header('Accept')), 'text/html')) {
+        if (! $html) {
             return ApiResponse::success($payload, 200, ['locale' => $payload['reportLocale']]);
         }
 

@@ -25,6 +25,7 @@ class SetApiLocale
             ? $accepted
             : ($userLocale ?? 'en');
 
+        $request->attributes->set('apiLocaleSource', $accepted !== null ? 'header' : (in_array($userLocale, ['en', 'ar'], true) ? 'account' : 'default'));
         app()->setLocale(in_array($locale, ['en', 'ar'], true) ? $locale : 'en');
 
         return $next($request);

@@ -20,9 +20,8 @@ class ReportFollowUpController
     public function index(DiagnosticReport $report)
     {
         Gate::authorize('view', $report);
-        app()->setLocale(app(ContentLocale::class)->forReport($report));
 
-        return ApiResponse::success($report->followUps()->get()->map(fn (ReportFollowUp $item) => $this->resource($item, $report))->all());
+        return ApiResponse::success($report->followUps()->get()->map(fn (ReportFollowUp $item) => $this->resource($item))->all());
     }
 
     public function store(
@@ -32,9 +31,6 @@ class ReportFollowUpController
         ReportAssistantProvider $assistant,
     ) {
         Gate::authorize('update', $report);
-        $language = app(ContentLocale::class);
-        $question = $request->input('question');
-        app()->setLocale($language->resolve(is_string($question) ? $question : null, $language->forReport($report), [(string) $report->vehicle?->brand, (string) $report->vehicle?->model]));
         $data = $request->validate([
             'question' => ['nullable', 'string', 'max:2000'],
             'photos' => ['sometimes', 'array', 'max:3'],
@@ -99,7 +95,7 @@ class ReportFollowUpController
                 'attachments_json' => $attachments,
             ]);
 
-            return ApiResponse::success($this->resource($followUp, $report), 201);
+            return ApiResponse::success($this->resource($followUp), 201);
         } catch (Throwable $error) {
             foreach ($attachments as $attachment) {
                 $storage->delete($attachment['disk'], $attachment['path']);
@@ -108,10 +104,9 @@ class ReportFollowUpController
         }
     }
 
-    private function resource(ReportFollowUp $item, DiagnosticReport $report): array
+    private function resource(ReportFollowUp $item): array
     {
-        $language = app(ContentLocale::class);
-        $locale = $language->resolve($item->question, $language->forReport($report), [(string) $report->vehicle?->brand, (string) $report->vehicle?->model]);
+        $locale = app()->getLocale();
         $suggested = collect($item->suggested_evidence_json ?? [])->map(
             fn ($value) => is_array($value) ? ($value[$locale] ?? null) : $value,
         )->filter()->values()->all();

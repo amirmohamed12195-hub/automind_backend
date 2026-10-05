@@ -17,6 +17,8 @@ use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Services\Diagnostics\DiagnosticManifestBuilder;
 use App\Services\Diagnostics\DiagnosticReportPersister;
+use App\Support\ContentLocale;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Tests\Fakes\FakeAiProviders;
 
@@ -28,21 +30,46 @@ class ReportLocaleApiTest extends ApiTestCase
         config(['billing.enabled' => false]);
     }
 
-    public function test_creation_and_update_prefer_description_over_requested_or_app_locale(): void
+    public function test_creation_and_update_keep_input_detection_separate_from_app_report_locale(): void
     {
         $user = $this->actingAsUser(['locale' => 'ar']);
         $vehicle = Vehicle::factory()->for($user)->create();
-        $payload = ['vehicleId' => $vehicle->id, 'description' => 'noise', 'inputLocale' => 'ar', 'reportLocale' => 'ar', 'consentVersion' => 'privacy-v1'];
+        $payload = ['vehicleId' => $vehicle->id, 'description' => 'noise', 'inputLocale' => 'ar', 'reportLocale' => 'en', 'consentVersion' => 'privacy-v1'];
         $id = $this->withHeader('Accept-Language', 'ar-EG')->postJson('/api/v1/diagnoses', $payload)
-            ->assertCreated()->assertJsonPath('data.inputLocale', 'en')->assertJsonPath('data.reportLocale', 'en')->json('data.id');
-        $this->patchJson("/api/v1/diagnoses/$id", ['description' => 'المحرك يهتز عند التوقف', 'reportLocale' => 'en'])
-            ->assertOk()->assertJsonPath('data.inputLocale', 'ar')->assertJsonPath('data.reportLocale', 'ar');
+            ->assertCreated()->assertJsonPath('data.inputLocale', 'en')->assertJsonPath('data.reportLocale', 'ar')->json('data.id');
+        $this->withHeader('Accept-Language', 'en')->patchJson("/api/v1/diagnoses/$id", ['description' => 'المحرك يهتز عند التوقف', 'reportLocale' => 'ar'])
+            ->assertOk()->assertJsonPath('data.inputLocale', 'ar')->assertJsonPath('data.reportLocale', 'en');
         $session = DiagnosticSession::findOrFail($id);
-        $session->update(['input_locale' => 'en', 'report_locale' => 'en']);
-        $this->assertSame('ar', app(DiagnosticManifestBuilder::class)->build($session)['trustedMetadata']['reportLocale']);
+        $session->update(['input_locale' => 'en']);
+        $manifest = app(DiagnosticManifestBuilder::class)->build($session);
+        $this->assertSame('ar', $manifest['trustedMetadata']['inputLocale']);
+        $this->assertSame('en', $manifest['trustedMetadata']['reportLocale']);
+        $this->withHeader('Accept-Language', 'ar')->patchJson("/api/v1/diagnoses/$id", ['reportLocale' => 'en'])
+            ->assertOk()->assertJsonPath('data.reportLocale', 'ar');
     }
 
-    public function test_technical_description_uses_app_or_explicit_fallback_during_creation(): void
+    public function test_analysis_and_retry_capture_current_app_language_and_repair_cached_manifest_locale(): void
+    {
+        Queue::fake();
+        $user = $this->actingAsUser();
+        $vehicle = Vehicle::factory()->for($user)->create();
+        $session = DiagnosticSession::factory()->create(['user_id' => $user->id, 'vehicle_id' => $vehicle->id, 'description' => 'Why does the engine shake?', 'status' => 'draft', 'report_locale' => 'en']);
+        $manifest = app(DiagnosticManifestBuilder::class)->build($session);
+        $session->update(['input_manifest' => $manifest, 'input_hash' => hash('sha256', json_encode($manifest))]);
+        $this->withHeader('Accept-Language', 'ar')->postJson("/api/v1/diagnoses/$session->id/analyze")->assertAccepted();
+        $this->assertSame('ar', $session->fresh()->report_locale);
+        $fake = new FakeAiProviders;
+        $this->app->instance(AiDiagnosticProvider::class, $fake);
+        $this->app->call([new AnalyzeDiagnosticSession($session->id), 'handle']);
+        $this->assertSame('ar', data_get($session->fresh()->input_manifest, 'trustedMetadata.reportLocale'));
+        $this->assertSame('ar', $fake->calls[0][1]['trustedMetadata']['reportLocale']);
+        $this->assertSame('en', $fake->calls[0][1]['trustedMetadata']['inputLocale']);
+        $session->refresh()->update(['status' => 'failed']);
+        $this->withHeader('Accept-Language', 'en')->postJson("/api/v1/diagnoses/$session->id/retry")->assertAccepted();
+        $this->assertSame('en', $session->fresh()->report_locale);
+    }
+
+    public function test_technical_description_uses_input_hint_but_report_always_uses_app_language(): void
     {
         $user = $this->actingAsUser(['locale' => 'ar']);
         $vehicle = Vehicle::factory()->for($user)->create();
@@ -50,28 +77,42 @@ class ReportLocaleApiTest extends ApiTestCase
         $this->withHeader('Accept-Language', 'ar')->postJson('/api/v1/diagnoses', $payload)
             ->assertCreated()->assertJsonPath('data.inputLocale', 'ar')->assertJsonPath('data.reportLocale', 'ar');
         $this->postJson('/api/v1/diagnoses', [...$payload, 'inputLocale' => 'en', 'reportLocale' => 'en'])
-            ->assertCreated()->assertJsonPath('data.inputLocale', 'en')->assertJsonPath('data.reportLocale', 'en');
+            ->assertCreated()->assertJsonPath('data.inputLocale', 'en')->assertJsonPath('data.reportLocale', 'ar');
     }
 
-    public function test_detail_uses_question_language_but_history_and_other_ui_use_app_locale(): void
+    public function test_detail_history_and_other_ui_use_current_app_locale_without_rerunning_ai(): void
     {
         $report = $this->report('Why does the engine shake?');
+        $fake = new FakeAiProviders;
+        $this->app->instance(AiDiagnosticProvider::class, $fake);
         SymptomDefinition::create(['code' => 'engine', 'label_en' => 'Engine', 'label_ar' => 'المحرك', 'active' => true]);
-        $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/$report->id")
-            ->assertOk()->assertJsonPath('data.reportLocale', 'en')->assertJsonPath('meta.locale', 'en')
-            ->assertJsonPath('data.title', FakeAiProviders::report()['title']['en']);
-        $this->getJson("/api/v1/diagnoses/$report->diagnostic_session_id/report")->assertOk()->assertJsonPath('data.reportLocale', 'en');
-        $this->getJson('/api/v1/reports')->assertOk()->assertJsonPath('data.0.reportLocale', 'ar')->assertJsonPath('data.0.title', FakeAiProviders::report()['title']['ar']);
+        foreach (['ar', 'en', 'ar'] as $locale) {
+            $this->withHeader('Accept-Language', $locale)->getJson("/api/v1/reports/$report->id")
+                ->assertOk()->assertJsonPath('data.reportLocale', $locale)->assertJsonPath('meta.locale', $locale)
+                ->assertJsonPath('data.title', FakeAiProviders::report()['title'][$locale])
+                ->assertJsonPath('data.summary', FakeAiProviders::report()['summary'][$locale])
+                ->assertJsonPath('data.drivingAdvice', FakeAiProviders::report()['drivingAdvice'][$locale])
+                ->assertJsonPath('data.suspectedFaults.0.title', FakeAiProviders::report()['suspectedFaults'][0]['title'][$locale])
+                ->assertJsonPath('data.suspectedFaults.0.possibleCauses.0', FakeAiProviders::report()['suspectedFaults'][0]['possibleCauses'][0][$locale])
+                ->assertJsonPath('data.suspectedFaults.0.evidence.0.observation', FakeAiProviders::report()['suspectedFaults'][0]['evidence'][0]['observation'][$locale])
+                ->assertJsonPath('data.safeChecks.0.text', FakeAiProviders::report()['safeChecks'][0]['text'][$locale])
+                ->assertJsonPath('data.recommendedActions.0.text', FakeAiProviders::report()['recommendedActions'][0]['text'][$locale])
+                ->assertJsonPath('data.limitations.0', FakeAiProviders::report()['limitations'][0][$locale]);
+            $this->getJson("/api/v1/diagnoses/$report->diagnostic_session_id/report")->assertOk()->assertJsonPath('data.reportLocale', $locale);
+            $this->getJson('/api/v1/reports')->assertOk()->assertJsonPath('data.0.reportLocale', $locale)->assertJsonPath('data.0.title', FakeAiProviders::report()['title'][$locale]);
+        }
         $this->getJson('/api/v1/symptoms')->assertOk()->assertJsonPath('data.0.label', 'المحرك');
+        $this->assertSame([], $fake->calls);
     }
 
-    public function test_arabic_description_corrects_legacy_english_report_locale(): void
+    public function test_arabic_description_and_legacy_report_locale_do_not_override_english_app(): void
     {
         $report = $this->report('العربية BMW بتقطع مع RPM عالي');
+        $report->session->update(['report_locale' => 'ar']);
         $this->withHeader('Accept-Language', 'en')->getJson("/api/v1/reports/$report->id")
-            ->assertOk()->assertJsonPath('data.reportLocale', 'ar')->assertJsonPath('meta.locale', 'ar')
-            ->assertJsonPath('data.title', FakeAiProviders::report()['title']['ar'])
-            ->assertJsonPath('data.missingEvidenceLabels.0', 'تسجيل صوت المحرك');
+            ->assertOk()->assertJsonPath('data.reportLocale', 'en')->assertJsonPath('meta.locale', 'en')
+            ->assertJsonPath('data.title', FakeAiProviders::report()['title']['en'])
+            ->assertJsonPath('data.missingEvidenceLabels.0', 'Engine sound recording');
     }
 
     public function test_without_natural_language_detail_follows_current_app_locale(): void
@@ -83,28 +124,54 @@ class ReportLocaleApiTest extends ApiTestCase
         }
     }
 
-    public function test_share_captures_resolved_report_locale_and_signed_locale_wins_for_public_content(): void
+    public function test_share_signs_app_locale_json_follows_app_and_browser_html_preserves_sender_locale(): void
     {
         $report = $this->report('The engine shakes.');
         $url = $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/$report->id/share")
             ->assertOk()->json('data.url');
-        $this->assertStringContainsString('locale=en', $url);
-        $this->getJson($url)->assertOk()->assertJsonPath('data.reportLocale', 'en');
-        $arabicUrl = URL::temporarySignedRoute('reports.shared', now()->addMinutes(5), ['report' => $report->id, 'locale' => 'ar']);
-        $this->withHeader('Accept-Language', 'en')->getJson($arabicUrl)->assertOk()->assertJsonPath('data.reportLocale', 'ar')->assertJsonPath('meta.locale', 'ar');
-        $this->get($arabicUrl, ['Accept' => 'text/html'])->assertOk()->assertSee('تقرير تشخيص مشترك')->assertDontSee('driveWithCaution');
+        $this->assertStringContainsString('locale=ar', $url);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.reportLocale', 'ar');
+        $this->withHeader('Accept-Language', 'en')->getJson($url)->assertOk()
+            ->assertJsonPath('data.reportLocale', 'en')->assertJsonPath('meta.locale', 'en')
+            ->assertJsonPath('data.title', FakeAiProviders::report()['title']['en']);
+        $this->get($url, ['Accept' => 'text/html'])->assertOk()->assertSee('تقرير تشخيص مشترك')->assertDontSee('driveWithCaution');
+        $this->withHeader('Accept-Language', '')->getJson($url)->assertOk()->assertJsonPath('data.reportLocale', 'en');
+        $this->getJson(str_replace('locale=ar', 'locale=en', $url))->assertForbidden();
     }
 
-    public function test_follow_up_question_language_overrides_report_and_app_and_remains_when_reloaded(): void
+    public function test_public_shared_json_uses_signed_locale_only_without_supported_header_or_account(): void
+    {
+        $session = DiagnosticSession::factory()->create(['description' => 'The engine shakes.']);
+        $report = app(DiagnosticReportPersister::class)->persist($session, FakeAiProviders::report());
+        $url = URL::temporarySignedRoute('reports.shared', now()->addMinutes(5), ['report' => $report->id, 'locale' => 'ar']);
+        foreach (['', 'fr-FR'] as $header) {
+            $this->withHeader('Accept-Language', $header)->getJson($url)->assertOk()
+                ->assertJsonPath('data.reportLocale', 'ar')->assertJsonPath('meta.locale', 'ar')
+                ->assertJsonPath('data.title', FakeAiProviders::report()['title']['ar']);
+        }
+        $this->withHeader('Accept-Language', 'en')->getJson($url)->assertOk()->assertJsonPath('data.reportLocale', 'en');
+        $this->get($url, ['Accept' => 'text/html'])->assertOk()->assertSee('تقرير تشخيص مشترك');
+    }
+
+    public function test_follow_up_answers_always_use_current_app_language_and_reuse_stored_translations(): void
     {
         $report = $this->report('المحرك يهتز أثناء التوقف');
-        $this->app->instance(ReportAssistantProvider::class, new FakeAiProviders);
+        $fake = new FakeAiProviders;
+        $this->app->instance(ReportAssistantProvider::class, $fake);
         $this->withHeader('Accept-Language', 'ar')->postJson("/api/v1/reports/$report->id/follow-ups", ['question' => 'Can I drive?'])
-            ->assertCreated()->assertJsonPath('data.answerLocale', 'en');
+            ->assertCreated()->assertJsonPath('data.answerLocale', 'ar')
+            ->assertJsonPath('data.question', 'Can I drive?')
+            ->assertJsonPath('data.suggestedEvidence.0', 'أضف لقطة OBD أثناء دوران المحرك في وضع الخمول.');
         $this->withHeader('Accept-Language', 'en')->postJson("/api/v1/reports/$report->id/follow-ups", ['question' => 'هل أستطيع القيادة؟'])
-            ->assertCreated()->assertJsonPath('data.answerLocale', 'ar');
-        $answers = $this->getJson("/api/v1/reports/$report->id/follow-ups")->assertOk()->json('data');
-        $this->assertSame(['en', 'ar'], array_column($answers, 'answerLocale'));
+            ->assertCreated()->assertJsonPath('data.answerLocale', 'en')->assertJsonPath('data.question', 'هل أستطيع القيادة؟');
+        foreach (['en', 'ar'] as $locale) {
+            $answers = $this->withHeader('Accept-Language', $locale)->getJson("/api/v1/reports/$report->id/follow-ups")->assertOk()->json('data');
+            $this->assertSame([$locale, $locale], array_column($answers, 'answerLocale'));
+            foreach ($answers as $answer) {
+                $this->assertSame($locale, app(ContentLocale::class)->detect($answer['answer']));
+            }
+        }
+        $this->assertCount(2, $fake->calls);
     }
 
     public function test_wrong_language_ai_report_fails_cleanly_without_publishing(): void
@@ -160,7 +227,7 @@ class ReportLocaleApiTest extends ApiTestCase
             ->assertJsonPath('data.serviceEstimate.lineItems.0.displayName', 'أجور العمل')->assertJsonPath('data.serviceEstimate.lineItems.0.unitLabel', 'خدمة');
     }
 
-    public function test_spoken_question_uses_automatic_transcription_and_its_language(): void
+    public function test_spoken_question_detects_input_language_without_changing_app_report_language(): void
     {
         $user = $this->actingAsUser(['locale' => 'ar']);
         $vehicle = Vehicle::factory()->for($user)->create();
@@ -188,12 +255,13 @@ class ReportLocaleApiTest extends ApiTestCase
         $this->assertSame([null], $speech->languageHints);
         $session->refresh();
         $this->assertSame('en', $session->input_locale);
-        $this->assertSame('en', $session->report_locale);
-        $this->assertSame('en', data_get($session->input_manifest, 'trustedMetadata.reportLocale'));
+        $this->assertSame('ar', $session->report_locale);
+        $this->assertSame('ar', data_get($session->input_manifest, 'trustedMetadata.reportLocale'));
+        $this->assertSame('en', data_get($session->input_manifest, 'trustedMetadata.inputLocale'));
         $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/{$session->report->id}")
-            ->assertOk()->assertJsonPath('data.reportLocale', 'en');
+            ->assertOk()->assertJsonPath('data.reportLocale', 'ar');
         $session->update(['description' => 'المحرك يهتز أثناء القيادة']);
-        $this->getJson("/api/v1/reports/{$session->report->id}")->assertOk()->assertJsonPath('data.reportLocale', 'ar');
+        $this->withHeader('Accept-Language', 'en')->getJson("/api/v1/reports/{$session->report->id}")->assertOk()->assertJsonPath('data.reportLocale', 'en');
     }
 
     public function test_bearer_authenticated_user_locale_is_fallback_when_header_is_missing_or_unsupported(): void
@@ -217,17 +285,17 @@ class ReportLocaleApiTest extends ApiTestCase
             ->assertJsonPath('data.suspectedFaults.0.title', null)->assertJsonPath('data.limitations', []);
     }
 
-    public function test_report_action_errors_follow_report_or_follow_up_question_language(): void
+    public function test_report_action_errors_always_follow_current_app_language(): void
     {
         $report = $this->report('The engine shakes.');
         $this->withHeader('Accept-Language', 'ar')->postJson("/api/v1/reports/$report->id/feedback", [])
-            ->assertUnprocessable()->assertJsonPath('error.message', trans('api.validation_failed', [], 'en'));
-        $this->postJson("/api/v1/reports/$report->id/follow-ups", [])
-            ->assertUnprocessable()->assertJsonPath('error.details.question.0', trans('api.follow_up_content_required', [], 'en'));
-        $this->postJson("/api/v1/reports/$report->id/maintenance-reminders", [])
-            ->assertUnprocessable()->assertJsonPath('error.message', trans('api.validation_failed', [], 'en'));
-        $this->withHeader('Accept-Language', 'en')->postJson("/api/v1/reports/$report->id/follow-ups", ['question' => 'هل أستطيع القيادة؟', 'photos' => 'invalid'])
             ->assertUnprocessable()->assertJsonPath('error.message', trans('api.validation_failed', [], 'ar'));
+        $this->postJson("/api/v1/reports/$report->id/follow-ups", [])
+            ->assertUnprocessable()->assertJsonPath('error.details.question.0', trans('api.follow_up_content_required', [], 'ar'));
+        $this->postJson("/api/v1/reports/$report->id/maintenance-reminders", [])
+            ->assertUnprocessable()->assertJsonPath('error.message', trans('api.validation_failed', [], 'ar'));
+        $this->withHeader('Accept-Language', 'en')->postJson("/api/v1/reports/$report->id/follow-ups", ['question' => 'هل أستطيع القيادة؟', 'photos' => 'invalid'])
+            ->assertUnprocessable()->assertJsonPath('error.message', trans('api.validation_failed', [], 'en'));
         SymptomDefinition::create(['code' => 'engine', 'label_en' => 'Engine', 'label_ar' => 'المحرك', 'active' => true]);
         $this->withHeader('Accept-Language', 'ar')->getJson('/api/v1/symptoms')->assertOk()->assertJsonPath('data.0.label', 'المحرك');
     }

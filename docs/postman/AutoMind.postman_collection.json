@@ -17316,6 +17316,12 @@
                 {"name":"submitServiceQuote","request":{"method":"POST","url":{"host":["{{baseUrl}}"],"path":["mechanic","service-requests",":serviceRequestId","quote"]}}},
                 {"name":"updateServiceRequestStatus","request":{"method":"PATCH","url":{"host":["{{baseUrl}}"],"path":["mechanic","service-requests",":serviceRequestId","status"]}}}
             ]
+        },
+        {
+            "name": "Private Avatar Image",
+            "item": [
+                {"name":"getAvatarImage","request":{"method":"GET","auth":{"type":"noauth"},"description":"Use the complete avatarUrl returned by the API, preserving its expires and signature query parameters. Refresh GET /me after expiry.","url":{"host":["{{baseUrl}}"],"path":["avatars",":userId",":version"],"query":[{"key":"expires","value":"{{avatarExpires}}"},{"key":"signature","value":"{{avatarSignature}}"}]}}}
+            ]
         }
     ],
     "auth": {

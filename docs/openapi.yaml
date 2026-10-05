@@ -5,8 +5,8 @@ info:
   description: |
     Bilingual mobile API for vehicle diagnostics, maintenance, mechanics, appointments, and notifications.
     Send Accept-Language en or ar for app content; absent or unsupported headers fall back to the authenticated account locale, then English.
-    Full reports use meaningful typed description language, then meaningful spoken transcript language, then current app locale. Codes, VINs, numbers and make/model-only input do not override app language.
-    History summaries stay in app language. Signed public report links retain their signed locale. Each follow-up answer follows its own question language, falling back to the report language.
+    Full reports, saved reports, history summaries and follow-up answers always use current app locale, regardless of typed or spoken question language. Input language detection is for comprehension only.
+    Shared JSON uses supported Accept-Language then authenticated account locale, otherwise signed locale. Browser HTML uses signed sender locale despite automatic browser language headers. Preserve signed URLs unchanged.
     Responses expose reportLocale or answerLocale for their actual prose language. Stable technical codes and original source citation titles are not translated.
   license: {name: Proprietary, url: https://automind.example/terms}
 servers:
@@ -62,6 +62,22 @@ paths:
   /me/avatar:
     post: {tags: [Account], operationId: uploadAvatar, summary: "uploadAvatar", requestBody: {$ref: '#/components/requestBodies/Avatar'}, responses: {'200': {$ref: '#/components/responses/User'}, '422': {$ref: '#/components/responses/Error'}}}
     delete: {tags: [Account], operationId: deleteAvatar, summary: "deleteAvatar", responses: {'400': {$ref: '#/components/responses/Error'}, '204': {description: Avatar removed}}}
+  /avatars/{userId}/{version}:
+    get:
+      tags: [Account]
+      operationId: getAvatarImage
+      summary: Read a private avatar using the unmodified signed avatarUrl
+      description: No bearer token is required. The URL expires and is invalidated immediately when the avatar is replaced or removed. Refresh GET /me for a new URL.
+      security: []
+      parameters:
+        - {name: userId, in: path, required: true, schema: {$ref: '#/components/schemas/Ulid'}}
+        - {name: version, in: path, required: true, schema: {type: string}}
+        - {name: expires, in: query, required: true, schema: {type: integer}}
+        - {name: signature, in: query, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Private avatar image, content: {image/jpeg: {schema: {type: string, format: binary}}, image/png: {schema: {type: string, format: binary}}, image/webp: {schema: {type: string, format: binary}}}}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /settings:
     get: {tags: [Account], operationId: getSettings, summary: "getSettings", responses: {'400': {$ref: '#/components/responses/Error'}, '200': {$ref: '#/components/responses/Success'}}}
     patch: {tags: [Account], operationId: updateSettings, summary: "updateSettings", requestBody: {$ref: '#/components/requestBodies/SettingsUpdate'}, responses: {'200': {$ref: '#/components/responses/Success'}, '422': {$ref: '#/components/responses/Error'}}}
@@ -482,8 +498,8 @@ components:
     AdminBroadcast: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AdminBroadcastRequest'}}}}
   responses:
     ReportSummaries: {description: App-localized report summaries, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/DiagnosticReportSummary'}}}}]}}}}
-    ReportFollowUps: {description: Follow-up answers localized per question, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/ReportFollowUp'}}}}]}}}}
-    ReportFollowUp: {description: Follow-up answer localized per question, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/ReportFollowUp'}}}]}}}}
+    ReportFollowUps: {description: Follow-up answers localized in current app language, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/ReportFollowUp'}}}}]}}}}
+    ReportFollowUp: {description: Follow-up answer localized in current app language, content: {application/json: {schema: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {$ref: '#/components/schemas/ReportFollowUp'}}}]}}}}
     Success: {description: Successful response, content: {application/json: {schema: {$ref: '#/components/schemas/SuccessEnvelope'}}}}
     Error: {description: Error response, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}}
     Auth: {description: Authenticated, content: {application/json: {schema: {$ref: '#/components/schemas/AuthEnvelope'}}}}
@@ -522,11 +538,11 @@ components:
     VehicleCatalogModel: {type: object, required: [id, code, name, startYear, endYear, imageUrl, imageType, generationCode, generationCount, imageAttribution], properties: {id: {$ref: '#/components/schemas/Ulid'}, code: {type: string}, name: {type: string}, startYear: {type: [integer, 'null']}, endYear: {type: [integer, 'null']}, imageUrl: {type: [string, 'null'], format: uri}, imageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, generationCode: {type: [string, 'null']}, generationCount: {type: integer, minimum: 1}, imageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}}}
     Vehicle: {allOf: [{$ref: '#/components/schemas/VehicleInput'}, {type: object, required: [id, userId, displayBrand, displayModel, displayLocale, imagePath, brandLogoUrl, catalogImageUrl, catalogImageType, catalogGenerationCode, catalogImageAttribution, catalogMakeId, catalogModelId, healthScore, isSelected, createdAt, updatedAt], properties: {id: {$ref: '#/components/schemas/Ulid'}, userId: {$ref: '#/components/schemas/Ulid'}, displayBrand: {type: string, description: Localized catalog make name with canonical brand fallback}, displayModel: {type: string, description: Localized catalog model name with canonical model fallback}, displayLocale: {type: string, enum: [en, ar], description: Locale of displayBrand and displayModel; canonical brand and model remain unchanged}, imagePath: {type: [string, 'null'], format: uri, description: Optional user-supplied vehicle photo; do not use as the make logo}, brandLogoUrl: {type: [string, 'null'], format: uri, description: Locally hosted vehicle-make logo for cards and selectors}, catalogImageUrl: {type: [string, 'null'], format: uri, description: 'Correct model-generation photo when available, otherwise the make logo'}, catalogImageType: {type: [string, 'null'], enum: [model_photo, brand_logo, null]}, catalogGenerationCode: {type: [string, 'null']}, catalogImageAttribution: {oneOf: [{$ref: '#/components/schemas/VehicleImageAttribution'}, {type: 'null'}]}, healthScore: {type: integer, minimum: 0, maximum: 100}, isSelected: {type: boolean}, createdAt: {type: string, format: date-time}, updatedAt: {type: string, format: date-time}}}]}
     Market: {type: object, properties: {countryCode: {type: string, minLength: 2, maxLength: 2}, city: {type: [string, 'null']}, currency: {type: string, minLength: 3, maxLength: 3}}}
-    DiagnosisInput: {type: object, required: [vehicleId, consentVersion], anyOf: [{required: [description]}, {required: [selectedSymptoms]}], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, inputLocale: {type: string, enum: [en, ar], description: Fallback input language when description has no meaningful Arabic or English prose; defaults to app locale}, reportLocale: {type: string, enum: [en, ar], description: Fallback report language for analysis; meaningful description language overrides this hint}, market: {$ref: '#/components/schemas/Market'}, clientReference: {type: [string, 'null']}, consentVersion: {type: string}}}
-    DiagnosisUpdateRequest: {type: object, properties: {description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, reportLocale: {type: string, enum: [en, ar], description: Analysis fallback only; meaningful description language takes priority}}}
+    DiagnosisInput: {type: object, required: [vehicleId, consentVersion], anyOf: [{required: [description]}, {required: [selectedSymptoms]}], properties: {vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, inputLocale: {type: string, enum: [en, ar], description: Fallback input language when description has no meaningful Arabic or English prose; defaults to app locale}, reportLocale: {type: string, enum: [en, ar], description: Accepted for compatibility; effective request app locale is authoritative regardless of this value or question language}, market: {$ref: '#/components/schemas/Market'}, clientReference: {type: [string, 'null']}, consentVersion: {type: string}}}
+    DiagnosisUpdateRequest: {type: object, properties: {description: {type: [string, 'null'], maxLength: 500}, selectedSymptoms: {type: array, uniqueItems: true, items: {type: string, enum: [engine, performance, brakes, transmission, suspension, electrical, acHeating, tires, other]}}, reportLocale: {type: string, enum: [en, ar], description: Accepted for compatibility; report language always follows effective request app locale}}}
     DiagnosticStatus: {type: string, enum: [draft, uploading, queued, analyzing, completed, failed, cancelled]}
     DiagnosticStep: {type: string, enum: [preparingData, analyzingDescription, analyzingSound, analyzingPhotos, readingObd, researchingPrices, buildingReport, completed, failed]}
-    DiagnosticSession: {type: object, required: [id, vehicleId, status, progress, currentStep], properties: {id: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, description: {type: [string, 'null']}, selectedSymptoms: {type: array, items: {type: string}}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer, minimum: 0, maximum: 100}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, createdAt: {type: string, format: date-time}}}
+    DiagnosticSession: {type: object, required: [id, vehicleId, status, progress, currentStep, inputLocale, reportLocale], properties: {id: {$ref: '#/components/schemas/Ulid'}, vehicleId: {$ref: '#/components/schemas/Ulid'}, inputLocale: {type: string, enum: [en, ar], description: Detected typed or spoken input language for comprehension only}, reportLocale: {type: string, enum: [en, ar], description: App locale captured when creating or updating the draft or queueing analysis; full report reads always use current app locale}, description: {type: [string, 'null']}, selectedSymptoms: {type: array, items: {type: string}}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer, minimum: 0, maximum: 100}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, createdAt: {type: string, format: date-time}}}
     AnalysisMediaStatus: {type: object, required: [total, ready, processing, failed, readyForAnalysis, failureCode, failureMessage], properties: {total: {type: integer, minimum: 0}, ready: {type: integer, minimum: 0}, processing: {type: integer, minimum: 0}, failed: {type: integer, minimum: 0}, readyForAnalysis: {type: boolean}, failureCode: {type: [string, 'null']}, failureMessage: {type: [string, 'null']}}}
     AnalysisEnvelope: {allOf: [{$ref: '#/components/schemas/SuccessEnvelope'}, {type: object, properties: {data: {type: object, required: [sessionId, status, progress, currentStep], properties: {sessionId: {$ref: '#/components/schemas/Ulid'}, status: {$ref: '#/components/schemas/DiagnosticStatus'}, progress: {type: integer}, currentStep: {$ref: '#/components/schemas/DiagnosticStep'}, statusUrl: {type: string}, media: {$ref: '#/components/schemas/AnalysisMediaStatus'}, error: {type: [object, 'null'], properties: {code: {type: string}, message: {type: string}}}, reportId: {oneOf: [{$ref: '#/components/schemas/Ulid'}, {type: 'null'}]}}}}}]}
     ObdInput:
@@ -596,7 +612,7 @@ components:
         professionalRequired: {type: boolean}
     DiagnosticReportSummary:
       type: object
-      description: History summaries always use app locale independently from full report language.
+      description: History summaries and full reports always use current app locale.
       required: [reportLocale, id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, professionalInspectionRequired, createdAt]
       properties:
         reportLocale: {type: string, enum: [en, ar]}
@@ -613,14 +629,14 @@ components:
         createdAt: {type: string, format: date-time}
     ReportFollowUp:
       type: object
-      description: Answer and suggested evidence use the question language; code-only or photo-only questions fall back to report language. Both languages are persisted.
+      description: Answer and suggested evidence always use current app language regardless of question language. Both languages are persisted and reused on language switches. Original question text is preserved.
       required: [id, reportId, question, answer, answerLocale, confidence, professionalInspectionRequired, suggestedEvidence, photoCount, createdAt]
       properties:
         id: {$ref: '#/components/schemas/Ulid'}
         reportId: {$ref: '#/components/schemas/Ulid'}
         question: {type: [string, 'null']}
         answer: {type: string}
-        answerLocale: {type: string, enum: [en, ar]}
+        answerLocale: {type: string, enum: [en, ar], description: Current app language of returned answer and suggested evidence}
         confidence: {type: [number, 'null']}
         professionalInspectionRequired: {type: boolean}
         suggestedEvidence: {type: array, items: {type: string}}
@@ -713,11 +729,11 @@ components:
     AdminServiceDefinitionCreateRequest: {allOf: [{$ref: '#/components/schemas/AdminServiceDefinitionRequest'}, {type: object, required: [code, nameEn, nameAr]}]}
     AdminBroadcastRequest: {type: object, required: [titleEn, titleAr, bodyEn, bodyAr], properties: {titleEn: {type: string, maxLength: 160}, titleAr: {type: string, maxLength: 160}, bodyEn: {type: string, maxLength: 1000}, bodyAr: {type: string, maxLength: 1000}, userIds: {type: [array, 'null'], maxItems: 10000, items: {$ref: '#/components/schemas/Ulid'}}, data: {type: [object, 'null']}}}
     DiagnosticReport:
-      description: Full report prose uses meaningful typed question language, then spoken transcript language, then current app locale; signed public locale overrides this resolution. Technical identifiers remain stable. Missing localized nullable prose never falls back to another language.
+      description: Full report prose always follows current app locale regardless of input or stored session language. Shared JSON uses signed locale only without a supported app header or account locale; browser HTML uses signed locale. Technical identifiers remain stable. Missing localized nullable prose never falls back to another language.
       type: object
       required: [reportLocale, id, sessionId, vehicleId, vehicleName, title, summary, confidence, severity, drivingRecommendation, drivingAdvice, evidenceQuality, professionalInspectionRequired, suspectedFaults, safeChecks, recommendedActions, limitations, missingEvidence, missingEvidenceLabels, estimateStatus, serviceEstimate, sources, disclaimer, createdAt]
       properties:
-        reportLocale: {type: string, enum: [en, ar], description: Resolved language of all report prose; also returned as meta.locale}
+        reportLocale: {type: string, enum: [en, ar], description: Actual display language of all report prose; current app locale for authenticated reads and also returned as meta.locale}
         id: {$ref: '#/components/schemas/Ulid'}
         sessionId: {$ref: '#/components/schemas/Ulid'}
         vehicleId: {$ref: '#/components/schemas/Ulid'}

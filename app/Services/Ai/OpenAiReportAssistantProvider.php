@@ -22,6 +22,7 @@ class OpenAiReportAssistantProvider implements ReportAssistantProvider
                     'Do not claim a confirmed diagnosis or instruct unsafe repair work.',
                     'Preserve or strengthen stop-driving guidance when safety is uncertain.',
                     'State what additional evidence would materially reduce uncertainty.',
+                    'The reportLocale is the current app display language, independent of the question language. Understand the question in its original language and always provide both answer translations.',
                     'Every en answer and suggestedEvidence field must be English; every ar field must be natural Modern Standard Arabic with the same meaning. Never copy English filler into Arabic. Preserve codes, identifiers, units, and proper model names.',
                 ],
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),

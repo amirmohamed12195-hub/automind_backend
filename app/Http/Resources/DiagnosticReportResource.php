@@ -13,7 +13,7 @@ class DiagnosticReportResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $locale = app(ContentLocale::class)->forReport($this->resource, $request->attributes->get('reportLocaleOverride'));
+        $locale = app(ContentLocale::class)->forReport($request->attributes->get('reportLocaleOverride'));
         $tr = $this->translations->firstWhere('locale', $locale);
         $translate = static fn ($items, string $field = 'text') => $items->map(function ($item) use ($locale, $field) {
             $t = $item->translations->firstWhere('locale', $locale);

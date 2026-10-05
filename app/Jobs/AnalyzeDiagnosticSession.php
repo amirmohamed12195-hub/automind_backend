@@ -92,6 +92,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
             }
 
             $manifest = $session->input_hash && is_array($session->input_manifest) ? $session->input_manifest : $manifestBuilder->build($session);
+            $manifest['trustedMetadata']['reportLocale'] = app(ContentLocale::class)->supported($session->report_locale);
             $inputHash = $session->input_hash ?: hash('sha256', json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             $session->update(['input_manifest' => $manifest, 'input_hash' => $inputHash]);
             $safetyId = hash_hmac('sha256', (string) $session->user_id, (string) config('app.key'));
@@ -113,8 +114,7 @@ class AnalyzeDiagnosticSession implements ShouldQueue
             $resolvedInput = app(ContentLocale::class)->sessionInput($session);
             if ($resolvedInput !== null) {
                 $manifest['trustedMetadata']['inputLocale'] = $resolvedInput;
-                $manifest['trustedMetadata']['reportLocale'] = $resolvedInput;
-                $session->update(['input_locale' => $resolvedInput, 'report_locale' => $resolvedInput, 'input_manifest' => $manifest]);
+                $session->update(['input_locale' => $resolvedInput, 'input_manifest' => $manifest]);
             }
             $this->assertNotCancelled($session);
 

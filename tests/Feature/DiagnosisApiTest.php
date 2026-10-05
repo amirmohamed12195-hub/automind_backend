@@ -173,7 +173,7 @@ class DiagnosisApiTest extends ApiTestCase
             'source_report_action_id' => $recommendedAction->id,
         ]);
         $this->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonStructure(['data' => ['id', 'sessionId', 'vehicleId', 'vehicleName', 'title', 'summary', 'confidence', 'severity', 'drivingRecommendation', 'suspectedFaults', 'safeChecks', 'recommendedActions', 'createdAt']])->assertJsonPath('data.severity', 'high');
-        $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonPath('data.title', 'Possible cylinder misfire')->assertJsonPath('data.reportLocale', 'en')->assertJsonPath('data.severity', 'high');
+        $this->withHeader('Accept-Language', 'ar')->getJson("/api/v1/reports/$report->id")->assertOk()->assertJsonPath('data.title', 'احتمال اختلال احتراق إحدى الأسطوانات')->assertJsonPath('data.reportLocale', 'ar')->assertJsonPath('data.severity', 'high');
 
         Queue::fake();
         $first = $this->withHeader('Idempotency-Key', 'estimate-refresh-1')->postJson("/api/v1/reports/$report->id/refresh-estimate")->assertStatus(202);

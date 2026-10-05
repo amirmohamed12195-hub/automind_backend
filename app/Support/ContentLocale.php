@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Models\DiagnosticReport;
 use App\Models\DiagnosticSession;
 
 /** Deterministic English/Arabic prose detection, independent of UI locale. */
@@ -37,14 +36,10 @@ class ContentLocale
         return $this->detect($text, $vehicleNames) ?? $this->supported($fallback);
     }
 
-    public function forReport(DiagnosticReport $report, ?string $override = null): string
+    /** Report display follows the current app locale, never the input language. */
+    public function forReport(?string $override = null): string
     {
-        if (in_array($override, ['ar', 'en'], true)) {
-            return $override;
-        }
-        $report->loadMissing(['session', 'vehicle']);
-
-        return ($report->session ? $this->sessionInput($report->session) : null) ?? $this->supported(app()->getLocale());
+        return $this->supported($override ?? app()->getLocale());
     }
 
     public function sessionInput(DiagnosticSession $session): ?string

@@ -92,6 +92,13 @@ Successful JSON uses
 "requestId": "..."}}`. The client maps stable error codes and preserves the
 request ID for support.
 
+`avatarUrl` is an expiring signed image URL returned by login, profile reads,
+and avatar uploads. Load it unchanged without adding or rewriting its query
+parameters. Private images are delivered by the API rather than a public
+storage link, including when the storage driver cannot generate temporary
+URLs. Refresh `GET /me` when the URL expires. Replacing or deleting an avatar
+immediately revokes its previous image URL.
+
 Analysis uploads server-owned media IDs and starts the job with an idempotency
 key. The start request returns HTTP 202 immediately; the client must poll the
 provided `statusUrl` and must not hold that POST open or apply a fixed two- or
@@ -108,15 +115,17 @@ secret. Those remain server-only.
 
 Send the effective app/device language as `Accept-Language: en` or `ar` on every request. Regional variants such as `ar-EG` work. With no supported header, the server uses the authenticated account locale, then English. This controls errors, notifications, maintenance definitions, catalog names and report history summaries.
 
-The backend `App\Support\ContentLocale` is authoritative for report language. It strips URLs/email, VINs and alphanumeric codes containing digits; ignores one-letter tokens, automotive acronyms, common makes/models, and selected vehicle make/model tokens; and counts the remaining Arabic/Latin letters. The dominant script wins (Arabic on a tie). One-word symptoms such as `noise` count. Technical-only input such as `BMW P0301 RPM 800` does not override the fallback.
+Reports and follow-up answers always use the current app language, regardless of the typed or spoken question language. The same policy applies to new reports, saved reports, history summaries and report-operation errors. Changing the app language selects existing bilingual content without another AI request.
 
-- `POST /diagnoses` and `PATCH /diagnoses/{id}` infer locale from meaningful description. Creation accepts optional `inputLocale`/`reportLocale` analysis fallback hints; updates accept `reportLocale`. App locale is the default. The backend corrects legacy English defaults when meaningful Arabic text exists.
-- Spoken descriptions use automatic transcription without forcing the UI language. If there is no meaningful typed description, meaningful transcript text determines input/report language and is saved in the analysis manifest.
-- `GET /reports/{id}` and `GET /diagnoses/{id}/report` return resolved `reportLocale` and matching `meta.locale`. Priority is typed question, then transcript, then current app locale. The entire report page should use this locale without changing the global app locale.
-- Once report access is authorized, report-operation errors use the resolved report language; follow-up submission errors use a meaningful submitted question language when present. Other app endpoints remain in the header language.
-- `GET /reports` returns app-localized summaries and summary `reportLocale`. Fetching a full report can resolve a different language.
-- `GET /reports/{id}/share` signs the resolved locale into the URL. Public JSON and HTML respect that signed locale even when the recipient app uses another language.
-- `GET`/`POST /reports/{id}/follow-ups` return `answerLocale` for each answer and its suggested evidence. A meaningful follow-up question wins over both app and report locale; technical-only or photo-only input falls back to report locale. Original question text is preserved.
+The backend `App\Support\ContentLocale` detects input language for comprehension only. It strips URLs/email, VINs and alphanumeric codes containing digits; ignores one-letter tokens, automotive acronyms, common makes/models, and selected vehicle make/model tokens; and counts the remaining Arabic/Latin letters. The dominant script wins (Arabic on a tie). One-word symptoms such as `noise` count. Technical-only input such as `BMW P0301 RPM 800` uses the supplied `inputLocale` hint or app language. This detection never controls report display.
+
+- `POST /diagnoses` detects `inputLocale` from meaningful description, using the optional input hint or app locale as fallback. `reportLocale` is always the effective request/app locale. The optional `reportLocale` request field remains accepted for compatibility but cannot override it.
+- `PATCH /diagnoses/{id}` redetects input language when description changes and saves the current app report locale. Analyze/retry captures the current app report locale before queueing, including when the app language changed since draft creation.
+- Spoken descriptions use automatic transcription without forcing the UI language. If there is no meaningful typed description, the transcript determines `inputLocale` in the analysis manifest. It never changes `reportLocale`.
+- `GET /reports/{id}` and `GET /diagnoses/{id}/report` return current app `reportLocale` and matching `meta.locale`. All report prose and surrounding UI should stay in that app language. Historical stored locale and original question language are irrelevant to display.
+- `GET /reports` returns the same app-localized summaries and summary `reportLocale`.
+- `GET /reports/{id}/share` signs the sender's app locale into the URL. Mobile JSON reads honor the recipient app's supported `Accept-Language`, then authenticated account locale; the signed locale is the default only when neither exists. Browser HTML reads use the signed sender locale despite automatic browser language headers. Clients must preserve the signed URL and query unchanged and send `Accept: application/json`; changing its `locale` query invalidates the signature.
+- `GET`/`POST /reports/{id}/follow-ups` return `answerLocale` equal to the current app language for every answer and its suggested evidence. This includes English questions in an Arabic app, Arabic questions in an English app, and technical-only/photo-only input. Reloading after a language switch reuses stored translations. Original question text is preserved as user input.
 
 Display `Vehicle.displayBrand` and `displayModel` only when `displayLocale` matches the page locale; retain canonical `brand`/`model` for editing and identifiers. Estimate line items expose localized `displayName`, `categoryLabel` and `unitLabel`; never display `canonicalCode` as prose. Report `missingEvidence` remains stable enum codes, with ordered `missingEvidenceLabels` for display. Part numbers, OBD codes, units in evidence and original source citation titles remain technical identifiers or proper names.
 
