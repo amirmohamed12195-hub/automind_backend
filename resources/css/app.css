@@ -40,6 +40,9 @@ img { max-width: 100%; display: block; }
     min-width: 320px;
 }
 
+/* Keep oversized hero effects from expanding the mobile viewport. */
+.landing-page > main { overflow-x: clip; }
+
 .page-noise {
     position: fixed;
     inset: 0;
