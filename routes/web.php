@@ -5,11 +5,13 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Controllers\AppleSignInCallbackController;
 use App\Http\Controllers\AssociationFileController;
+use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\PasswordResetPageController;
 use App\Http\Controllers\PublicAccountDeletionController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing');
+Route::get('/download', DownloadController::class)->name('download');
 Route::view('/privacy', 'public.privacy')->name('privacy');
 Route::view('/terms', 'public.terms')->name('terms');
 Route::view('/support', 'public.support')->name('support');

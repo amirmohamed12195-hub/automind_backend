@@ -36,6 +36,14 @@ The API is served at `http://localhost:8080/api/v1`. Non-production Swagger UI i
 
 ## Configuration
 
+Share `https://automind-ai.net/download` as the app download link after deploying
+this backend. Android browsers receive a temporary redirect to Google Play;
+iPhone, iPad, iPod, and Mac browsers go to the App Store (including iPads using
+desktop browsing mode). Other or unidentified devices see both store links.
+Detection uses the browser's User-Agent. Responses disable caching so one
+device's destination is not reused for another. The store URLs default to the
+AutoMind listings and can be overridden with `APP_STORE_URL` and `PLAY_STORE_URL`.
+
 `.env.example` contains every supported variable. Production requires:
 
 - MySQL and Redis credentials, `APP_KEY`, HTTPS `APP_URL`, and non-debug production mode.
