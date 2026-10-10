@@ -28,6 +28,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleMake;
 use App\Models\VehicleModel;
 use App\Services\AccountDeletionService;
+use App\Services\AdminDashboardMetrics;
 use App\Services\Billing\ReportEntitlementService;
 use App\Services\Diagnostics\DiagnosticStateMachine;
 use App\Services\Notifications\UserNotificationService;
@@ -35,6 +36,7 @@ use App\Services\PlatformSettings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -44,18 +46,47 @@ use Illuminate\View\View;
 
 class AdminDashboardController
 {
-    public function index(PlatformSettings $settings): View
+    public function index(Request $request, PlatformSettings $settings, AdminDashboardMetrics $metrics): View
     {
+        $filters = $request->validate([
+            'range' => ['nullable', Rule::in(['7', '30'])],
+            'user_search' => ['nullable', 'string', 'max:120'],
+            'user_status' => ['nullable', Rule::in(['current', 'enabled', 'suspended', 'deleted', 'all'])],
+            'users_page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $days = (int) ($filters['range'] ?? 7);
+        $userSearch = trim($filters['user_search'] ?? '');
+        $userStatus = $filters['user_status'] ?? 'current';
+        $userFilters = [
+            'userSearch' => $userSearch, 'userStatus' => $userStatus,
+            'initialView' => $request->hasAny(['user_search', 'user_status', 'users_page']) ? 'users' : 'overview',
+        ];
         if (! Schema::hasTable('users')) {
-            return view('admin', $this->emptyDashboard($settings));
+            return view('admin', [...$this->emptyDashboard($settings), ...$metrics->snapshot($days, false, false, false), ...$userFilters]);
         }
 
         $accountStatusAvailable = Schema::hasColumn('users', 'suspended_at');
         $databaseControlsAvailable = Schema::hasTable('platform_settings');
         $loginActivityAvailable = Schema::hasColumn('users', 'last_login_at');
 
-        $users = User::query()->withTrashed()->withCount(['vehicles', 'diagnostics', 'appointments'])
-            ->latest()->limit(50)->get();
+        $userQuery = User::query()->withCount(['vehicles', 'diagnostics', 'appointments']);
+        if ($userStatus === 'deleted') {
+            $userQuery->onlyTrashed();
+        } elseif ($userStatus === 'all') {
+            $userQuery->withTrashed();
+        } elseif ($accountStatusAvailable && $userStatus === 'enabled') {
+            $userQuery->whereNull('suspended_at');
+        } elseif ($userStatus === 'suspended') {
+            $accountStatusAvailable ? $userQuery->whereNotNull('suspended_at') : $userQuery->whereRaw('1 = 0');
+        }
+        if ($userSearch !== '') {
+            $userQuery->where(function ($query) use ($userSearch): void {
+                foreach (['name', 'email', 'phone', 'city', 'id'] as $column) {
+                    $query->orWhereLike($column, '%'.$userSearch.'%');
+                }
+            });
+        }
+        $users = $userQuery->latest()->orderByDesc('id')->paginate(25, ['*'], 'users_page')->withQueryString()->fragment('users');
         $vehicles = Vehicle::query()->withTrashed()->with([
             'user' => fn ($query) => $query->withTrashed(),
         ])->withCount('diagnostics')->latest()->limit(50)->get();
@@ -67,38 +98,11 @@ class AdminDashboardController
         $notifications = UserNotification::query()->with('user')->latest()->limit(50)->get();
         $auditLogs = AuditLog::query()->latest()->limit(75)->get();
 
-        $today = now()->startOfDay();
-        $weekStart = now()->subDays(6)->startOfDay();
-        $completedAiRuns = AiRun::query()->where('created_at', '>=', $weekStart)->where('status', 'completed')->count();
-        $totalAiRuns = AiRun::query()->where('created_at', '>=', $weekStart)->count();
-        $weeklyDiagnostics = collect(range(6, 0))->map(function (int $daysAgo): array {
-            $day = now()->subDays($daysAgo);
-
-            return [
-                'label' => $day->format('D'),
-                'count' => DiagnosticSession::query()->whereBetween('created_at', [$day->copy()->startOfDay(), $day->copy()->endOfDay()])->count(),
-            ];
-        });
-
-        $overview = [
-            'users' => User::query()->count(),
-            'activeUsers' => $loginActivityAvailable
-                ? User::query()->when($accountStatusAvailable, fn ($query) => $query->whereNull('suspended_at'))->where('last_login_at', '>=', $weekStart)->count()
-                : 0,
-            'vehicles' => Vehicle::query()->count(),
-            'diagnostics' => DiagnosticSession::query()->count(),
-            'diagnosticsToday' => DiagnosticSession::query()->where('created_at', '>=', $today)->count(),
-            'aiSuccessRate' => $totalAiRuns > 0 ? round(($completedAiRuns / $totalAiRuns) * 100, 1) : 100.0,
-            'verifiedMechanics' => Mechanic::query()->where('verified', true)->where('active', true)->count(),
-            'pendingAppointments' => Appointment::query()->whereIn('status', ['requested', 'confirmed'])->count(),
-            'failedAiRuns' => AiRun::query()->where('status', 'failed')->count(),
-            'suspendedUsers' => $accountStatusAvailable ? User::query()->whereNotNull('suspended_at')->count() : 0,
-        ];
-
         return view('admin', [
-            'overview' => $overview,
-            'weeklyDiagnostics' => $weeklyDiagnostics,
+            ...$metrics->snapshot($days, $accountStatusAvailable, $loginActivityAvailable),
+            ...$userFilters,
             'users' => $users,
+            'notificationUsers' => User::query()->select(['id', 'name', 'email'])->latest()->limit(50)->get(),
             'vehicles' => $vehicles,
             'diagnostics' => $diagnostics,
             'mechanics' => $mechanics,
@@ -512,8 +516,8 @@ class AdminDashboardController
     private function emptyDashboard(PlatformSettings $settings): array
     {
         return [
-            'overview' => array_fill_keys(['users', 'activeUsers', 'vehicles', 'diagnostics', 'diagnosticsToday', 'verifiedMechanics', 'pendingAppointments', 'failedAiRuns', 'suspendedUsers'], 0) + ['aiSuccessRate' => 100.0],
-            'weeklyDiagnostics' => collect(), 'users' => collect(), 'vehicles' => collect(), 'diagnostics' => collect(),
+            'users' => new LengthAwarePaginator([], 0, 25, 1, ['path' => route('admin.dashboard'), 'pageName' => 'users_page']), 'vehicles' => collect(), 'diagnostics' => collect(),
+            'notificationUsers' => collect(),
             'mechanics' => collect(), 'appointments' => collect(), 'aiRuns' => collect(), 'notifications' => collect(),
             'auditLogs' => collect(), 'mechanicSpecialties' => collect(), 'vehicleMakes' => collect(), 'vehicleModels' => collect(), 'maintenanceServices' => collect(),
             'currencyRates' => collect(), 'laborRates' => collect(), 'platformSettings' => $settings->all(), 'dataInventory' => [],

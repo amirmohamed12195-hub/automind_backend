@@ -23,4 +23,20 @@ class DocumentationRouteTest extends TestCase
         $this->get('/docs/api')->assertOk()->assertSee('SwaggerUIBundle', false);
         $this->get('/docs/openapi.yaml')->assertOk()->assertHeader('Content-Type', 'application/yaml');
     }
+
+    public function test_store_badges_use_configured_links_without_javascript(): void
+    {
+        config([
+            'public.app_store_url' => 'https://apps.apple.com/app/id6801621951',
+            'public.play_store_url' => 'https://play.google.com/store/apps/details?id=com.automind.ai',
+        ]);
+        foreach (['/', '/download'] as $path) {
+            $this->get($path)->assertOk()
+                ->assertSee('href="'.config('public.app_store_url').'"', false)
+                ->assertSee('href="'.config('public.play_store_url').'"', false)
+                ->assertSee('images/stores/app-store.svg')
+                ->assertSee('images/stores/google-play.png')
+                ->assertDontSee('Coming soon on');
+        }
+    }
 }

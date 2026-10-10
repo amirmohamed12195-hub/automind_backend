@@ -19,6 +19,7 @@ if (dashboard) {
     };
 
     const activeView = () => document.querySelector('.admin-view.active');
+    const activeTable = () => activeView()?.querySelector('table[data-export-name]') || activeView()?.querySelector('table');
 
     const switchView = (view, updateHistory = true) => {
         const target = document.querySelector(`.admin-view[data-view="${CSS.escape(view)}"]`);
@@ -44,7 +45,7 @@ if (dashboard) {
     const csvValue = (value) => `"${String(value).replaceAll('"', '""').replace(/\s+/g, ' ').trim()}"`;
 
     const exportCurrentTable = () => {
-        const table = activeView()?.querySelector('table');
+        const table = activeTable();
         if (!table) return;
         const rows = Array.from(table.querySelectorAll('tr')).filter((row) => row.dataset.searchHidden !== 'true');
         const csv = rows.map((row) => Array.from(row.querySelectorAll('th,td')).map((cell) => csvValue(cell.innerText)).join(',')).join('\n');
@@ -108,7 +109,7 @@ if (dashboard) {
     });
 
     globalSearch?.addEventListener('input', () => {
-        const table = activeView()?.querySelector('table');
+        const table = activeTable();
         filterTable(table, globalSearch.value);
         const localSearch = activeView()?.querySelector('[data-table-search]');
         if (localSearch) localSearch.value = globalSearch.value;
@@ -144,5 +145,22 @@ if (dashboard) {
     });
 
     const requestedView = location.hash.slice(1) || dashboard.dataset.initialView || 'overview';
-    switchView(requestedView, false);
+    switchView(document.querySelector(`.admin-view[data-view="${CSS.escape(requestedView)}"]`) ? requestedView : 'overview', false);
+    window.addEventListener('hashchange', () => switchView(location.hash.slice(1) || 'overview', false));
 }
+
+// The SVG remains readable without JavaScript; add pointer and keyboard details.
+document.querySelectorAll('[data-activity-chart]').forEach((chart) => {
+    const tooltip = chart.querySelector('[data-chart-tooltip]');
+    const hide = () => { tooltip.hidden = true; };
+    chart.querySelectorAll('[data-chart-point]').forEach((point) => {
+        const show = () => {
+            tooltip.textContent = `${point.dataset.label} · ${point.dataset.diagnostics} diagnostics · ${point.dataset.users} new users`;
+            tooltip.hidden = false;
+        };
+        point.addEventListener('pointerenter', show);
+        point.addEventListener('focus', show);
+        point.addEventListener('pointerleave', hide);
+        point.addEventListener('blur', hide);
+    });
+});

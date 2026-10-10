@@ -18,7 +18,7 @@ const landingDefaults = {
     seoDescription: 'Understand car problems in minutes with AI-powered diagnostics, repair estimates, maintenance tracking, and trusted mechanic recommendations.',
     heroEnabled: true,
     ctaEnabled: true,
-    proofEnabled: false,
+    proofEnabled: true,
     stepsEnabled: true,
     featuresEnabled: true,
     safetyEnabled: true,
@@ -86,26 +86,8 @@ const applyLandingContent = (content) => {
         const key = element.dataset.landingHtml;
         renderStyledTitle(element, state[key], true);
     });
-    document.querySelectorAll('[data-store-link="apple"]').forEach((link) => {
-        link.href = state.appleUrl || '#';
-        link.toggleAttribute('aria-disabled', !state.appleUrl);
-        const status = link.querySelector('[data-store-status]');
-        if (status) status.textContent = state.appleUrl ? 'View on the' : 'Coming soon on';
-        if (state.appleUrl) {
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-        }
-    });
-    document.querySelectorAll('[data-store-link="android"]').forEach((link) => {
-        link.href = state.androidUrl || '#';
-        link.toggleAttribute('aria-disabled', !state.androidUrl);
-        const status = link.querySelector('[data-store-status]');
-        if (status) status.textContent = state.androidUrl ? 'Get it on' : 'Coming soon on';
-        if (state.androidUrl) {
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-        }
-    });
+    // Store destinations are rendered from server configuration. Browser-local
+    // drafts must never disable or replace the published download links.
 
     const visibility = [
         ['.hero', 'heroEnabled'],

@@ -11,14 +11,13 @@
 @php
     $initials = fn (?string $name) => collect(preg_split('/\s+/', trim($name ?: 'Unknown')))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('');
     $statusTone = fn (?string $status) => match (true) {
-        in_array($status, ['active', 'completed', 'confirmed', 'processed', 'sent', 'verified', 'healthy'], true) => 'success',
+        in_array($status, ['enabled', 'active', 'completed', 'confirmed', 'processed', 'sent', 'verified', 'healthy'], true) => 'success',
         in_array($status, ['failed', 'cancelled', 'suspended', 'deleted', 'rejected', 'critical'], true) => 'danger',
         in_array($status, ['requested', 'queued', 'analyzing', 'uploading', 'pending', 'received', 'gracePeriod', 'billingRetry'], true) => 'warning',
         default => 'neutral',
     };
-    $maxWeekly = max(1, (int) $weeklyDiagnostics->max('count'));
 @endphp
-<body class="admin-page admin-v2" data-initial-view="{{ session('admin_view', 'overview') }}">
+<body class="admin-page admin-v2" data-initial-view="{{ session('admin_view', $initialView) }}">
     <aside class="admin-sidebar" data-admin-sidebar>
         <div class="sidebar-brand-wrap">
             <a class="brand" href="{{ route('admin.dashboard') }}" aria-label="AutoMind admin home">
@@ -30,21 +29,21 @@
         <div class="workspace-chip"><span class="workspace-avatar">AM</span><div><strong>AutoMind HQ</strong><small>{{ ucfirst(app()->environment()) }} workspace</small></div><span class="workspace-caret">⌄</span></div>
         <nav class="admin-nav" aria-label="Admin navigation">
             <span class="nav-label">Workspace</span>
-            <a class="admin-nav-item active" href="#overview" data-admin-view="overview"><i>⌂</i><span>Overview</span></a>
-            <a class="admin-nav-item" href="#users" data-admin-view="users"><i>♙</i><span>Users</span><b>{{ $overview['suspendedUsers'] }}</b></a>
-            <a class="admin-nav-item" href="#vehicles" data-admin-view="vehicles"><i>◇</i><span>Vehicles</span></a>
-            <a class="admin-nav-item" href="#diagnostics" data-admin-view="diagnostics"><i>◎</i><span>Diagnostics</span><b>{{ $overview['failedAiRuns'] }}</b></a>
-            <a class="admin-nav-item" href="#mechanics" data-admin-view="mechanics"><i>⌘</i><span>Mechanics</span></a>
+            <a class="admin-nav-item active" href="#overview" data-admin-view="overview"><i><x-icon name="grid" /></i><span>Overview</span></a>
+            <a class="admin-nav-item" href="#users" data-admin-view="users"><i><x-icon name="users" /></i><span>Users</span><b>{{ number_format($overview['users']) }}</b></a>
+            <a class="admin-nav-item" href="#vehicles" data-admin-view="vehicles"><i><x-icon name="car" /></i><span>Vehicles</span></a>
+            <a class="admin-nav-item" href="#diagnostics" data-admin-view="diagnostics"><i><x-icon name="activity" /></i><span>Diagnostics</span><b>{{ $overview['failedAiRuns'] }}</b></a>
+            <a class="admin-nav-item" href="#mechanics" data-admin-view="mechanics"><i><x-icon name="tool" /></i><span>Mechanics</span></a>
             <a class="admin-nav-item" href="#appointments" data-admin-view="appointments"><i>▦</i><span>Appointments</span><b>{{ $overview['pendingAppointments'] }}</b></a>
             <a class="admin-nav-item" href="#billing" data-admin-view="billing"><i>¤</i><span>Billing</span><b>{{ $billingOverview['eventsNeedingAttention'] }}</b></a>
             <span class="nav-label">Operations</span>
-            <a class="admin-nav-item" href="#ai" data-admin-view="ai"><i>✦</i><span>AI operations</span></a>
+            <a class="admin-nav-item" href="#ai" data-admin-view="ai"><i><x-icon name="sparkles" /></i><span>AI operations</span></a>
             <a class="admin-nav-item" href="#notifications" data-admin-view="notifications"><i>♢</i><span>Notifications</span></a>
             <a class="admin-nav-item" href="#catalog" data-admin-view="catalog"><i>▤</i><span>Catalog & rates</span></a>
             <a class="admin-nav-item" href="#settings" data-admin-view="settings"><i>⚙</i><span>Settings</span></a>
             <a class="admin-nav-item" href="#audit" data-admin-view="audit"><i>≋</i><span>Audit trail</span></a>
         </nav>
-        <div class="sidebar-status"><div><span><i></i> Dashboard connected</span><small>Live application data</small></div><b>{{ number_format($overview['aiSuccessRate'], 1) }}%</b></div>
+        <div class="sidebar-status"><div><span><i></i> Application data</span><small>Updated on page load</small></div><b>{{ $overview['aiSuccessRate'] === null ? '—' : number_format($overview['aiSuccessRate'], 1).'%' }}</b></div>
         <div class="sidebar-user">
             <span class="user-avatar">{{ $initials(session('automind_admin_username', 'admin')) }}</span>
             <div><strong>{{ session('automind_admin_username', 'admin') }}</strong><small>Super administrator</small></div>
@@ -59,8 +58,8 @@
                 <div class="breadcrumbs"><span>AutoMind</span><i>/</i><strong data-current-view>Overview</strong></div>
             </div>
             <div class="topbar-actions">
-                <label class="admin-search"><span>⌕</span><input type="search" placeholder="Search the current view…" aria-label="Search current dashboard view" data-global-search><kbd>⌘ K</kbd></label>
-                <button class="preview-site-button" type="button" data-export-current>Export CSV <span>⇩</span></button>
+                <label class="admin-search"><span>⌕</span><input type="search" placeholder="Filter visible rows…" aria-label="Filter visible rows in the current view" data-global-search><kbd>⌘ K</kbd></label>
+                <button class="preview-site-button" type="button" data-export-current>Export visible CSV <span>⇩</span></button>
                 <a class="icon-button" href="{{ route('landing') }}" target="_blank" aria-label="Open public website" title="Open public website">↗</a>
             </div>
         </header>
@@ -81,31 +80,20 @@
 
             <section class="admin-view active" data-view="overview">
                 <div class="admin-heading">
-                    <div><span class="admin-eyebrow"><i></i> LIVE OPERATIONS</span><h1>Command center</h1><p>Real-time visibility across customers, diagnostics, workshops, revenue, and AI delivery.</p></div>
+                    <div><span class="admin-eyebrow"><i></i> YOUR WORKSPACE, AT A GLANCE</span><h1>Command center</h1><p>A clearer picture of your users, diagnostic activity, and daily operations.</p></div>
                     <div class="heading-actions"><span class="environment-pill"><i></i>{{ strtoupper(app()->environment()) }}</span><button class="admin-button primary" type="button" data-admin-view="users">Manage users <span>→</span></button></div>
                 </div>
-                <div class="metric-grid">
-                    <article class="metric-card"><div class="metric-top"><span class="metric-icon blue">♙</span><span class="metric-trend">{{ number_format($overview['activeUsers']) }} active</span></div><small>Total users</small><strong>{{ number_format($overview['users']) }}</strong><p><i style="--bar:{{ $overview['users'] ? min(100, ($overview['activeUsers'] / $overview['users']) * 100) : 0 }}%"></i></p><span>Signed in during the last 7 days</span></article>
-                    <article class="metric-card"><div class="metric-top"><span class="metric-icon cyan">◎</span><span class="metric-trend">+{{ number_format($overview['diagnosticsToday']) }} today</span></div><small>Diagnostics</small><strong>{{ number_format($overview['diagnostics']) }}</strong><p><i style="--bar:76%"></i></p><span>Across {{ number_format($overview['vehicles']) }} registered vehicles</span></article>
-                    <article class="metric-card"><div class="metric-top"><span class="metric-icon purple">✦</span><span class="metric-trend {{ $overview['aiSuccessRate'] >= 95 ? 'up' : '' }}">7-day quality</span></div><small>AI success rate</small><strong>{{ number_format($overview['aiSuccessRate'], 1) }}%</strong><p><i style="--bar:{{ $overview['aiSuccessRate'] }}%"></i></p><span>{{ number_format($overview['failedAiRuns']) }} failed runs need attention</span></article>
-                    <article class="metric-card"><div class="metric-top"><span class="metric-icon amber">⌘</span><span class="metric-trend">{{ number_format($overview['pendingAppointments']) }} open</span></div><small>Verified mechanics</small><strong>{{ number_format($overview['verifiedMechanics']) }}</strong><p><i style="--bar:82%"></i></p><span>Requested and confirmed bookings</span></article>
+                <div class="metric-grid overview-metrics">
+                    <article class="metric-card featured-metric"><div class="metric-top"><span class="metric-icon blue"><x-icon name="users" /></span><span class="metric-period">ALL TIME</span></div><small>Total users</small><strong>{{ number_format($overview['users']) }}</strong><div class="metric-caption"><span class="metric-tag">{{ $loginActivityAvailable ? number_format($overview['activeUsers']).' signed in' : 'Activity unavailable' }}</span><span>last 7 days</span></div><span>Includes admins; excludes deleted users</span></article>
+                    <article class="metric-card"><div class="metric-top"><span class="metric-icon cyan"><x-icon name="activity" /></span><span class="metric-period">ALL TIME</span></div><small>Diagnostic sessions</small><strong>{{ number_format($overview['diagnostics']) }}</strong><div class="metric-caption"><span class="metric-tag">{{ number_format($overview['diagnosticsToday']) }} today</span></div><span>Across {{ number_format($overview['vehicles']) }} registered vehicles</span></article>
+                    <article class="metric-card"><div class="metric-top"><span class="metric-icon purple"><x-icon name="sparkles" /></span><span class="metric-period">LAST 7 DAYS</span></div><small>AI success rate</small><strong>{{ $overview['aiSuccessRate'] === null ? '—' : number_format($overview['aiSuccessRate'], 1).'%' }}</strong><div class="metric-caption"><span class="metric-tag">{{ $overview['terminalAiRuns'] ? number_format($overview['completedAiRuns']).' / '.number_format($overview['terminalAiRuns']).' finished runs' : 'No finished runs yet' }}</span></div><span>Completed ÷ (completed + failed)</span></article>
+                    <article class="metric-card"><div class="metric-top"><span class="metric-icon amber"><x-icon name="tool" /></span><span class="metric-period">NETWORK</span></div><small>Verified mechanics</small><strong>{{ number_format($overview['verifiedMechanics']) }}</strong><div class="metric-caption"><span class="metric-tag">{{ number_format($overview['pendingAppointments']) }} open bookings</span></div><span>Active, verified workshop partners</span></article>
                 </div>
-                <div class="dashboard-grid v2-grid">
-                    <article class="admin-panel performance-panel">
-                        <div class="panel-title"><div><strong>Diagnostic activity</strong><span>New sessions during the last seven days</span></div><span class="live-label"><i></i>Live data</span></div>
-                        <div class="chart-summary"><strong>{{ number_format($weeklyDiagnostics->sum('count')) }}</strong><small>Total sessions this week</small></div>
-                        <div class="line-chart bar-chart" aria-label="Diagnostic activity for the last seven days">
-                            <div class="chart-lines"><i></i><i></i><i></i><i></i></div>
-                            <div class="chart-bars">
-                                @forelse ($weeklyDiagnostics as $day)<span style="--h:{{ max(4, ($day['count'] / $maxWeekly) * 100) }}%" title="{{ $day['label'] }}: {{ $day['count'] }}"><i></i><b>{{ $day['count'] }}</b></span>@empty
-                                    @foreach (range(1, 7) as $empty)<span style="--h:4%"><i></i><b>0</b></span>@endforeach
-                                @endforelse
-                            </div>
-                            <div class="chart-labels">@forelse ($weeklyDiagnostics as $day)<span>{{ strtoupper($day['label']) }}</span>@empty @foreach (['MON','TUE','WED','THU','FRI','SAT','SUN'] as $day)<span>{{ $day }}</span>@endforeach @endforelse</div>
-                        </div>
-                    </article>
+                @include('partials.admin-analytics-toolbar')
+                <div class="analytics-grid">
+                    @include('partials.admin-analytics')
                     <article class="admin-panel health-panel">
-                        <div class="panel-title"><div><strong>Operations pulse</strong><span>Items requiring attention</span></div><span class="healthy-pill {{ $overview['failedAiRuns'] ? 'attention' : '' }}"><i></i>{{ $overview['failedAiRuns'] ? 'Review' : 'Healthy' }}</span></div>
+                        <div class="panel-title"><div><strong>Operations pulse</strong><span>Items requiring attention</span></div><span class="healthy-pill {{ ($overview['failedAiRuns'] + $billingOverview['eventsNeedingAttention']) ? 'attention' : '' }}"><i></i>{{ ($overview['failedAiRuns'] + $billingOverview['eventsNeedingAttention']) ? 'Review' : 'No alerts' }}</span></div>
                         <div class="ops-list">
                             <button type="button" data-admin-view="ai"><span class="ops-icon {{ $overview['failedAiRuns'] ? 'red' : 'green' }}">✦</span><span><strong>{{ number_format($overview['failedAiRuns']) }} failed AI runs</strong><small>Inspect errors and retry eligible work</small></span><b>→</b></button>
                             <button type="button" data-admin-view="users"><span class="ops-icon amber">♙</span><span><strong>{{ number_format($overview['suspendedUsers']) }} suspended users</strong><small>Review account access and reasons</small></span><b>→</b></button>
@@ -114,7 +102,7 @@
                     </article>
                     <article class="admin-panel recent-panel">
                         <div class="panel-title"><div><strong>Recent diagnostics</strong><span>The latest customer analysis sessions</span></div><button class="panel-link" type="button" data-admin-view="diagnostics">View all →</button></div>
-                        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Driver</th><th>Vehicle</th><th>Report</th><th>Progress</th><th>Status</th><th>Created</th></tr></thead><tbody>
+                        <div class="admin-table-wrap"><table class="admin-table" data-export-name="recent-diagnostics"><thead><tr><th>Driver</th><th>Vehicle</th><th>Report</th><th>Progress</th><th>Status</th><th>Created</th></tr></thead><tbody>
                             @forelse ($diagnostics->take(6) as $diagnosis)
                                 <tr><td><span class="table-person">{{ $initials($diagnosis->user?->name) }}</span><strong>{{ $diagnosis->user?->name ?? 'Deleted user' }}</strong></td><td><strong>{{ $diagnosis->vehicle?->brand }} {{ $diagnosis->vehicle?->model }}</strong><small>{{ $diagnosis->vehicle?->year }} · {{ number_format($diagnosis->vehicle?->mileage_km ?? 0) }} km</small></td><td>{{ $diagnosis->report?->translations?->firstWhere('locale', 'en')?->title ?? 'Not generated' }}</td><td><b>{{ $diagnosis->progress_percentage }}%</b></td><td><span class="status-pill {{ $statusTone($diagnosis->status) }}">{{ $diagnosis->status }}</span></td><td>{{ $diagnosis->created_at?->diffForHumans() }}</td></tr>
                             @empty <tr><td colspan="6"><div class="empty-state">No diagnostic sessions yet.</div></td></tr> @endforelse
@@ -126,22 +114,31 @@
             <section class="admin-view" data-view="users">
                 <x-admin-heading title="Users" eyebrow="CUSTOMER ACCESS" description="Manage profiles, permissions, account access, and deleted accounts." />
                 <div class="resource-stats">
-                    <article><span class="metric-icon blue">♙</span><div><small>All accounts</small><strong>{{ number_format($users->count()) }} shown</strong></div></article>
-                    <article><span class="metric-icon cyan">✓</span><div><small>Active this week</small><strong>{{ number_format($overview['activeUsers']) }}</strong></div></article>
-                    <article><span class="metric-icon amber">!</span><div><small>Suspended</small><strong>{{ number_format($overview['suspendedUsers']) }}</strong></div></article>
-                    <article><span class="metric-icon purple">◇</span><div><small>Administrators</small><strong>{{ number_format($users->where('is_admin', true)->count()) }}</strong></div></article>
+                    <article><span class="metric-icon blue">♙</span><div><small>Current users</small><strong>{{ number_format($overview['users']) }}</strong></div></article>
+                    <article><span class="metric-icon cyan">✓</span><div><small>Signed in · 7 days</small><strong>{{ $loginActivityAvailable ? number_format($overview['activeUsers']) : '—' }}</strong></div></article>
+                    <article><span class="metric-icon amber">!</span><div><small>Suspended</small><strong>{{ $accountStatusAvailable ? number_format($overview['suspendedUsers']) : '—' }}</strong></div></article>
+                    <article><span class="metric-icon purple">◇</span><div><small>Administrators</small><strong>{{ number_format($overview['administrators']) }}</strong></div></article>
                 </div>
                 <article class="admin-panel resource-table-panel">
-                    <div class="resource-toolbar"><label><span>⌕</span><input type="search" placeholder="Search name, email, phone, or city…" data-table-search="users-table"></label><div class="toolbar-note">Latest 50 including deleted accounts</div></div>
+                    <form class="resource-toolbar user-filters" method="GET" action="{{ route('admin.dashboard') }}#users" role="search" aria-label="Search all users">
+                        <input type="hidden" name="range" value="{{ $analyticsDays }}">
+                        <label><x-icon name="search" /><input type="search" name="user_search" value="{{ $userSearch }}" placeholder="Search all users…" aria-label="Search all users by name, email, phone, city or ID" maxlength="120"></label>
+                        <select name="user_status" aria-label="Account status">
+                            @foreach(['current' => 'Current accounts', 'enabled' => 'Enabled accounts', 'suspended' => 'Suspended accounts', 'deleted' => 'Deleted accounts', 'all' => 'All, including deleted'] as $value => $label)<option value="{{ $value }}" @selected($userStatus === $value) @disabled(!$accountStatusAvailable && in_array($value, ['enabled', 'suspended']))>{{ $label }}</option>@endforeach
+                        </select>
+                        <button class="admin-button primary" type="submit">Search users</button>
+                        @if($userSearch !== '' || $userStatus !== 'current')<a class="filter-reset" href="{{ route('admin.dashboard', ['range' => $analyticsDays]) }}#users">Clear filters</a>@endif
+                    </form>
                     <div class="admin-table-wrap"><table class="admin-table resource-table" id="users-table" data-export-name="users"><thead><tr><th>User</th><th>Contact</th><th>Activity</th><th>Role</th><th>Last login</th><th>Status</th><th></th></tr></thead><tbody>
                         @forelse ($users as $user)
-                            @php $userState = $user->trashed() ? 'deleted' : ($user->suspended_at ? 'suspended' : 'active'); @endphp
-                            <tr><td><span class="table-person">{{ $initials($user->name) }}</span><span><strong>{{ $user->name }}</strong><small>{{ $user->id }}</small></span></td><td><strong>{{ $user->email }}</strong><small>{{ $user->phone ?: ($user->city ?: 'No phone or city') }}</small></td><td><strong>{{ $user->vehicles_count }} vehicles · {{ $user->diagnostics_count }} diagnostics</strong><small>{{ $user->appointments_count }} appointments</small></td><td>{{ $user->is_admin ? ($user->admin_role ?: 'SUPER_ADMIN') : 'Customer' }}</td><td>{{ $user->last_login_at?->diffForHumans() ?? 'Never' }}</td><td><span class="status-pill {{ $statusTone($userState) }}">{{ $userState }}</span></td><td class="row-actions">
+                            @php $userState = $user->trashed() ? 'deleted' : ($user->suspended_at ? 'suspended' : ($accountStatusAvailable ? 'enabled' : 'current')); @endphp
+                            <tr><td><span class="table-person">{{ $initials($user->name) }}</span><span><strong>{{ $user->name }}</strong><small>{{ $user->id }}</small></span></td><td><strong>{{ $user->email }}</strong><small>{{ $user->phone ?: ($user->city ?: 'No phone or city') }}</small></td><td><strong>{{ $user->vehicles_count }} vehicles · {{ $user->diagnostics_count }} diagnostics</strong><small>{{ $user->appointments_count }} appointments</small></td><td>{{ $user->is_admin ? ($user->admin_role ?: 'SUPER_ADMIN') : 'Customer' }}</td><td>{{ $loginActivityAvailable ? ($user->last_login_at?->diffForHumans() ?? 'Never') : 'Unavailable' }}</td><td><span class="status-pill {{ $statusTone($userState) }}">{{ $userState }}</span></td><td class="row-actions">
                                 @if ($user->trashed())<button class="table-action" type="button" data-open-dialog="deleted-user-{{ $user->id }}">Manage</button>
                                 @else<button class="table-action" type="button" data-open-dialog="user-{{ $user->id }}">Manage</button>@endif
                             </td></tr>
                         @empty <tr><td colspan="7"><div class="empty-state">No users found.</div></td></tr> @endforelse
                     </tbody></table></div>
+                    <div class="table-pagination"><span>Showing {{ number_format($users->firstItem() ?? 0) }}–{{ number_format($users->lastItem() ?? 0) }} of <strong>{{ number_format($users->total()) }}</strong> matching accounts</span><nav aria-label="User pages">@if($users->previousPageUrl())<a href="{{ $users->previousPageUrl() }}" rel="prev">← Previous</a>@else<span aria-disabled="true">← Previous</span>@endif<span>Page {{ $users->currentPage() }} of {{ $users->lastPage() }}</span>@if($users->nextPageUrl())<a href="{{ $users->nextPageUrl() }}" rel="next">Next →</a>@else<span aria-disabled="true">Next →</span>@endif</nav></div>
                 </article>
                 @foreach ($users->whereNull('deleted_at') as $user)
                     <dialog class="admin-dialog" id="user-{{ $user->id }}"><div class="dialog-head"><div><span>User access</span><h2>{{ $user->name }}</h2><p>{{ $user->email }}</p></div><button type="button" data-close-dialog aria-label="Close">×</button></div>
@@ -224,7 +221,7 @@
                 <div class="admin-heading compact-heading"><div><span class="admin-eyebrow"><i></i> CUSTOMER COMMUNICATION</span><h1>Notifications</h1><p>Create bilingual broadcasts and inspect messages delivered to customer inboxes.</p></div><button class="admin-button primary" type="button" data-open-dialog="broadcast-create">+ New broadcast</button></div>
                 <div class="resource-stats"><article><span class="metric-icon blue">♢</span><div><small>Total shown</small><strong>{{ number_format($notifications->count()) }}</strong></div></article><article><span class="metric-icon cyan">✓</span><div><small>Sent</small><strong>{{ number_format($notifications->whereNotNull('sent_at')->count()) }}</strong></div></article><article><span class="metric-icon purple">◉</span><div><small>Read</small><strong>{{ number_format($notifications->whereNotNull('read_at')->count()) }}</strong></div></article><article><span class="metric-icon amber">◌</span><div><small>Unread</small><strong>{{ number_format($notifications->whereNull('read_at')->count()) }}</strong></div></article></div>
                 <article class="admin-panel resource-table-panel"><div class="resource-toolbar"><label><span>⌕</span><input type="search" placeholder="Search user, type, or message…" data-table-search="notifications-table"></label><div class="toolbar-note">Latest 50 notifications</div></div><div class="admin-table-wrap"><table class="admin-table resource-table" id="notifications-table" data-export-name="notifications"><thead><tr><th>Recipient</th><th>Type</th><th>English message</th><th>Arabic message</th><th>Delivery</th><th>Created</th></tr></thead><tbody>@forelse($notifications as $notification)<tr><td>{{ $notification->user?->name ?? 'Deleted user' }}<small>{{ $notification->user?->email }}</small></td><td>{{ $notification->type }}</td><td><strong>{{ $notification->title_en }}</strong><small>{{ Str::limit($notification->body_en, 65) }}</small></td><td dir="rtl"><strong>{{ $notification->title_ar }}</strong><small>{{ Str::limit($notification->body_ar, 65) }}</small></td><td><span class="status-pill {{ $notification->read_at ? 'success' : 'neutral' }}">{{ $notification->read_at ? 'read' : ($notification->sent_at ? 'sent' : 'queued') }}</span></td><td>{{ $notification->created_at?->diffForHumans() }}</td></tr>@empty<tr><td colspan="6"><div class="empty-state">No notifications yet.</div></td></tr>@endforelse</tbody></table></div></article>
-                <dialog class="admin-dialog" id="broadcast-create"><div class="dialog-head"><div><span>Customer communication</span><h2>New broadcast</h2><p>A bilingual notification is stored for every selected recipient.</p></div><button type="button" data-close-dialog>×</button></div><form class="dialog-form" method="POST" action="{{ route('admin.notifications.broadcast') }}">@csrf<div class="form-grid"><label><span>Audience</span><select name="audience" data-audience-select><option value="active">All active users</option><option value="all">All users</option><option value="user">One user</option></select></label><label data-audience-user hidden><span>User</span><select name="user_id"><option value="">Select user</option>@foreach($users->whereNull('deleted_at') as $user)<option value="{{ $user->id }}">{{ $user->name }} — {{ $user->email }}</option>@endforeach</select></label><label class="full"><span>English title</span><input name="title_en" maxlength="160" required></label><label class="full"><span>English message</span><textarea name="body_en" rows="3" maxlength="1000" required></textarea></label><label class="full"><span>Arabic title</span><input name="title_ar" dir="rtl" maxlength="160" required></label><label class="full"><span>Arabic message</span><textarea name="body_ar" dir="rtl" rows="3" maxlength="1000" required></textarea></label></div><div class="dialog-actions"><button type="button" class="admin-button secondary" data-close-dialog>Cancel</button><button class="admin-button primary" type="submit" data-confirm="Create this broadcast for the selected audience?">Create broadcast</button></div></form></dialog>
+                <dialog class="admin-dialog" id="broadcast-create"><div class="dialog-head"><div><span>Customer communication</span><h2>New broadcast</h2><p>A bilingual notification is stored for every selected recipient.</p></div><button type="button" data-close-dialog>×</button></div><form class="dialog-form" method="POST" action="{{ route('admin.notifications.broadcast') }}">@csrf<div class="form-grid"><label><span>Audience</span><select name="audience" data-audience-select><option value="active">All active users</option><option value="all">All users</option><option value="user">One user</option></select></label><label data-audience-user hidden><span>User</span><select name="user_id"><option value="">Select user</option>@foreach($notificationUsers as $user)<option value="{{ $user->id }}">{{ $user->name }} — {{ $user->email }}</option>@endforeach</select></label><label class="full"><span>English title</span><input name="title_en" maxlength="160" required></label><label class="full"><span>English message</span><textarea name="body_en" rows="3" maxlength="1000" required></textarea></label><label class="full"><span>Arabic title</span><input name="title_ar" dir="rtl" maxlength="160" required></label><label class="full"><span>Arabic message</span><textarea name="body_ar" dir="rtl" rows="3" maxlength="1000" required></textarea></label></div><div class="dialog-actions"><button type="button" class="admin-button secondary" data-close-dialog>Cancel</button><button class="admin-button primary" type="submit" data-confirm="Create this broadcast for the selected audience?">Create broadcast</button></div></form></dialog>
             </section>
 
             <section class="admin-view" data-view="catalog">

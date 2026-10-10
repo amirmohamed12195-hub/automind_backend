@@ -57,6 +57,26 @@ remain disabled in production.
 
 Pricing JSON keys are model IDs and rates are USD per million tokens: `input`, `cachedInput`, `output`, plus optional per-call `webSearchCall`. Run `php artisan automind:check-provider-config` in deployment; it validates capabilities, endpoint, webhook, and pricing without spending API credit.
 
+## Dashboard metrics
+
+The `/admin` overview uses database-wide counts, refreshed on each page load.
+Current users include administrators and suspended accounts, but exclude deleted
+accounts. Enabled, suspended, and deleted counts are displayed separately.
+“Signed in” counts enabled current users with a recorded login in the last seven
+calendar days; it does not measure ongoing token activity.
+
+Charts cover the last 7 or 30 calendar days through the current time in the
+application timezone, with missing days shown as zero. Registration counts exclude
+deleted accounts. AI success rate is completed runs divided by completed plus
+failed runs created in the last seven days; unfinished runs are excluded and no
+finished runs displays a dash. User search and status filters query all accounts
+with 25 results per page. CSV export covers the visible table page.
+
+The landing and download pages serve official store badge artwork locally and
+render destinations from `config/public.php`; browser-local landing drafts cannot
+override these links. Run `npm run build` and include `public/build` when deploying
+frontend changes.
+
 ## AI and safety behavior
 
 Uploads require explicit consent and remain private. Images are MIME/content/dimension checked, re-encoded to strip EXIF, optionally scanned by ClamAV, and bounded to six photos. Audio is bounded to one engine recording plus one spoken description and 30 seconds, then normalized with fixed FFmpeg arguments. Engine sound is analyzed as acoustic evidence; it is never treated as speech.
