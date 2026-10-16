@@ -320,6 +320,10 @@ alter table `vehicle_model_generations` add index `vehicle_generation_year_idx`(
 alter table `vehicle_model_generations` add index `vehicle_model_generations_image_status_index`(`image_status`);
 update `billing_plans` set `reports_per_period` = 10, `updated_at` = CURRENT_TIMESTAMP where `code` = 'FREE' and `reports_per_period` = 1;
 update `diagnostic_media` set `processing_status` = 'ready', `failure_code` = null, `updated_at` = CURRENT_TIMESTAMP where `media_kind` = 'photo' and `scan_status` = 'not_configured' and `processing_status` = 'pending';
+create table `apple_authorizations` (`id` char(26) not null, `user_id` char(26) null, `client_id` varchar(255) not null, `refresh_token` text not null, `revocation_requested_at` timestamp null, `attempts` int unsigned not null default '0', `retry_at` timestamp null, `created_at` timestamp null, `updated_at` timestamp null, primary key (`id`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `apple_authorizations` add constraint `apple_authorizations_user_id_foreign` foreign key (`user_id`) references `users` (`id`) on delete set null;
+alter table `apple_authorizations` add unique `apple_authorizations_user_id_client_id_unique`(`user_id`, `client_id`);
+alter table `apple_authorizations` add index `apple_authorizations_revocation_requested_at_index`(`revocation_requested_at`);
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -339,4 +343,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_08_26_000100_enabl
 insert into `migrations` (`migration`, `batch`) values ('2026_09_11_000100_create_vehicle_model_generations_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_09_13_000100_raise_free_report_allowance_to_ten', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_09_14_000100_mark_unscanned_photos_ready', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_10_16_000001_create_apple_authorizations_table', 1);
 SET FOREIGN_KEY_CHECKS=1;

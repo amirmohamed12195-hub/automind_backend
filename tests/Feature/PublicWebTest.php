@@ -21,6 +21,10 @@ class PublicWebTest extends ApiTestCase
         $this->get('/privacy?lang=ar')->assertOk()->assertSee('سياسة الخصوصية')->assertSee('dir="rtl"', false);
         $this->get('/terms')->assertOk()->assertSee('Terms of Use');
         $this->get('/support?lang=ar')->assertOk()->assertSee('الدعم والمساعدة');
+        $this->get('/refunds')->assertOk()->assertSee('Refund &amp; Cancellation Policy', false)->assertSee('reportaproblem.apple.com')->assertSee('tel:+201553655563', false);
+        $this->get('/refunds?lang=ar')->assertOk()->assertSee('سياسة الاسترجاع والإلغاء');
+        $this->get('/support')->assertOk()->assertSee('tel:+201553655563', false)->assertSee('/refunds');
+        $this->get('/privacy')->assertOk()->assertSee('OpenAI');
         $this->get('/delete-account')->assertOk()->assertSee('Delete your AutoMind account');
     }
 

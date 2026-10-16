@@ -22,6 +22,7 @@
         <nav aria-label="{{ $rtl ? 'الصفحات العامة' : 'Public pages' }}">
             <a href="{{ route('privacy', ['lang' => $locale]) }}">{{ $rtl ? 'الخصوصية' : 'Privacy' }}</a>
             <a href="{{ route('terms', ['lang' => $locale]) }}">{{ $rtl ? 'الشروط' : 'Terms' }}</a>
+            <a href="{{ route('refunds', ['lang' => $locale]) }}">{{ $rtl ? 'الاسترجاع' : 'Refunds' }}</a>
             <a href="{{ route('support', ['lang' => $locale]) }}">{{ $rtl ? 'الدعم' : 'Support' }}</a>
             <a class="language-link" href="{{ url()->current() }}?lang={{ $rtl ? 'en' : 'ar' }}">{{ $rtl ? 'English' : 'العربية' }}</a>
         </nav>

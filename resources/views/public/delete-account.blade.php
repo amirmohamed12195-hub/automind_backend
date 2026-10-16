@@ -1,4 +1,4 @@
-@php $title = $locale === 'ar' ? 'حذف حساب أوتومايند' : 'Delete your AutoMind account'; @endphp
+@php $rtl = $locale === 'ar'; $title = $locale === 'ar' ? 'حذف حساب أوتومايند' : 'Delete your AutoMind account'; @endphp
 @extends('public.layout')
 @section('noindex', 'true')
 
@@ -20,5 +20,6 @@
         <label><span>{{ $locale === 'ar' ? 'البريد المرتبط بالحساب' : 'Account email' }}</span><input type="email" name="email" value="{{ old('email') }}" required autocomplete="email" maxlength="255"></label>
         <button class="public-button danger" type="submit">{{ $locale === 'ar' ? 'إرسال رابط التأكيد' : 'Send confirmation link' }}</button>
     </form>
+<section><h2>{{ $rtl ? 'إذا استخدمت تسجيل الدخول بحساب Apple' : 'If you used Sign in with Apple' }}</h2><p>{{ $rtl ? 'نلغي تفويض Apple عند توفر رمز التفويض. للحسابات القديمة التي لم يُحفظ لها رمز، افتح إعدادات حساب Apple ← تسجيل الدخول باستخدام Apple ← AutoMind ← إيقاف الاستخدام. لا يؤخر هذا الإجراء حذف حساب AutoMind، ولا يلغي اشتراك المتجر.' : 'We revoke Apple authorization when a token is available. For older accounts without a stored token, open Apple Account settings → Sign in with Apple → AutoMind → Stop Using. This does not delay AutoMind account deletion and does not cancel a store subscription.' }}</p><a href="https://support.apple.com/en-us/102571">{{ $rtl ? 'إدارة تسجيل الدخول باستخدام Apple' : 'Manage Sign in with Apple' }}</a></section>
 </article>
 @endsection

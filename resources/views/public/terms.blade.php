@@ -33,5 +33,6 @@
         <section><h2>9. Suspension and changes</h2><p>You can stop using the service and delete your account at any time. We may suspend service for security, legal, or maintenance reasons. Material updates will be published and renewed acceptance requested where required.</p></section>
         <section><h2>10. Contact and applicable rights</h2><p>Mandatory privacy and consumer rules in your country continue to apply. Questions or complaints can be sent to <a href="mailto:{{ $supportEmail ?? config('public.support_email') }}">{{ $supportEmail ?? config('public.support_email') }}</a>.</p></section>
     @endif
+    <section><h2>{{ $rtl ? 'الاسترجاع والإلغاء' : 'Refunds and cancellation' }}</h2><p><a href="{{ route('refunds', ['lang' => $locale]) }}">{{ $rtl ? 'اقرأ سياسة الاسترجاع وخطوات إلغاء الاشتراك.' : 'Read the refund policy and subscription cancellation steps.' }}</a></p></section>
 </article>
 @endsection

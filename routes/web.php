@@ -14,6 +14,7 @@ Route::view('/', 'landing')->name('landing');
 Route::get('/download', DownloadController::class)->name('download');
 Route::view('/privacy', 'public.privacy')->name('privacy');
 Route::view('/terms', 'public.terms')->name('terms');
+Route::view('/refunds', 'public.refunds')->name('refunds');
 Route::view('/support', 'public.support')->name('support');
 Route::get('/delete-account', [PublicAccountDeletionController::class, 'show'])->name('account-deletion.show');
 Route::post('/delete-account', [PublicAccountDeletionController::class, 'request'])

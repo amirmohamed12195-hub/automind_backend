@@ -2,6 +2,8 @@
 
 return [
     'operator_name' => env('LEGAL_OPERATOR_NAME', 'AutoMind'),
+    'support_phone' => env('SUPPORT_PHONE', '+201553655563'),
+    'policy_updated_at' => '2026-10-16',
     'support_email' => env('SUPPORT_EMAIL', 'support@automind-ai.net'),
     'privacy_email' => env('PRIVACY_EMAIL', env('SUPPORT_EMAIL', 'support@automind-ai.net')),
     'minimum_age' => (int) env('MINIMUM_USER_AGE', 16),
