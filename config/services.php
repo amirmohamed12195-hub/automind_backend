@@ -41,6 +41,11 @@ return [
     ],
 
     'apple' => [
+        'team_id' => env('APPLE_TEAM_ID'),
+        'sign_in_key_id' => env('APPLE_SIGN_IN_KEY_ID'),
+        'sign_in_private_key_path' => env('APPLE_SIGN_IN_PRIVATE_KEY_PATH'),
+        'service_id' => env('APPLE_SERVICE_ID', 'com.automind.ai.service'),
+        'redirect_uri' => env('APPLE_SIGN_IN_REDIRECT_URI', 'https://automind-ai.net/callbacks/sign_in_with_apple'),
         'client_ids' => array_values(array_filter(explode(',', (string) env(
             'APPLE_CLIENT_IDS',
             'com.automind.ai,com.automind.ai.service',

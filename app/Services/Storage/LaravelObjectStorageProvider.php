@@ -42,7 +42,9 @@ class LaravelObjectStorageProvider implements ObjectStorageProvider
 
     public function delete(string $disk, string $path): void
     {
-        Storage::disk($disk)->delete($path);
+        if (! Storage::disk($disk)->delete($path)) {
+            throw new RuntimeException('Private file deletion failed.');
+        }
     }
 
     private function stripImageMetadata(UploadedFile $file, string $mime, string $extension): UploadedFile

@@ -3,11 +3,12 @@
 namespace App\Services;
 
 use App\Contracts\ObjectStorageProvider;
+use App\Models\AppleAuthorization;
 use App\Models\DeviceToken;
 use App\Models\DiagnosticMedia;
 use App\Models\User;
+use App\Services\Auth\AppleAuthorizationService;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class AccountDeletionService
 {
@@ -15,7 +16,9 @@ class AccountDeletionService
 
     public function request(User $user): void
     {
+        $grantIds = AppleAuthorization::query()->where('user_id', $user->id)->pluck('id')->all();
         DB::transaction(function () use ($user): void {
+            AppleAuthorization::query()->where('user_id', $user->id)->update(['user_id' => null, 'revocation_requested_at' => now(), 'retry_at' => null]);
             $user->tokens()->delete();
             DeviceToken::query()
                 ->where('user_id', $user->id)
@@ -27,6 +30,8 @@ class AccountDeletionService
             $user->forceFill(['deletion_requested_at' => now()])->save();
             $user->delete();
         });
+        // The scheduler retries provider failures without blocking account deletion.
+        app(AppleAuthorizationService::class)->revokePending($grantIds);
     }
 
     public function purge(User $user): void
@@ -40,6 +45,12 @@ class AccountDeletionService
             $storedFiles->push([(string) config('automind.media.disk'), $user->avatar_path]);
         }
 
+        // Keep the database references until all storage deletions succeed, so a
+        // failed object deletion remains retryable on the next retention run.
+        $storedFiles->unique(fn (array $file): string => implode(':', $file))->each(function (array $file): void {
+            $this->storage->delete($file[0], $file[1]);
+        });
+
         DB::transaction(function () use ($user): void {
             $user->tokens()->delete();
             DB::table('sessions')->where('user_id', $user->id)->delete();
@@ -47,12 +58,5 @@ class AccountDeletionService
             $user->forceDelete();
         });
 
-        $storedFiles->unique(fn (array $file): string => implode(':', $file))->each(function (array $file): void {
-            try {
-                $this->storage->delete($file[0], $file[1]);
-            } catch (Throwable $exception) {
-                report($exception);
-            }
-        });
     }
 }

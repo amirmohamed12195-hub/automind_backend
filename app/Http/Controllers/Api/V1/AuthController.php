@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\AppleAuthorization;
 use App\Models\DeviceToken;
 use App\Models\SocialIdentity;
 use App\Models\User;
+use App\Services\Auth\AppleAuthorizationService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SocialIdentityVerifier;
 use App\Services\PlatformSettings;
@@ -86,6 +88,7 @@ class AuthController
     {
         $data = $request->validate([
             'identityToken' => ['required', 'string'],
+            'authorizationCode' => ['nullable', 'string', 'max:4096'],
             'nonce' => [$provider === 'apple' ? 'required' : 'nullable', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:120'],
             'deviceName' => ['nullable', 'string', 'max:120'],
@@ -113,14 +116,27 @@ class AuthController
         if (! $knownIdentity && ! $identity['email']) {
             return ApiResponse::error('SOCIAL_EMAIL_REQUIRED', __('api.social_email_required'), 422);
         }
-        $user = DB::transaction(function () use ($data, $identity, $provider, $legalAccepted) {
+        $grant = null;
+        if ($provider === 'apple' && ! empty($data['authorizationCode'])) {
+            try {
+                $grant = app(AppleAuthorizationService::class)->exchange($data['authorizationCode'], $data['nonce'], $identity);
+            } catch (Throwable) {
+                return ApiResponse::error('APPLE_AUTHORIZATION_FAILED', __('api.social_invalid'), 503);
+            }
+        }
+        $user = DB::transaction(function () use ($data, $identity, $provider, $legalAccepted, $grant) {
             $social = SocialIdentity::query()
                 ->where('provider', $provider)
                 ->where('provider_subject', $identity['subject'])
                 ->lockForUpdate()
                 ->first();
             if ($social) {
-                return User::query()->findOrFail($social->user_id);
+                $user = User::query()->findOrFail($social->user_id);
+                if ($grant !== null) {
+                    AppleAuthorization::query()->updateOrCreate(['user_id' => $user->id, 'client_id' => $grant['client_id']], $grant);
+                }
+
+                return $user;
             }
 
             $user = User::query()->firstOrCreate(
@@ -152,6 +168,10 @@ class AuthController
                 ['provider' => $provider, 'provider_subject' => $identity['subject']],
                 ['user_id' => $user->id, 'provider_email' => $identity['email']],
             );
+
+            if ($grant !== null) {
+                AppleAuthorization::query()->updateOrCreate(['user_id' => $social->user_id, 'client_id' => $grant['client_id']], $grant);
+            }
 
             return $social->user_id === $user->id
                 ? $user

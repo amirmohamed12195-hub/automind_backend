@@ -51,6 +51,6 @@ class SocialIdentityVerifier
             throw new RuntimeException('Social email is not verified.');
         }
 
-        return ['subject' => (string) $claims['sub'], 'email' => isset($claims['email']) ? mb_strtolower((string) $claims['email']) : null, 'name' => $claims['name'] ?? null];
+        return ['audience' => (string) array_values(array_intersect($clientIds, $audiences))[0], 'subject' => (string) $claims['sub'], 'email' => isset($claims['email']) ? mb_strtolower((string) $claims['email']) : null, 'name' => $claims['name'] ?? null];
     }
 }

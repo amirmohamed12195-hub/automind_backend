@@ -8,7 +8,7 @@ AUTOMIND_PHP_BINARY="${AUTOMIND_PHP_BINARY:-/usr/bin/php}"
 cd "$AUTOMIND_PROJECT_ROOT"
 
 exec "$AUTOMIND_PHP_BINARY" artisan queue:work database \
-    --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders \
+    --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders,default \
     --sleep=1 \
     --tries=4 \
     --timeout=240 \

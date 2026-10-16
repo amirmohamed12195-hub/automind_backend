@@ -193,7 +193,7 @@ Run the queue worker under Supervisor, systemd, or the hosting provider's
 persistent worker feature:
 
 ```bash
-php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders --sleep=1 --tries=4 --timeout=240 --max-time=3600
+php artisan queue:work redis --queue=media-processing,diagnostic-ai,price-search,notifications,maintenance-reminders,default --sleep=1 --tries=4 --timeout=240 --max-time=3600
 ```
 
 When using the shared-hosting defaults, replace `redis` with `database`.
