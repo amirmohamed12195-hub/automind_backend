@@ -19,7 +19,9 @@ class KashierClient
     /** @return array<string, mixed> */
     public function session(string $id): array
     {
-        $response = $this->request('get', '/v3/payment/sessions/'.rawurlencode($id));
+        // The public checkout endpoint rejects already-paid sessions. Use the
+        // authenticated payment endpoint for settlement and refund verification.
+        $response = $this->request('get', '/v3/payment/sessions/'.rawurlencode($id).'/payment');
         if (! is_array($response['data'] ?? null)) {
             throw new BillingException('KASHIER_INVALID_RESPONSE', 'The payment details could not be verified. Please try again later.', 503, true);
         }

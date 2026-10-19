@@ -46,7 +46,7 @@ Register the same URL for live `pay`, `capture`, `refund`, `partial_refund`, `vo
 - Prices, plan eligibility, customer references, return URLs, and webhook URLs are set server-side.
 - Checkout creation uses a unique per-user request key and an account lock. The same request cannot create another chargeable session. A session creation timeout is not automatically retried.
 - Session merchant, order, amount, and currency must all match the stored order. `PAID` with the exact captured amount is required. Authorized-only or declined payments grant nothing.
-- Session creation returns the session directly; the GET status response wraps it in `data`. A missing status envelope fails closed and prompts webhook retries.
+- Session creation returns the session directly. Verification uses authenticated `GET /v3/payment/sessions/{id}/payment`, whose response wraps payment details in `data`. The public session endpoint rejects already-paid sessions and must not be used for reconciliation. A missing status envelope fails closed and prompts webhook retries.
 - Fulfilment is transactional and locked per account/order. Duplicate callbacks and page refreshes cannot duplicate credits or extend prepaid expiry.
 - Full refunds/reversals revoke related subscription access and reverse an available report credit. Used report credits are flagged `refundNeedsReview` on the purchase. Partial refunds are marked `partially_refunded` for operator review and retain existing access.
 - All customer pages use session authentication, CSRF protection for forms, throttles, ownership checks, and private/no-store responses for account/order pages.
@@ -58,7 +58,7 @@ A paid live transaction and any live refund must be performed by the account hol
 ## Reference
 
 - https://developers.kashier.io/docs/api-reference/payment-sessions/createPaymentSession
-- https://developers.kashier.io/docs/api-reference/payment-sessions/getPaymentSessionById
+- https://developers.kashier.io/docs/api-reference/payment-sessions/getPaymentSession
 - https://developers.kashier.io/docs/webhooks
 - https://developers.kashier.io/docs/webhooks/payloads
 - https://developers.kashier.io/docs/get-started/going-live

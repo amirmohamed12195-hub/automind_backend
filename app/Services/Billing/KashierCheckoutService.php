@@ -121,14 +121,13 @@ class KashierCheckoutService
             return $order;
         }
         $session = $this->client->session($order->session_id);
-        $params = $session['paymentParams'] ?? [];
         // Never trust the browser redirect or unsigned event type. The provider's
         // session must match our stored order, merchant, price, and currency.
-        if (($session['_id'] ?? null) !== $order->session_id
+        if (($session['sessionId'] ?? null) !== $order->session_id
             || ($session['merchantId'] ?? null) !== config('kashier.merchant_id')
-            || ($params['order'] ?? null) !== $order->id
-            || ($params['currency'] ?? null) !== $order->currency
-            || $this->minorUnits($params['amount'] ?? null) !== $order->amount_minor) {
+            || ($session['merchantOrderId'] ?? null) !== $order->id
+            || ($session['currency'] ?? null) !== $order->currency
+            || $this->minorUnits($session['amount'] ?? null) !== $order->amount_minor) {
             throw new BillingException('KASHIER_ORDER_MISMATCH', 'The payment details could not be verified. Please contact support.', 409);
         }
         $captured = $this->minorUnits($session['capturedAmount'] ?? null, true);

@@ -99,12 +99,12 @@ class KashierCheckoutTest extends TestCase
     public function test_paid_session_must_match_merchant_order_currency_and_amount(): void
     {
         $order = $this->order();
-        foreach (['merchantId' => 'MID-OTHER', 'paymentParams.order' => 'other-order', 'paymentParams.amount' => 1, 'paymentParams.currency' => 'USD', '_id' => 'other-session'] as $key => $value) {
+        foreach (['merchantId' => 'MID-OTHER', 'merchantOrderId' => 'other-order', 'amount' => 1, 'currency' => 'USD', 'sessionId' => 'other-session'] as $key => $value) {
             $session = $this->providerSession($order, 'PAID');
             data_set($session, $key, $value);
             Http::swap(new Factory);
             Http::preventStrayRequests();
-            Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success', 'data' => $session])]);
+            Http::fake(['*/v3/payment/sessions/*/payment' => Http::response(['message' => 'success', 'data' => $session])]);
             try {
                 app(KashierCheckoutService::class)->refresh($order);
                 $this->fail('Mismatched payment accepted: '.$key);
@@ -118,7 +118,7 @@ class KashierCheckoutTest extends TestCase
     public function test_invalid_session_response_cannot_confirm_payment(): void
     {
         $order = $this->order();
-        Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success'])]);
+        Http::fake(['*/v3/payment/sessions/*/payment' => Http::response(['message' => 'success'])]);
         $payload = $this->payload($order);
         $this->postJson('/api/v1/billing/webhooks/kashier', $payload, ['x-kashier-signature' => $this->signature($payload)])->assertStatus(503);
         $this->assertSame('pending', $order->fresh()->status);
@@ -235,17 +235,17 @@ class KashierCheckoutTest extends TestCase
 
     private function providerSession(KashierOrder $order, string $status, int $refunded = 0): array
     {
-        return ['_id' => $order->session_id, 'merchantId' => 'MID-TEST', 'status' => $status,
+        return ['sessionId' => $order->session_id, 'merchantId' => 'MID-TEST', 'status' => $status,
             'capturedAmount' => in_array($status, ['PAID', 'REFUNDED']) ? $order->amount_minor / 100 : 0,
             'refundedAmount' => $refunded,
-            'paymentParams' => ['order' => $order->id, 'amount' => $order->amount_minor / 100, 'currency' => 'EGP']];
+            'merchantOrderId' => $order->id, 'amount' => $order->amount_minor / 100, 'currency' => 'EGP'];
     }
 
     private function fakeSession(KashierOrder $order, string $status, int $refunded = 0): void
     {
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success', 'data' => $this->providerSession($order, $status, $refunded)])]);
+        Http::fake(['*/v3/payment/sessions/*/payment' => Http::response(['message' => 'success', 'data' => $this->providerSession($order, $status, $refunded)])]);
     }
 
     private function payload(KashierOrder $order): array
