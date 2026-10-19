@@ -15,6 +15,9 @@ class KashierCheckoutController
 {
     public function index(Request $request, KashierCheckoutService $checkout, EntitlementService $entitlements)
     {
+        if (! config('kashier.web_enabled')) {
+            return redirect()->route('download');
+        }
         $this->locale($request);
         $user = $this->user($request);
         $orders = $user ? KashierOrder::query()->where('user_id', $user->id)->latest()->limit(10)->get() : collect();
@@ -28,6 +31,7 @@ class KashierCheckoutController
 
     public function login(Request $request)
     {
+        abort_unless(config('kashier.web_enabled'), 404);
         $data = $request->validate(['email' => ['required', 'email', 'max:255'], 'password' => ['required', 'string', 'max:255']]);
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user || ! $user->password || ! Hash::check($data['password'], $user->password) || $user->suspended_at) {
@@ -53,6 +57,7 @@ class KashierCheckoutController
 
     public function create(Request $request, KashierCheckoutService $checkout)
     {
+        abort_unless(config('kashier.web_enabled'), 404);
         $this->locale($request);
         $user = $this->user($request);
         abort_unless($user !== null, 403);
@@ -71,6 +76,7 @@ class KashierCheckoutController
 
     public function show(Request $request, KashierOrder $order, KashierCheckoutService $checkout)
     {
+        abort_unless(config('kashier.web_enabled'), 404);
         $this->locale($request);
         $user = $this->user($request);
         if (! $user) {
@@ -92,6 +98,10 @@ class KashierCheckoutController
 
     public function returned(Request $request, string $order)
     {
+        if (! config('kashier.web_enabled')) {
+            return response()->view('billing.return')->header('Cache-Control', 'no-store, private');
+        }
+
         // Query parameters from Kashier are display/navigation hints only.
         return redirect()->route('billing.order', ['order' => $order]);
     }

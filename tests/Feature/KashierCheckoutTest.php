@@ -26,7 +26,7 @@ class KashierCheckoutTest extends TestCase
     {
         parent::setUp();
         $this->seed(BillingCatalogSeeder::class);
-        config(['billing.enabled' => true, 'kashier.enabled' => true, 'kashier.mode' => 'test',
+        config(['billing.enabled' => true, 'kashier.enabled' => true, 'kashier.web_enabled' => true, 'kashier.mode' => 'test',
             'kashier.merchant_id' => 'MID-TEST', 'kashier.api_key' => 'test-api-key', 'kashier.secret_key' => 'test-secret',
             'kashier.prices' => ['SINGLE_FULL_REPORT' => '30.00', 'PLUS_MONTHLY' => '100.00', 'PLUS_YEARLY' => '1000.00']]);
         Http::preventStrayRequests();

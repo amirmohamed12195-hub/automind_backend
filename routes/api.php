@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\DiagnosisController;
 use App\Http\Controllers\Api\V1\DiagnosticEntitlementController;
 use App\Http\Controllers\Api\V1\DiagnosticMediaController;
 use App\Http\Controllers\Api\V1\GoogleBillingWebhookController;
+use App\Http\Controllers\Api\V1\KashierMobileController;
 use App\Http\Controllers\Api\V1\KashierWebhookController;
 use App\Http\Controllers\Api\V1\MaintenanceController;
 use App\Http\Controllers\Api\V1\MaintenanceReminderController;
@@ -76,6 +77,9 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('devices/{deviceTokenId}', [AccountController::class, 'deleteDevice']);
 
         Route::prefix('billing')->middleware('throttle:billing')->group(function (): void {
+            Route::get('kashier/catalog', [KashierMobileController::class, 'catalog']);
+            Route::post('kashier/orders', [KashierMobileController::class, 'create']);
+            Route::get('kashier/orders/{order}', [KashierMobileController::class, 'show']);
             Route::get('catalog', [BillingController::class, 'catalog']);
             Route::get('account', [BillingController::class, 'account']);
             Route::get('entitlements', [BillingController::class, 'entitlements']);

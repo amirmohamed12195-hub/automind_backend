@@ -2,6 +2,8 @@
 
 return [
     'enabled' => (bool) env('KASHIER_ENABLED', false),
+    'web_enabled' => (bool) env('KASHIER_WEB_ENABLED', false),
+    'mobile_enabled' => (bool) env('KASHIER_MOBILE_ENABLED', true),
     'mode' => env('KASHIER_MODE', 'test'),
     'merchant_id' => env('KASHIER_MERCHANT_ID'),
     'api_key' => env('KASHIER_API_KEY'),

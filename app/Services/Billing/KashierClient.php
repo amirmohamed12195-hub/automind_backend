@@ -37,7 +37,7 @@ class KashierClient
         $mode = config('kashier.mode');
         if (! in_array($mode, ['test', 'live'], true)
             || ! config('kashier.merchant_id') || ! config('kashier.api_key') || ! config('kashier.secret_key')) {
-            throw new BillingException('KASHIER_NOT_CONFIGURED', 'Website checkout is temporarily unavailable.', 503);
+            throw new BillingException('KASHIER_NOT_CONFIGURED', 'Kashier checkout is temporarily unavailable.', 503);
         }
         $base = $mode === 'live' ? 'https://api.kashier.io' : 'https://test-api.kashier.io';
         try {

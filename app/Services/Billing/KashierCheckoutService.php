@@ -46,7 +46,7 @@ class KashierCheckoutService
     public function create(User $user, string $planCode, string $idempotencyKey): KashierOrder
     {
         if (! $this->enabled()) {
-            throw new BillingException('KASHIER_DISABLED', 'Website checkout is temporarily unavailable.', 503);
+            throw new BillingException('KASHIER_DISABLED', 'Kashier checkout is temporarily unavailable.', 503);
         }
         $account = $this->accounts->forUser($user);
         $order = DB::transaction(function () use ($user, $account, $planCode, $idempotencyKey): KashierOrder {
@@ -62,7 +62,7 @@ class KashierCheckoutService
             $plan = $this->plans($user)->firstWhere('code', $planCode);
             $minor = $this->minorUnits(config('kashier.prices.'.$planCode));
             if (! $plan || $minor === null) {
-                throw new BillingException('PLAN_UNAVAILABLE', 'This plan is not available for website checkout.');
+                throw new BillingException('PLAN_UNAVAILABLE', 'This plan is not available for Kashier checkout.');
             }
             if ($plan->type === 'subscription' && $this->entitlements->snapshot($user)['access']['hasSubscription']) {
                 throw new BillingException('SUBSCRIPTION_ALREADY_ACTIVE', 'You already have an active plan. Please wait until it expires before purchasing another.', 409);
@@ -160,7 +160,7 @@ class KashierCheckoutService
                 $locked->status = match ($state) {
                     'FAILED', 'REJECTED' => 'failed',
                     'EXPIRED', 'ABANDONED' => 'expired',
-                    default => 'pending',
+                    default => $locked->expires_at->isPast() ? 'expired' : 'pending',
                 };
             }
             $locked->save();

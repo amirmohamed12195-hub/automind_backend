@@ -17250,6 +17250,77 @@
             "name": "Billing",
             "description": "Store-authoritative purchases and backend-authoritative entitlements. Example bodies are intentionally free of secrets and purchase proofs.",
             "item": [
+                {
+                    "name": "kashierMobileCatalog",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "billing",
+                                "kashier",
+                                "catalog"
+                            ],
+                            "query": [
+                                {
+                                    "key": "platform",
+                                    "value": "android"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "createKashierMobileOrder",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "billing",
+                                "kashier",
+                                "orders"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"platform\": \"android\",\n  \"plan\": \"SINGLE_FULL_REPORT\",\n  \"idempotencyKey\": \"{{$guid}}\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "getKashierMobileOrder",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "billing",
+                                "kashier",
+                                "orders",
+                                ":order"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "order",
+                                    "value": "{{kashierOrderId}}"
+                                }
+                            ]
+                        }
+                    }
+                },
                 {"name":"billingCatalog","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["billing","catalog"],"query":[{"key":"platform","value":"google"}]}}},
                 {"name":"billingAccount","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["billing","account"]}}},
                 {"name":"billingEntitlements","request":{"method":"GET","url":{"host":["{{baseUrl}}"],"path":["billing","entitlements"]}}},

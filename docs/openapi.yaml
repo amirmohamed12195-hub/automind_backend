@@ -241,6 +241,37 @@ paths:
     post: {tags: [Webhooks], operationId: openAiWebhook, summary: "openAiWebhook", security: [], parameters: [{$ref: '#/components/parameters/WebhookId'}, {$ref: '#/components/parameters/WebhookTimestamp'}, {$ref: '#/components/parameters/WebhookSignature'}], responses: {'202': {description: Accepted}, '400': {$ref: '#/components/responses/Error'}}}
   /billing/catalog:
     get: {tags: [Billing], operationId: billingCatalog, summary: Localized internal catalog and platform mappings, parameters: [{name: platform, in: query, required: true, schema: {type: string, enum: [apple, google]}}], responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /billing/kashier/catalog:
+    get:
+      tags: [Billing]
+      operationId: kashierMobileCatalog
+      summary: Kashier EGP plans for authenticated Egyptian accounts on Android and iOS
+      parameters: [{name: platform, in: query, required: true, schema: {type: string, enum: [android, ios]}}]
+      responses: {'200': {$ref: '#/components/responses/Success'}, '401': {$ref: '#/components/responses/Error'}}
+  /billing/kashier/orders:
+    post:
+      tags: [Billing]
+      operationId: createKashierMobileOrder
+      summary: Create or resume an account-owned SDK payment session with server prices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, plan, idempotencyKey]
+              properties:
+                platform: {type: string, enum: [android, ios]}
+                plan: {type: string, enum: [SINGLE_FULL_REPORT, PLUS_MONTHLY, PLUS_YEARLY]}
+                idempotencyKey: {type: string, format: uuid}
+      responses: {'200': {$ref: '#/components/responses/Success'}, '403': {$ref: '#/components/responses/Error'}, '409': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}
+  /billing/kashier/orders/{order}:
+    get:
+      tags: [Billing]
+      operationId: getKashierMobileOrder
+      summary: Verify an owned payment using Kashier and return authoritative fulfillment
+      parameters: [{name: order, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {$ref: '#/components/responses/Success'}, '404': {$ref: '#/components/responses/Error'}, '503': {$ref: '#/components/responses/Error'}}
   /billing/account:
     get: {tags: [Billing], operationId: billingAccount, summary: Safe store account identifiers, responses: {'200': {$ref: '#/components/responses/Success'}}}
   /billing/entitlements:
