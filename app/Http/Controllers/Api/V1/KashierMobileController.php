@@ -7,6 +7,7 @@ use App\Models\KashierOrder;
 use App\Models\User;
 use App\Services\Billing\EntitlementService;
 use App\Services\Billing\KashierCheckoutService;
+use App\Services\PlatformSettings;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,9 +19,9 @@ class KashierMobileController
         $this->platform($request);
         $user = $request->user();
         $available = $this->available($user, $checkout);
-        $pending = $available ? KashierOrder::query()->where('user_id', $user->id)
+        $pending = KashierOrder::query()->where('user_id', $user->id)
             ->where('mode', config('kashier.mode'))->whereIn('status', ['creating', 'pending'])
-            ->where('expires_at', '>', now())->latest()->first() : null;
+            ->where('expires_at', '>', now())->latest()->first();
 
         return ApiResponse::success([
             'available' => $available, 'accountReference' => $user->id,
@@ -68,6 +69,7 @@ class KashierMobileController
         // Use the authenticated account's stored country, never a client-sent
         // country, UI language, SIM locale, or untrusted forwarding header.
         return $checkout->enabled() && config('kashier.mobile_enabled')
+            && (bool) app(PlatformSettings::class)->get('kashier_enabled')
             && strtoupper($user->country_code ?? '') === 'EG';
     }
 

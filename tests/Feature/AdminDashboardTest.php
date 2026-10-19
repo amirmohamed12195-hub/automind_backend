@@ -9,6 +9,7 @@ use App\Models\DiagnosticSession;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Services\PlatformSettings;
 use Database\Seeders\BillingCatalogSeeder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -140,6 +141,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_feature_settings_are_persisted_and_enforced(): void
     {
+        PlatformSetting::query()->create(['key' => 'kashier_enabled', 'value' => false, 'group' => 'Billing', 'label' => 'Kashier', 'type' => 'boolean']);
         $this->asWebAdmin()->patch(route('admin.settings.update'), [
             'settings' => [
                 'registration_enabled' => false,
@@ -152,6 +154,7 @@ class AdminDashboardTest extends TestCase
                 'default_locale' => 'ar',
             ],
         ])->assertRedirect(route('admin.dashboard').'#settings');
+        $this->assertFalse((bool) app(PlatformSettings::class)->get('kashier_enabled'));
 
         $this->assertFalse(PlatformSetting::query()->findOrFail('registration_enabled')->value);
         $this->assertSame('EGP', PlatformSetting::query()->findOrFail('default_currency')->value);

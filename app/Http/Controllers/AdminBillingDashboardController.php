@@ -6,10 +6,12 @@ use App\Jobs\ProcessBillingEvent;
 use App\Models\BillingEvent;
 use App\Models\BillingPlan;
 use App\Models\CreditLedgerEntry;
+use App\Models\PlatformSetting;
 use App\Models\StoreProduct;
 use App\Models\StorePurchase;
 use App\Models\UserEntitlement;
 use App\Services\Billing\BillingAdminAuditService;
+use App\Services\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +20,21 @@ use Illuminate\View\View;
 
 class AdminBillingDashboardController
 {
+    public function updateKashier(Request $request, PlatformSettings $settings, BillingAdminAuditService $audit): RedirectResponse
+    {
+        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+        $definition = $settings->definitions()['kashier_enabled'];
+        $before = ['enabled' => (bool) $settings->get('kashier_enabled')];
+        $setting = PlatformSetting::query()->updateOrCreate(['key' => 'kashier_enabled'], [
+            ...$definition, 'value' => (bool) $data['enabled'],
+            'updated_by_admin' => (string) $request->session()->get('automind_admin_username', 'admin'),
+        ]);
+        $audit->record($request, 'billing.kashier.updated.web', $setting, $before, ['enabled' => (bool) $setting->value]);
+
+        return redirect()->route('admin.dashboard')->withFragment('billing')
+            ->with('admin_status', $setting->value ? 'Kashier enabled for Egyptian accounts.' : 'Kashier disabled. New purchases use app-store billing.');
+    }
+
     public function index(): View
     {
         if (! Schema::hasTable('billing_plans')) {

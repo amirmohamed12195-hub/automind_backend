@@ -74,6 +74,7 @@ Route::middleware('web-admin')->group(function (): void {
     Route::post('/admin/catalog/currency-rates', [AdminDashboardController::class, 'storeCurrencyRate'])->name('admin.catalog.currency-rates.store');
     Route::post('/admin/catalog/labor-rates', [AdminDashboardController::class, 'storeLaborRate'])->name('admin.catalog.labor-rates.store');
     Route::patch('/admin/billing/plans/{plan}', [AdminBillingDashboardController::class, 'updatePlan'])->name('admin.billing.plans.update');
+    Route::patch('/admin/billing/kashier', [AdminBillingDashboardController::class, 'updateKashier'])->name('admin.billing.kashier.update');
     Route::patch('/admin/billing/products/{product}', [AdminBillingDashboardController::class, 'updateProduct'])->name('admin.billing.products.update');
     Route::post('/admin/billing/events/{event}/reprocess', [AdminBillingDashboardController::class, 'reprocessEvent'])->name('admin.billing.events.reprocess');
     Route::post('/admin/logout', [AdminSessionController::class, 'destroy'])->name('admin.logout');

@@ -1,6 +1,6 @@
 # Kashier in-app payments
 
-Kashier is integrated through `kashier_flutter_sdk` 0.1.4 on Android and iOS alongside the existing Apple/Google purchase paths. The app's paywall fetches an authenticated Kashier catalog and starts the SDK with only a server-created session ID. Card and Egyptian mobile-wallet entry stay in Kashier's payment UI; merchant secrets remain on the backend.
+Kashier is integrated through `kashier_flutter_sdk` 0.1.4 on Android and iOS with automatic routing: eligible Egyptian accounts use Kashier from the existing plan buttons; all other accounts use the existing Apple/Google purchase paths. There is one plan picker, with prices and renewal terms from the selected payment provider. The app's paywall fetches an authenticated Kashier catalog and starts the SDK with only a server-created session ID. Card and Egyptian mobile-wallet entry stay in Kashier's payment UI; merchant secrets remain on the backend.
 
 Availability uses the authenticated user's stored `country_code`: only `EG` is eligible. This is account country, not physical geolocation or a verified store storefront. Missing country fails closed; changing language, sending a country in the request, or supplying an IP header cannot enable it. Eligibility is checked again when creating an order. Existing orders can still be verified if country changes.
 
@@ -15,6 +15,10 @@ Prices approved for this integration:
 | PLUS_YEARLY | 1000.00 | One prepaid calendar year |
 
 Plus purchases do not renew automatically. The existing plan's features and report limits apply. An active subscription prevents buying another Kashier subscription. Existing store purchases and subscriptions are unchanged.
+
+## Dashboard control
+
+In **Admin → Billing → Kashier payments**, toggle **Enable Kashier** and save. The persisted `platform_settings.kashier_enabled` value also appears in Settings → Billing. Turning it off blocks new mobile sessions immediately and causes the app to use store prices and checkout when the paywall refreshes. Previously issued sessions may still settle and remain verifiable; this switch does not cancel an already issued payment session. Changing the switch requires the existing web administrator session and CSRF protection, and the Billing action records an audit entry. The environment flags remain server-level prerequisites.
 
 ## Configuration
 

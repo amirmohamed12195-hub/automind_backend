@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\KashierOrder;
 use App\Models\User;
+use App\Services\PlatformSettings;
 use Database\Seeders\BillingCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -111,6 +112,39 @@ class KashierMobileTest extends TestCase
     private function input(): array
     {
         return ['platform' => 'android', 'plan' => 'SINGLE_FULL_REPORT', 'idempotencyKey' => (string) Str::uuid()];
+    }
+
+    public function test_dashboard_switch_is_authenticated_audited_and_enforced_for_new_orders(): void
+    {
+        $this->patch(route('admin.billing.kashier.update'), ['enabled' => false])
+            ->assertRedirect(route('admin.login'));
+        $adminSession = [config('admin.session_key') => true, 'automind_admin_username' => 'payment-admin'];
+        $this->withSession($adminSession)->patch(route('admin.billing.kashier.update'), ['enabled' => false])
+            ->assertRedirect(route('admin.dashboard').'#billing');
+        $this->assertFalse((bool) app(PlatformSettings::class)->get('kashier_enabled'));
+        $this->assertDatabaseHas('billing_admin_audit_logs', ['action' => 'billing.kashier.updated.web', 'admin_identifier' => 'payment-admin']);
+        $user = User::factory()->create(['country_code' => 'EG']);
+        $this->actingAs($user, 'sanctum')->getJson('/api/v1/billing/kashier/catalog?platform=android')
+            ->assertOk()->assertJsonPath('data.available', false)->assertJsonPath('data.plans', []);
+        $this->postJson('/api/v1/billing/kashier/orders', $this->input())->assertForbidden();
+        $this->withSession($adminSession)->patch(route('admin.billing.kashier.update'), ['enabled' => true])
+            ->assertRedirect(route('admin.dashboard').'#billing');
+        $this->getJson('/api/v1/billing/kashier/catalog?platform=ios')->assertJsonPath('data.available', true);
+        $this->withSession($adminSession)->get('/admin')->assertOk()->assertSee('kashier-enabled')->assertSee('Enable Kashier');
+        Http::assertNothingSent();
+    }
+
+    public function test_disabling_checkout_keeps_existing_payments_verifiable_without_resuming_them(): void
+    {
+        $order = $this->order();
+        $this->withSession([config('admin.session_key') => true, 'automind_admin_username' => 'admin'])
+            ->patch(route('admin.billing.kashier.update'), ['enabled' => false])->assertRedirect();
+        $this->getJson('/api/v1/billing/kashier/catalog?platform=android')->assertOk()
+            ->assertJsonPath('data.available', false)->assertJsonPath('data.pendingOrder.id', $order->id)
+            ->assertJsonPath('data.pendingOrder.sessionId', null);
+        Http::fake(['*/v3/payment/sessions/*/payment' => Http::response(['data' => $this->payment($order, 'PAID')])]);
+        $this->getJson('/api/v1/billing/kashier/orders/'.$order->id)->assertOk()
+            ->assertJsonPath('data.fulfilled', true)->assertJsonPath('data.entitlements.limits.reportCredits', 1);
     }
 
     private function order(): KashierOrder

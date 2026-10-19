@@ -360,6 +360,7 @@ class AdminDashboardController
             'settings.registration_enabled' => ['required', 'boolean'],
             'settings.diagnostics_enabled' => ['required', 'boolean'],
             'settings.appointments_enabled' => ['required', 'boolean'],
+            'settings.kashier_enabled' => ['sometimes', 'boolean'],
             'settings.maintenance_banner' => ['nullable', 'string', 'max:500'],
             'settings.support_email' => ['required', 'email:rfc', 'max:255'],
             'settings.default_country' => ['required', 'string', 'size:2', 'alpha'],
@@ -368,7 +369,7 @@ class AdminDashboardController
         ])['settings'];
         $definitions = $settings->definitions();
         foreach ($definitions as $key => $definition) {
-            $value = $data[$key] ?? $definition['value'];
+            $value = $data[$key] ?? $settings->get($key);
             if (in_array($key, ['default_country', 'default_currency'], true)) {
                 $value = strtoupper((string) $value);
             }
