@@ -44,6 +44,7 @@ class KashierCheckoutTest extends TestCase
         Http::assertSent(fn (Request $r) => $r['amount'] === '30.00' && $r['currency'] === 'EGP'
             && $r['customer']['reference'] === $user->id && $r->hasHeader('Authorization', 'test-secret')
             && $r->hasHeader('api-key', 'test-api-key') && $r['manualCapture'] === false
+            && ! isset($r['mode'])
             && $r['serverWebhook'] === url('/api/v1/billing/webhooks/kashier'));
         $this->assertDatabaseCount('kashier_orders', 1);
         $this->assertDatabaseCount('store_purchases', 0);

@@ -27,7 +27,7 @@ KASHIER_PLUS_MONTHLY_EGP=100.00
 KASHIER_PLUS_YEARLY_EGP=1000.00
 ```
 
-`BILLING_ENABLED` must also be true. `APP_URL` must be the canonical HTTPS origin. The credentials must belong to the selected mode. Test mode calls `test-api.kashier.io`; live mode calls `api.kashier.io`. Checkout URLs must be HTTPS on `payments.kashier.io`. Do not commit keys or paste them into logs, issue trackers, screenshots, or client builds.
+`BILLING_ENABLED` must also be true. `APP_URL` must be the canonical HTTPS origin. The credentials must belong to the selected mode. The mode selects the API host; do not send a `mode` field in the session JSON (the API rejects it despite the documentation listing it). Test mode calls `test-api.kashier.io`; live mode calls `api.kashier.io`. Checkout URLs must be HTTPS on `payments.kashier.io`. Do not commit keys or paste them into logs, issue trackers, screenshots, or client builds.
 
 Test payments on an `APP_ENV=production` server are recorded but **never grant entitlements or report credits**. Local/testing environments can exercise fulfilment with test sessions.
 

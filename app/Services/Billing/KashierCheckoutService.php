@@ -91,7 +91,7 @@ class KashierCheckoutService
                 'expireAt' => $order->expires_at->toIso8601String(), 'maxFailureAttempts' => 3,
                 'paymentType' => 'credit', 'amount' => $this->amount($order->amount_minor),
                 'currency' => $order->currency, 'order' => $order->id,
-                'merchantId' => config('kashier.merchant_id'), 'mode' => $order->mode,
+                'merchantId' => config('kashier.merchant_id'),
                 'merchantRedirect' => route('billing.return', ['order' => $order->id]),
                 'serverWebhook' => url('/api/v1/billing/webhooks/kashier'),
                 'display' => app()->getLocale() === 'ar' ? 'ar' : 'en',
