@@ -56,6 +56,37 @@ class ProductionConfigurationValidatorTest extends TestCase
         $this->assertSame([], app(ProductionConfigurationValidator::class)->errors());
     }
 
+    public function test_disabled_phone_verification_does_not_require_twilio_credentials(): void
+    {
+        config([
+            'auth.phone_verification_required' => false,
+            'services.twilio.whatsapp.enabled' => false,
+            'services.twilio.account_sid' => '',
+            'services.twilio.api_key' => '',
+            'services.twilio.api_secret' => '',
+            'services.twilio.auth_token' => '',
+            'services.twilio.whatsapp.from' => '',
+            'services.twilio.whatsapp.content_sid' => '',
+        ]);
+        $errors = app(ProductionConfigurationValidator::class)->errors();
+        $this->assertSame([], array_values(array_filter($errors, fn ($error) => str_contains($error, 'TWILIO'))));
+    }
+
+    public function test_required_phone_verification_cannot_use_a_disabled_provider(): void
+    {
+        config(['auth.phone_verification_required' => true, 'services.twilio.whatsapp.enabled' => false]);
+        $this->assertContains(
+            'TWILIO_WHATSAPP_ENABLED must be true when AUTH_PHONE_VERIFICATION_REQUIRED=true.',
+            app(ProductionConfigurationValidator::class)->errors(),
+        );
+    }
+
+    public function test_enabled_twilio_still_validates_credentials(): void
+    {
+        config(['auth.phone_verification_required' => false, 'services.twilio.whatsapp.enabled' => true, 'services.twilio.account_sid' => '']);
+        $this->assertContains('TWILIO_ACCOUNT_SID must contain a valid Twilio Account SID.', app(ProductionConfigurationValidator::class)->errors());
+    }
+
     public function test_missing_app_key_and_mysql_placeholders_fail_preflight(): void
     {
         config([

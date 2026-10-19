@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\PhoneVerificationProvider;
 use App\Models\DeviceToken;
 use App\Models\DiagnosticSession;
 use App\Models\SocialIdentity;
@@ -15,6 +16,8 @@ class AuthAccountApiTest extends ApiTestCase
 {
     public function test_registration_login_me_settings_and_logout_contract(): void
     {
+        config(['auth.phone_verification_required' => true]);
+
         $register = $this->postJson('/api/v1/auth/register', ['name' => 'Driver', 'email' => ' DRIVER@EXAMPLE.COM ', 'phone' => '+201001234567', 'countryCode' => 'eg', 'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'deviceName' => 'iPhone', 'locale' => 'en', 'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11']);
         $register->assertCreated()
             ->assertJsonPath('data.verificationRequired', true)
@@ -50,6 +53,51 @@ class AuthAccountApiTest extends ApiTestCase
         $this->withToken($token)->getJson('/api/v1/me')->assertUnauthorized();
     }
 
+    public function test_phone_registration_issues_a_usable_session_without_contacting_twilio(): void
+    {
+        config(['auth.phone_verification_required' => false, 'services.twilio.whatsapp.enabled' => false]);
+        $provider = Mockery::mock(PhoneVerificationProvider::class);
+        $provider->shouldNotReceive('start');
+        $provider->shouldNotReceive('check');
+        $this->app->instance(PhoneVerificationProvider::class, $provider);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'New Driver', 'email' => 'new-driver@example.com',
+            'phone' => '+201001234567', 'countryCode' => 'EG',
+            'password' => 'Secret123', 'password_confirmation' => 'Secret123',
+            'termsAccepted' => true, 'privacyAccepted' => true, 'legalVersion' => '2026-08-11',
+        ])->assertCreated()->assertJsonPath('data.tokenType', 'Bearer')
+            ->assertJsonPath('data.user.phoneVerified', false)
+            ->assertJsonMissingPath('data.verificationToken');
+
+        $this->assertNull(User::query()->sole()->phone_verified_at);
+        $this->withToken($response->json('data.accessToken'))->getJson('/api/v1/me')
+            ->assertOk()->assertJsonPath('data.email', 'new-driver@example.com');
+    }
+
+    public function test_existing_unverified_users_can_login_but_wrong_passwords_and_suspensions_still_fail(): void
+    {
+        // Older deployments may still have Twilio enabled. That must not enable the gate.
+        config(['auth.phone_verification_required' => false, 'services.twilio.whatsapp.enabled' => true]);
+        $provider = Mockery::mock(PhoneVerificationProvider::class);
+        $provider->shouldNotReceive('start');
+        $this->app->instance(PhoneVerificationProvider::class, $provider);
+        $user = User::factory()->create(['phone' => '+201112223333', 'phone_verified_at' => null]);
+        $credentials = ['email' => $user->email, 'password' => 'password'];
+
+        $this->postJson('/api/v1/auth/login', [...$credentials, 'password' => 'wrong-password'])
+            ->assertUnauthorized();
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+        $response = $this->postJson('/api/v1/auth/login', $credentials)
+            ->assertOk()->assertJsonPath('data.user.phoneVerified', false);
+        $this->withToken($response->json('data.accessToken'))->getJson('/api/v1/me')->assertOk();
+        $this->assertNull($user->fresh()->phone_verified_at);
+        $user->forceFill(['suspended_at' => now()])->save();
+        $this->postJson('/api/v1/auth/login', $credentials)->assertForbidden()
+            ->assertJsonPath('error.code', 'ACCOUNT_SUSPENDED');
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+    }
+
     public function test_registration_without_a_phone_creates_a_session_immediately(): void
     {
         $response = $this->postJson('/api/v1/auth/register', [
@@ -82,6 +130,8 @@ class AuthAccountApiTest extends ApiTestCase
 
     public function test_registration_and_login_default_device_name_when_client_sends_null(): void
     {
+        config(['auth.phone_verification_required' => true]);
+
         $this->postJson('/api/v1/auth/register', [
             'name' => 'Driver',
             'email' => 'driver@example.com',
@@ -121,6 +171,8 @@ class AuthAccountApiTest extends ApiTestCase
 
     public function test_unverified_login_routes_to_otp_and_rejects_an_invalid_code(): void
     {
+        config(['auth.phone_verification_required' => true]);
+
         $user = User::factory()->create([
             'email' => 'pending@example.com',
             'phone' => '+201112223333',

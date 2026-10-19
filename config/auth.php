@@ -4,6 +4,10 @@ use App\Models\User;
 
 return [
 
+    // Keep onboarding independent of SMS/WhatsApp delivery. Enable only after
+    // the production sender and the complete verification flow are tested.
+    'phone_verification_required' => (bool) env('AUTH_PHONE_VERIFICATION_REQUIRED', false),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Defaults

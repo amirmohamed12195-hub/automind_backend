@@ -46,7 +46,7 @@ class AuthController
 
             return [
                 $user,
-                $user->phone !== null
+                config('auth.phone_verification_required') && $user->phone !== null
                     ? $verification->begin($user, 'registration')
                     : null,
             ];
@@ -74,7 +74,7 @@ class AuthController
         if ($user->suspended_at !== null) {
             return ApiResponse::error('ACCOUNT_SUSPENDED', 'This account has been suspended. Contact support for help.', 403);
         }
-        if ($user->phone !== null && $user->phone_verified_at === null) {
+        if (config('auth.phone_verification_required') && $user->phone !== null && $user->phone_verified_at === null) {
             $challenge = app(PhoneVerificationService::class)->begin($user, 'login');
 
             return ApiResponse::error('OTP_REQUIRED', __('api.otp_required'), 403, $this->challengeDetails($challenge));

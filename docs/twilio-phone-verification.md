@@ -1,6 +1,8 @@
 # Twilio WhatsApp phone verification setup
 
-Password registration does not require a phone number. If a user optionally supplies an E.164 phone number, the app verifies it with a one-time code delivered through a Twilio WhatsApp Content Template before issuing that registration session. Google and Apple sign-in do not request a phone number.
+Registration and password login do not require OTP by default. Keep `AUTH_PHONE_VERIFICATION_REQUIRED=false` and `TWILIO_WHATSAPP_ENABLED=false` while phone verification is paused. The mobile signup form asks only for name, email, password, and legal consent. Older app versions may still send an optional phone; those registrations also receive a session immediately. Existing accounts with unverified phones can sign in with their password. Phone numbers remain unverified; bypassing the onboarding gate never marks them verified.
+
+To restore the optional-phone OTP flow later, first approve and test the production WhatsApp sender and template, then explicitly set both flags to `true`. A provider outage must not silently bypass verification when the requirement is enabled. Google and Apple sign-in do not request a phone number.
 
 The backend generates a six-digit code, sends it as Content Template variable `{{1}}`, and stores only an HMAC of the code in Laravel's configured cache. A code expires after 10 minutes by default, can be attempted five times, and is removed after successful verification. Do not use an in-memory cache in production.
 
@@ -34,6 +36,7 @@ prefer a new API key/secret for the deployed backend.
 For local development, put these values in `/Users/tajawal/Documents/automind_backend/.env`. In production, put them in the hosting provider's encrypted secret/environment-variable settings:
 
 ```dotenv
+AUTH_PHONE_VERIFICATION_REQUIRED=false
 TWILIO_WHATSAPP_ENABLED=false
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_WHATSAPP_FROM=+15551234567
@@ -71,7 +74,7 @@ php artisan migrate --force
 php artisan optimize
 ```
 
-## API lifecycle
+## API lifecycle when `AUTH_PHONE_VERIFICATION_REQUIRED=true`
 
 - `POST /api/v1/auth/register` issues a bearer session immediately when phone is omitted. When the user voluntarily supplies a phone, it creates an unverified account, sends the WhatsApp code, and returns an opaque verification token instead.
 - `POST /api/v1/auth/login` returns `OTP_REQUIRED` after valid credentials when the registered phone is still unverified. A fresh WhatsApp code is sent unless the resend cooldown is active.
