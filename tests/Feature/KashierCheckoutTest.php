@@ -104,9 +104,7 @@ class KashierCheckoutTest extends TestCase
             data_set($session, $key, $value);
             Http::swap(new Factory);
             Http::preventStrayRequests();
-            Http::swap(new Factory);
-            Http::preventStrayRequests();
-            Http::fake(['*/v3/payment/sessions/*' => Http::response($session)]);
+            Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success', 'data' => $session])]);
             try {
                 app(KashierCheckoutService::class)->refresh($order);
                 $this->fail('Mismatched payment accepted: '.$key);
@@ -114,6 +112,16 @@ class KashierCheckoutTest extends TestCase
                 $this->assertSame('KASHIER_ORDER_MISMATCH', $e->errorCode);
             }
         }
+        $this->assertDatabaseCount('store_purchases', 0);
+    }
+
+    public function test_invalid_session_response_cannot_confirm_payment(): void
+    {
+        $order = $this->order();
+        Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success'])]);
+        $payload = $this->payload($order);
+        $this->postJson('/api/v1/billing/webhooks/kashier', $payload, ['x-kashier-signature' => $this->signature($payload)])->assertStatus(503);
+        $this->assertSame('pending', $order->fresh()->status);
         $this->assertDatabaseCount('store_purchases', 0);
     }
 
@@ -237,7 +245,7 @@ class KashierCheckoutTest extends TestCase
     {
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        Http::fake(['*/v3/payment/sessions/*' => Http::response($this->providerSession($order, $status, $refunded))]);
+        Http::fake(['*/v3/payment/sessions/*' => Http::response(['message' => 'success', 'data' => $this->providerSession($order, $status, $refunded)])]);
     }
 
     private function payload(KashierOrder $order): array

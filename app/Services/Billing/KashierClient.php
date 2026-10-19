@@ -19,7 +19,12 @@ class KashierClient
     /** @return array<string, mixed> */
     public function session(string $id): array
     {
-        return $this->request('get', '/v3/payment/sessions/'.rawurlencode($id));
+        $response = $this->request('get', '/v3/payment/sessions/'.rawurlencode($id));
+        if (! is_array($response['data'] ?? null)) {
+            throw new BillingException('KASHIER_INVALID_RESPONSE', 'The payment details could not be verified. Please try again later.', 503, true);
+        }
+
+        return $response['data'];
     }
 
     /** @param array<string, mixed> $payload
