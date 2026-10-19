@@ -23,3 +23,5 @@ Schedule::call(function (): void {
 
 Schedule::call(fn () => app(AppleAuthorizationService::class)->revokePending())
     ->name('revoke-apple-authorizations')->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
+
+Schedule::command('automind:reconcile-kashier')->everyFifteenMinutes()->withoutOverlapping()->onOneServer();

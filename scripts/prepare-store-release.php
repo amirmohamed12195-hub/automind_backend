@@ -17,7 +17,7 @@ require 'vendor/autoload.php';
 $app = require 'bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
-$inputs = [__FILE__, 'routes/web.php', 'routes/console.php', 'config/public.php', 'config/services.php', 'app/Http/Controllers/Api/V1/AuthController.php'];
+$inputs = [__FILE__, 'routes/web.php', 'routes/console.php', 'config/public.php', 'config/services.php', 'config/kashier.php', 'routes/api.php', 'app/Http/Controllers/Api/V1/AuthController.php'];
 $stamp = hash('sha256', implode('', array_map(fn ($file) => hash_file('sha256', $file), $inputs)));
 $marker = storage_path('app/store-release-20261016.json');
 $lock = fopen(storage_path('app/store-release-20261016.lock'), 'c');
@@ -29,6 +29,7 @@ try {
         foreach ([
             ['config:clear', []],
             ['migrate', ['--force' => true, '--path' => 'database/migrations/2026_10_16_000001_create_apple_authorizations_table.php']],
+            ['migrate', ['--force' => true, '--path' => 'database/migrations/2026_10_19_200000_create_kashier_orders_table.php']],
             ['route:clear', []], ['view:clear', []], ['queue:restart', []],
         ] as [$command, $arguments]) {
             if ($kernel->call($command, $arguments) !== 0) {
@@ -42,6 +43,8 @@ try {
         'release' => '2026-10-16',
         'schemaReady' => Schema::hasTable('apple_authorizations'),
         'refundRouteReady' => Route::has('refunds'),
+        'kashierSchemaReady' => Schema::hasTable('kashier_orders'),
+        'kashierRouteReady' => Route::has('billing.index'),
         'appleSignInKeyConfigured' => filled(config('services.apple.sign_in_key_id')) && is_string($keyPath) && is_readable($keyPath),
         'appleTeamConfigured' => filled(config('services.apple.team_id')),
     ], JSON_PRETTY_PRINT).PHP_EOL;

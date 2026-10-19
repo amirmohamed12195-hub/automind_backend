@@ -20,6 +20,7 @@
             <span class="brand-name">AUTO<span>MIND</span></span>
         </a>
         <nav aria-label="{{ $rtl ? 'الصفحات العامة' : 'Public pages' }}">
+            @if (config('kashier.enabled'))<a href="{{ route('billing.index', ['lang' => $locale]) }}">{{ $rtl ? 'الباقات' : 'Plans' }}</a>@endif
             <a href="{{ route('privacy', ['lang' => $locale]) }}">{{ $rtl ? 'الخصوصية' : 'Privacy' }}</a>
             <a href="{{ route('terms', ['lang' => $locale]) }}">{{ $rtl ? 'الشروط' : 'Terms' }}</a>
             <a href="{{ route('refunds', ['lang' => $locale]) }}">{{ $rtl ? 'الاسترجاع' : 'Refunds' }}</a>

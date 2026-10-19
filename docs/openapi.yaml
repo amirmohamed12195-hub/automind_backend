@@ -270,6 +270,39 @@ paths:
   /diagnostics/{diagnosisId}/release-entitlement:
     parameters: [{$ref: '#/components/parameters/DiagnosisId'}]
     post: {tags: [Billing], operationId: releaseDiagnosticEntitlement, summary: Release allowance after permanent failure, responses: {'200': {$ref: '#/components/responses/Success'}}}
+  /billing/webhooks/kashier:
+    post:
+      tags: [Webhooks]
+      operationId: kashierBillingWebhook
+      summary: Verify Kashier signature and reconcile the stored checkout session
+      security: []
+      parameters:
+        - in: header
+          name: x-kashier-signature
+          required: true
+          schema: {type: string, pattern: '^[a-fA-F0-9]{64}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                event: {type: string}
+                data:
+                  type: object
+                  required: [signatureKeys, amount, currency, merchantOrderId, kashierOrderId, status, transactionId, transactionResponseCode]
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Reconciled or safely ignored; duplicate deliveries are idempotent
+          content:
+            application/json:
+              schema: {type: object, properties: {received: {type: boolean}}}
+        '401': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /billing/webhooks/apple:
     post: {tags: [Webhooks], operationId: appleBillingWebhookLegacy, summary: Durable Apple V2 notification alias, security: [], responses: {'202': {description: Durably accepted}, '400': {$ref: '#/components/responses/Error'}}}
   /billing/webhooks/google:

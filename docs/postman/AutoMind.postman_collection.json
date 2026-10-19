@@ -17322,6 +17322,41 @@
             "item": [
                 {"name":"getAvatarImage","request":{"method":"GET","auth":{"type":"noauth"},"description":"Use the complete avatarUrl returned by the API, preserving its expires and signature query parameters. Refresh GET /me after expiry.","url":{"host":["{{baseUrl}}"],"path":["avatars",":userId",":version"],"query":[{"key":"expires","value":"{{avatarExpires}}"},{"key":"signature","value":"{{avatarSignature}}"}]}}}
             ]
+        },
+        {
+            "name": "Kashier payment webhook",
+            "request": {
+                "method": "POST",
+                "auth": {
+                    "type": "noauth"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "x-kashier-signature",
+                        "value": "{{kashierSignature}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/billing/webhooks/kashier",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "billing",
+                        "webhooks",
+                        "kashier"
+                    ]
+                },
+                "description": "Server-to-server only. Sign data fields with the Payment API Key; never put real keys in this collection.",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"event\": \"pay\",\n  \"data\": {\n    \"merchantOrderId\": \"LOCAL_ORDER_ID\",\n    \"kashierOrderId\": \"PROVIDER_ORDER_ID\",\n    \"transactionId\": \"TX-EXAMPLE\",\n    \"status\": \"SUCCESS\",\n    \"amount\": 30,\n    \"currency\": \"EGP\",\n    \"transactionResponseCode\": \"00\",\n    \"signatureKeys\": [\n      \"amount\",\n      \"currency\",\n      \"kashierOrderId\",\n      \"merchantOrderId\",\n      \"status\",\n      \"transactionId\",\n      \"transactionResponseCode\"\n    ]\n  }\n}"
+                }
+            }
         }
     ],
     "auth": {

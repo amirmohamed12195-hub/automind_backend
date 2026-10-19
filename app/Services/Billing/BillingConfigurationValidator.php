@@ -17,7 +17,7 @@ class BillingConfigurationValidator
         $errors = [];
         $validateApple = $requireEnabled || (bool) config('billing.platforms.apple');
         $validateGoogle = $requireEnabled || (bool) config('billing.platforms.google');
-        if (! $validateApple && ! $validateGoogle) {
+        if (! $validateApple && ! $validateGoogle && ! config('kashier.enabled')) {
             $errors[] = 'Enable at least one billing platform.';
         }
         if (! in_array(config('billing.environment'), ['sandbox', 'production'], true)) {
@@ -73,6 +73,26 @@ class BillingConfigurationValidator
             $topic = trim((string) config('billing.google.pubsub_topic'));
             if ($topic === '' || $this->placeholder($topic)) {
                 $errors[] = 'GOOGLE_PLAY_PUBSUB_TOPIC is required when Google billing is enabled.';
+            }
+        }
+
+        if (config('kashier.enabled')) {
+            if (! in_array(config('kashier.mode'), ['test', 'live'], true)) {
+                $errors[] = 'KASHIER_MODE must be test or live.';
+            }
+            foreach (['merchant_id', 'api_key', 'secret_key'] as $key) {
+                $value = trim((string) config('kashier.'.$key));
+                if ($value === '' || $this->placeholder($value)) {
+                    $errors[] = 'KASHIER_'.strtoupper($key).' is required when Kashier is enabled.';
+                }
+            }
+            if (! $this->httpsUrl(config('app.url'))) {
+                $errors[] = 'APP_URL must be an HTTPS URL for Kashier returns and webhooks.';
+            }
+            foreach (config('kashier.prices') as $code => $price) {
+                if (app(KashierCheckoutService::class)->minorUnits($price) === null) {
+                    $errors[] = 'Configure a positive EGP Kashier price for '.$code.'.';
+                }
             }
         }
 

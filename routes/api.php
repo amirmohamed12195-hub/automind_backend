@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\DiagnosisController;
 use App\Http\Controllers\Api\V1\DiagnosticEntitlementController;
 use App\Http\Controllers\Api\V1\DiagnosticMediaController;
 use App\Http\Controllers\Api\V1\GoogleBillingWebhookController;
+use App\Http\Controllers\Api\V1\KashierWebhookController;
 use App\Http\Controllers\Api\V1\MaintenanceController;
 use App\Http\Controllers\Api\V1\MaintenanceReminderController;
 use App\Http\Controllers\Api\V1\MechanicController;
@@ -33,6 +34,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('health', [SystemController::class, 'health']);
     Route::get('version', [SystemController::class, 'version']);
     Route::post('webhooks/openai', OpenAiWebhookController::class)->middleware('throttle:120,1');
+    Route::post('billing/webhooks/kashier', KashierWebhookController::class)->middleware('throttle:240,1');
     Route::post('billing/webhooks/apple', AppleBillingWebhookController::class)->middleware('throttle:240,1');
     Route::post('billing/webhooks/google', GoogleBillingWebhookController::class)->middleware('throttle:240,1');
     Route::post('webhooks/apple/app-store-server-notifications', AppleBillingWebhookController::class)->middleware('throttle:240,1');

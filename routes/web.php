@@ -6,12 +6,20 @@ use App\Http\Controllers\AdminSessionController;
 use App\Http\Controllers\AppleSignInCallbackController;
 use App\Http\Controllers\AssociationFileController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\KashierCheckoutController;
 use App\Http\Controllers\PasswordResetPageController;
 use App\Http\Controllers\PublicAccountDeletionController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing');
 Route::get('/download', DownloadController::class)->name('download');
+Route::get('/billing', [KashierCheckoutController::class, 'index'])->name('billing.index');
+Route::post('/billing/login', [KashierCheckoutController::class, 'login'])->middleware('throttle:login')->name('billing.login');
+Route::post('/billing/logout', [KashierCheckoutController::class, 'logout'])->name('billing.logout');
+Route::post('/billing/checkout', [KashierCheckoutController::class, 'create'])->middleware('throttle:10,1')->name('billing.checkout');
+Route::get('/billing/orders/{order}', [KashierCheckoutController::class, 'show'])->middleware('throttle:30,1')->name('billing.order');
+Route::get('/billing/return/{order}', [KashierCheckoutController::class, 'returned'])->name('billing.return');
+
 Route::view('/privacy', 'public.privacy')->name('privacy');
 Route::view('/terms', 'public.terms')->name('terms');
 Route::view('/refunds', 'public.refunds')->name('refunds');

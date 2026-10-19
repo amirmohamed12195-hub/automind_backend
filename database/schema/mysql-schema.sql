@@ -324,6 +324,14 @@ create table `apple_authorizations` (`id` char(26) not null, `user_id` char(26) 
 alter table `apple_authorizations` add constraint `apple_authorizations_user_id_foreign` foreign key (`user_id`) references `users` (`id`) on delete set null;
 alter table `apple_authorizations` add unique `apple_authorizations_user_id_client_id_unique`(`user_id`, `client_id`);
 alter table `apple_authorizations` add index `apple_authorizations_revocation_requested_at_index`(`revocation_requested_at`);
+create table `kashier_orders` (`id` char(26) not null, `user_id` char(26) null, `billing_plan_id` char(26) not null, `idempotency_key` char(36) not null, `plan_code` varchar(64) not null, `mode` varchar(8) not null, `amount_minor` int unsigned not null, `currency` char(3) not null default 'EGP', `status` varchar(32) not null default 'creating', `session_id` varchar(255) null, `checkout_url` text null, `expires_at` timestamp not null, `paid_at` timestamp null, `access_ends_at` timestamp null, `last_checked_at` timestamp null, `store_purchase_id` char(26) null, `created_at` timestamp null, `updated_at` timestamp null, primary key (`id`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `kashier_orders` add constraint `kashier_orders_user_id_foreign` foreign key (`user_id`) references `users` (`id`) on delete set null;
+alter table `kashier_orders` add constraint `kashier_orders_billing_plan_id_foreign` foreign key (`billing_plan_id`) references `billing_plans` (`id`) on delete restrict;
+alter table `kashier_orders` add constraint `kashier_orders_store_purchase_id_foreign` foreign key (`store_purchase_id`) references `store_purchases` (`id`) on delete set null;
+alter table `kashier_orders` add unique `kashier_orders_user_id_idempotency_key_unique`(`user_id`, `idempotency_key`);
+alter table `kashier_orders` add index `kashier_orders_status_index`(`status`);
+alter table `kashier_orders` add unique `kashier_orders_session_id_unique`(`session_id`);
+alter table `kashier_orders` add index `kashier_orders_last_checked_at_index`(`last_checked_at`);
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -344,4 +352,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_09_11_000100_creat
 insert into `migrations` (`migration`, `batch`) values ('2026_09_13_000100_raise_free_report_allowance_to_ten', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_09_14_000100_mark_unscanned_photos_ready', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_10_16_000001_create_apple_authorizations_table', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_10_19_200000_create_kashier_orders_table', 1);
 SET FOREIGN_KEY_CHECKS=1;

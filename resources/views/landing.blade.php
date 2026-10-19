@@ -21,6 +21,7 @@
             <a href="#features">Features</a>
             <a href="#safety">Why AutoMind</a>
             <a href="#download">Download</a>
+            @if (config('kashier.enabled'))<a href="{{ route('billing.index') }}">Plans</a>@endif
         </nav>
         <div class="header-actions">
             <a class="text-link" href="/admin">Admin portal</a>
@@ -34,6 +35,7 @@
             <a href="#features">Features</a>
             <a href="#safety">Why AutoMind</a>
             <a href="#download">Download</a>
+            @if (config('kashier.enabled'))<a href="{{ route('billing.index') }}">Plans</a>@endif
             <a href="/admin">Admin portal</a>
         </div>
     </header>
