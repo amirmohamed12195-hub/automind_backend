@@ -1,6 +1,6 @@
 # Twilio WhatsApp phone verification setup
 
-Registration and password login do not require OTP by default. Keep `AUTH_PHONE_VERIFICATION_REQUIRED=false` and `TWILIO_WHATSAPP_ENABLED=false` while phone verification is paused. The mobile signup form asks only for name, email, password, and legal consent. Older app versions may still send an optional phone; those registrations also receive a session immediately. Existing accounts with unverified phones can sign in with their password. Phone numbers remain unverified; bypassing the onboarding gate never marks them verified.
+Registration and password login do not require OTP by default. Keep `AUTH_PHONE_VERIFICATION_REQUIRED=false` and `TWILIO_WHATSAPP_ENABLED=false` while phone verification is paused. The mobile signup form asks only for name, email, password, and legal consent. Older app versions may still send an optional phone; those registrations also receive a session immediately. Existing accounts with unverified phones can sign in with their password. Requests to old OTP resend/verify endpoints return `409 OTP_DISABLED` with instructions to sign in; they do not send codes or issue sessions. Phone numbers remain unverified; bypassing the onboarding gate never marks them verified.
 
 To restore the optional-phone OTP flow later, first approve and test the production WhatsApp sender and template, then explicitly set both flags to `true`. A provider outage must not silently bypass verification when the requirement is enabled. Google and Apple sign-in do not request a phone number.
 

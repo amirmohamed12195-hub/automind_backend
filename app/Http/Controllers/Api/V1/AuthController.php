@@ -209,6 +209,10 @@ class AuthController
 
     public function resendOtp(Request $request, PhoneVerificationService $verification)
     {
+        if (! config('auth.phone_verification_required')) {
+            return ApiResponse::error('OTP_DISABLED', __('api.otp_disabled'), 409);
+        }
+
         $data = $request->validate(['verificationToken' => ['required', 'string', 'max:4096']]);
 
         return ApiResponse::success($verification->resend($data['verificationToken']));
@@ -216,6 +220,10 @@ class AuthController
 
     public function verifyOtp(Request $request, PhoneVerificationService $verification)
     {
+        if (! config('auth.phone_verification_required')) {
+            return ApiResponse::error('OTP_DISABLED', __('api.otp_disabled'), 409);
+        }
+
         $data = $request->validate([
             'verificationToken' => ['required', 'string', 'max:4096'],
             'code' => ['required', 'string', 'regex:/^\d{4,10}$/'],

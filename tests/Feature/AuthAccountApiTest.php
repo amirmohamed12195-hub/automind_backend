@@ -8,6 +8,7 @@ use App\Models\DiagnosticSession;
 use App\Models\SocialIdentity;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SocialIdentityVerifier;
 use Illuminate\Support\Facades\Hash;
 use Mockery;
@@ -96,6 +97,26 @@ class AuthAccountApiTest extends ApiTestCase
         $this->postJson('/api/v1/auth/login', $credentials)->assertForbidden()
             ->assertJsonPath('error.code', 'ACCOUNT_SUSPENDED');
         $this->assertDatabaseCount('personal_access_tokens', 1);
+    }
+
+    public function test_paused_otp_endpoints_reject_stale_challenges_without_sending_codes(): void
+    {
+        config(['auth.phone_verification_required' => true]);
+        $user = User::factory()->create(['phone' => '+201112223333', 'phone_verified_at' => null]);
+        $challenge = app(PhoneVerificationService::class)->begin($user, 'login');
+        config(['auth.phone_verification_required' => false]);
+        $provider = Mockery::mock(PhoneVerificationProvider::class);
+        $provider->shouldNotReceive('start');
+        $provider->shouldNotReceive('check');
+        $this->app->instance(PhoneVerificationProvider::class, $provider);
+
+        foreach (['resend', 'verify'] as $action) {
+            $this->postJson('/api/v1/auth/otp/'.$action, [
+                'verificationToken' => $challenge['verificationToken'], 'code' => '123456',
+            ])->assertStatus(409)->assertJsonPath('error.code', 'OTP_DISABLED');
+        }
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+        $this->assertNull($user->fresh()->phone_verified_at);
     }
 
     public function test_registration_without_a_phone_creates_a_session_immediately(): void

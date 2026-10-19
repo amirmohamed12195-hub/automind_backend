@@ -12,6 +12,7 @@ return [
     'social_invalid' => 'The social identity token is invalid.',
     'social_email_required' => 'A verified email is required the first time this social account signs in.',
     'legal_acceptance_required' => 'Accept the Terms of Use and Privacy Policy before creating an account.',
+    'otp_disabled' => 'Phone verification is no longer required. Go back and sign in with your email and password.',
     'otp_required' => 'Verify your phone number to continue.',
     'otp_invalid' => 'The verification code is invalid or expired.',
     'otp_challenge_expired' => 'This verification session expired. Sign in again to request a new code.',
