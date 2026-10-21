@@ -36,7 +36,7 @@ class VehicleResource extends JsonResource
             'id' => (string) $this->id, 'userId' => (string) $this->user_id, 'brand' => $this->brand, 'model' => $this->model,
             'displayBrand' => $catalogMake?->{"name_$locale"} ?: $this->brand, 'displayModel' => $catalogModel?->{"name_$locale"} ?: $this->model, 'displayLocale' => $locale,
             'year' => (int) $this->year, 'engine' => $this->engine, 'fuelType' => $this->fuel_type, 'transmission' => $this->transmission,
-            'mileage' => (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'brandLogoUrl' => $catalogMake?->logoUrl(),
+            'mileage' => $this->mileage_km === null ? null : (int) $this->mileage_km, 'vin' => $this->vin, 'imagePath' => $imageUrl, 'brandLogoUrl' => $catalogMake?->logoUrl(),
             'catalogImageUrl' => $catalogImage['url'], 'catalogImageType' => $catalogImage['type'],
             'catalogGenerationCode' => $catalogImage['generation']?->code, 'catalogImageAttribution' => $catalogImage['attribution'],
             'catalogMakeId' => $this->catalog_make_id ? (string) $this->catalog_make_id : null, 'catalogModelId' => $this->catalog_model_id ? (string) $this->catalog_model_id : null,

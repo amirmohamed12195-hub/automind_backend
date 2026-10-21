@@ -11,7 +11,7 @@ final class MaintenanceReminderResource
     {
         $due = $reminder->status === 'pending' && (
             ($reminder->due_date && $reminder->due_date->isPast())
-            || ($reminder->due_km !== null && $reminder->due_km <= $vehicle->mileage_km)
+            || ($vehicle->mileage_km !== null && $reminder->due_km !== null && $reminder->due_km <= $vehicle->mileage_km)
         );
         $locale = app()->getLocale();
 

@@ -332,6 +332,10 @@ alter table `kashier_orders` add unique `kashier_orders_user_id_idempotency_key_
 alter table `kashier_orders` add index `kashier_orders_status_index`(`status`);
 alter table `kashier_orders` add unique `kashier_orders_session_id_unique`(`session_id`);
 alter table `kashier_orders` add index `kashier_orders_last_checked_at_index`(`last_checked_at`);
+alter table `vehicles` modify `engine` varchar(120) null;
+alter table `vehicles` modify `fuel_type` varchar(64) null;
+alter table `vehicles` modify `transmission` varchar(64) null;
+alter table `vehicles` modify `mileage_km` bigint unsigned null;
 create table `migrations` (`id` int unsigned not null auto_increment primary key, `migration` varchar(255) not null, `batch` int not null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000000_create_users_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('0001_01_01_000001_create_cache_table', 1);
@@ -353,4 +357,5 @@ insert into `migrations` (`migration`, `batch`) values ('2026_09_13_000100_raise
 insert into `migrations` (`migration`, `batch`) values ('2026_09_14_000100_mark_unscanned_photos_ready', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_10_16_000001_create_apple_authorizations_table', 1);
 insert into `migrations` (`migration`, `batch`) values ('2026_10_19_200000_create_kashier_orders_table', 1);
+insert into `migrations` (`migration`, `batch`) values ('2026_10_22_000100_make_vehicle_details_optional', 1);
 SET FOREIGN_KEY_CHECKS=1;

@@ -50,6 +50,25 @@ configuration without making a paid request, applies migrations, refreshes
 the idempotent vehicle/symptom/maintenance reference catalog, rebuilds
 Laravel's caches, and restarts queue workers.
 
+### October 22 vehicle form release on Hostinger
+
+Deploy the optional vehicle details migration before shipping the matching
+mobile client. The update makes engine, fuel type, transmission, and mileage
+nullable without changing existing records. Unknown mileage remains null in
+responses and diagnostic evidence.
+
+When Git deployment cannot run Artisan, invoke the existing CLI-only helper:
+
+```bash
+php scripts/prepare-store-release.php
+```
+
+It applies this release's migrations, clears config/routes/views, restarts
+workers, and reports `vehicleDetailsOptional` and `vehicleMigrationApplied`.
+Both must be true. A temporary Hostinger cron may invoke it; remove that cron
+once its output confirms success. The locked, hash-marked helper is safe to
+invoke again and does not expose an HTTP maintenance endpoint.
+
 ### Missing named route after a Git deployment
 
 A Git update alone does not refresh Laravel's route cache. If `/api/v1/me`

@@ -83,7 +83,10 @@ class VehicleController
     {
         Gate::authorize('view', $vehicle);
         $due = $vehicle->reminders()->where('status', 'pending')->where(function ($q) use ($vehicle) {
-            $q->whereDate('due_date', '<=', today())->orWhere('due_km', '<=', $vehicle->mileage_km);
+            $q->whereDate('due_date', '<=', today());
+            if ($vehicle->mileage_km !== null) {
+                $q->orWhere('due_km', '<=', $vehicle->mileage_km);
+            }
         })->count();
 
         return ApiResponse::success(['vehicleId' => (string) $vehicle->id, 'healthScore' => (int) $vehicle->health_score, 'overdueMaintenanceCount' => $due, 'lastUpdatedAt' => $vehicle->updated_at?->utc()->toIso8601ZuluString()]);

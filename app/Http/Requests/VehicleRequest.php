@@ -17,10 +17,10 @@ class VehicleRequest extends FormRequest
 
         return [
             'brand' => [$required, 'string', 'max:120'], 'model' => [$required, 'string', 'max:120'],
-            'year' => [$required, 'integer', 'between:1886,'.((int) date('Y') + 1)], 'engine' => [$required, 'string', 'max:120'],
-            'fuelType' => [$required, 'string', 'in:Petrol,Diesel,Hybrid,Electric,LPG,Other'],
-            'transmission' => [$required, 'string', 'in:Manual,Automatic,CVT,DCT,Other'],
-            'mileage' => [$required, 'integer', 'between:0,5000000'], 'vin' => ['sometimes', 'nullable', 'regex:/^[A-HJ-NPR-Z0-9]{17}$/i'],
+            'year' => [$required, 'integer', 'between:1886,'.((int) date('Y') + 1)], 'engine' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'fuelType' => ['sometimes', 'nullable', 'string', 'in:Petrol,Diesel,Hybrid,Electric,LPG,Other'],
+            'transmission' => ['sometimes', 'nullable', 'string', 'in:Manual,Automatic,CVT,DCT,Other'],
+            'mileage' => ['sometimes', 'nullable', 'integer', 'between:0,5000000'], 'vin' => ['sometimes', 'nullable', 'regex:/^[A-HJ-NPR-Z0-9]{17}$/i'],
             'plateNumber' => ['sometimes', 'nullable', 'string', 'max:64'], 'nickname' => ['sometimes', 'nullable', 'string', 'max:120'],
             'catalogMakeId' => ['sometimes', 'nullable', 'ulid', 'exists:vehicle_makes,id'], 'catalogModelId' => ['sometimes', 'nullable', 'ulid', 'exists:vehicle_models,id'],
         ];

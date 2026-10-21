@@ -30,6 +30,34 @@ class VehicleApiTest extends ApiTestCase
         $this->deleteJson("/api/v1/vehicles/$id")->assertNoContent();
     }
 
+    public function test_vehicle_can_be_saved_without_optional_details_and_later_cleared(): void
+    {
+        $this->actingAsUser();
+        $created = $this->postJson('/api/v1/vehicles', [
+            'brand' => 'Toyota', 'model' => 'Corolla', 'year' => 2020,
+        ])->assertCreated();
+        $id = $created->json('data.id');
+        foreach (['engine', 'fuelType', 'transmission', 'mileage'] as $field) {
+            $created->assertJsonPath("data.$field", null);
+        }
+        $this->getJson("/api/v1/vehicles/$id/health")->assertOk();
+        $this->patchJson("/api/v1/vehicles/$id", ['mileage' => 0, 'engine' => '1.6L'])
+            ->assertOk()->assertJsonPath('data.mileage', 0);
+        $this->patchJson("/api/v1/vehicles/$id", ['mileage' => null, 'engine' => null])
+            ->assertOk()->assertJsonPath('data.mileage', null)->assertJsonPath('data.engine', null);
+        $this->assertDatabaseHas('vehicles', ['id' => $id, 'mileage_km' => null, 'engine' => null]);
+    }
+
+    public function test_optional_vehicle_details_are_still_validated_when_supplied(): void
+    {
+        $this->actingAsUser();
+        $this->postJson('/api/v1/vehicles', [
+            'brand' => 'Toyota', 'model' => 'Corolla', 'year' => 2020,
+            'mileage' => -1, 'fuelType' => 'invalid', 'transmission' => 'invalid',
+        ])->assertUnprocessable();
+        $this->postJson('/api/v1/vehicles', ['brand' => 'Toyota'])->assertUnprocessable();
+    }
+
     public function test_cross_user_vehicle_access_is_forbidden_and_vin_is_unique_per_user(): void
     {
         $owner = User::factory()->create();
